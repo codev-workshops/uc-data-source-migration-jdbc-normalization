@@ -14,6 +14,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @deprecated Runtime migration no longer needed. Modern seed data is loaded directly via data-modern.sql. Scheduled for removal in Phase 6.
+ */
+@Deprecated
 @Service
 public class DataMigrationService {
 
@@ -48,6 +52,12 @@ public class DataMigrationService {
 
     @Transactional
     public MigrationResult migrate() {
+        // Skip if modern tables already have data (idempotent for Phase 5 pre-seeded data)
+        if (borrowerRepository.count() > 0) {
+            logger.info("Modern tables already populated — skipping migration");
+            return new MigrationResult(0, 0, 0, 0);
+        }
+
         // Step 1 — Migrate Borrowers
         List<LegacyBorrower> legacyBorrowers = legacyBorrowerRepository.findAll();
         List<Borrower> modernBorrowers = new ArrayList<>();

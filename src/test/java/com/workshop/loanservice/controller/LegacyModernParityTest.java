@@ -3,10 +3,8 @@ package com.workshop.loanservice.controller;
 import com.workshop.loanservice.dto.BorrowerDto;
 import com.workshop.loanservice.dto.LoanSummaryDto;
 import com.workshop.loanservice.dto.PaymentDto;
-import com.workshop.loanservice.service.DataMigrationService;
 import com.workshop.loanservice.service.LoanService;
 import com.workshop.loanservice.service.ModernLoanService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,6 +17,10 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Parity test verifying legacy and modern services produce identical output.
+ * Both data sources are now pre-seeded (data-legacy.sql + data-modern.sql) — no runtime migration needed.
+ */
 @SpringBootTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 @Transactional
@@ -29,14 +31,6 @@ class LegacyModernParityTest {
 
     @Autowired
     private ModernLoanService modernLoanService;
-
-    @Autowired
-    private DataMigrationService dataMigrationService;
-
-    @BeforeEach
-    void setUp() {
-        dataMigrationService.migrate();
-    }
 
     @Test
     void testAllLoans_parity() {

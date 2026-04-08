@@ -6,6 +6,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * @deprecated Replaced by {@link ModernPaymentRepository}. Scheduled for removal in Phase 6.
+ */
+@Deprecated
 @Repository
 public interface LegacyPaymentRepository extends JpaRepository<LegacyPayment, String> {
 

@@ -3,7 +3,6 @@ package com.workshop.loanservice.service;
 import com.workshop.loanservice.dto.BorrowerDto;
 import com.workshop.loanservice.dto.LoanSummaryDto;
 import com.workshop.loanservice.dto.PaymentDto;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,23 +14,19 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Tests for ModernLoanService using pre-seeded modern data (data-modern.sql).
+ * Migration is no longer needed — modern tables are populated at startup.
+ */
 @SpringBootTest
 @Transactional
 class ModernLoanServiceTest {
-
-    @Autowired
-    private DataMigrationService dataMigrationService;
 
     @Autowired
     private ModernLoanService modernLoanService;
 
     @Autowired
     private LoanService loanService;
-
-    @BeforeEach
-    void setUp() {
-        dataMigrationService.migrate();
-    }
 
     // =========================================================================
     // Test 1: getAllLoans count matches

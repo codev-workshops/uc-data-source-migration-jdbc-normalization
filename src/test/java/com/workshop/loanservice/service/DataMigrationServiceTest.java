@@ -8,6 +8,7 @@ import com.workshop.loanservice.repository.BorrowerRepository;
 import com.workshop.loanservice.repository.ModernLoanAccountRepository;
 import com.workshop.loanservice.repository.ModernLoanProductRepository;
 import com.workshop.loanservice.repository.ModernPaymentRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -41,6 +42,18 @@ class DataMigrationServiceTest {
 
     @Autowired
     private LoanService loanService;
+
+    /**
+     * Clear pre-seeded modern data so DataMigrationService.migrate() can run
+     * from scratch (reading legacy tables → inserting into modern tables).
+     */
+    @BeforeEach
+    void clearModernTables() {
+        modernPaymentRepository.deleteAll();
+        modernLoanAccountRepository.deleteAll();
+        modernLoanProductRepository.deleteAll();
+        borrowerRepository.deleteAll();
+    }
 
     @Test
     void testMigrationCounts() {

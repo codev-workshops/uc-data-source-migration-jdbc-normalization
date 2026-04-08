@@ -6,6 +6,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * @deprecated Replaced by {@link BorrowerRepository}. Scheduled for removal in Phase 6.
+ */
+@Deprecated
 @Repository
 public interface LegacyBorrowerRepository extends JpaRepository<LegacyBorrower, String> {
 

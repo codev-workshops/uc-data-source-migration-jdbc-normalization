@@ -22,11 +22,9 @@ import java.util.stream.Collectors;
  * Service layer that reads from legacy tables and translates
  * cryptic legacy fields into clean DTOs.
  *
- * MIGRATION TASK: This service contains all the translation logic
- * between legacy string-typed fields and proper Java types.
- * When switching data sources, this layer needs to be updated
- * (or replaced) to read from the modern schema.
+ * @deprecated Legacy service replaced by {@link ModernLoanService}. Scheduled for removal in Phase 6.
  */
+@Deprecated
 @Service
 public class LoanService {
 

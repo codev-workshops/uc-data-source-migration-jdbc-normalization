@@ -7,7 +7,10 @@ import jakarta.persistence.Table;
 
 /**
  * Maps to the legacy CDW_LN_PROD table.
+ *
+ * @deprecated Replaced by {@link LoanProduct}. Scheduled for removal in Phase 6.
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_LN_PROD")
 public class LegacyLoanProduct {

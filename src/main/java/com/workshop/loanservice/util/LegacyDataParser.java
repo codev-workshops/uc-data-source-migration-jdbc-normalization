@@ -5,6 +5,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * @deprecated Legacy parsing utilities no longer needed. Modern schema uses proper types. Scheduled for removal in Phase 6.
+ */
+@Deprecated
 public class LegacyDataParser {
 
     private static final DateTimeFormatter LEGACY_DATE_FORMAT = DateTimeFormatter.ofPattern("MM/dd/yyyy");

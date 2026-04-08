@@ -8,6 +8,10 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+/**
+ * @deprecated Runtime migration no longer needed. Modern seed data is loaded directly via data-modern.sql. Scheduled for removal in Phase 6.
+ */
+@Deprecated
 @Component
 @ConditionalOnProperty(name = "app.use-modern-datasource", havingValue = "true")
 public class DataMigrationRunner implements CommandLineRunner {

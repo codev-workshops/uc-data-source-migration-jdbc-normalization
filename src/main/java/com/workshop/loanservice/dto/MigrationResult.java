@@ -1,5 +1,9 @@
 package com.workshop.loanservice.dto;
 
+/**
+ * @deprecated Used only by DataMigrationService which is no longer needed. Scheduled for removal in Phase 6.
+ */
+@Deprecated
 public class MigrationResult {
 
     private int borrowersMigrated;

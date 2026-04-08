@@ -6,6 +6,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * @deprecated Replaced by {@link ModernLoanAccountRepository}. Scheduled for removal in Phase 6.
+ */
+@Deprecated
 @Repository
 public interface LegacyLoanAccountRepository extends JpaRepository<LegacyLoanAccount, String> {
 
