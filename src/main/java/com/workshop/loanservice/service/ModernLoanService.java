@@ -113,7 +113,7 @@ public class ModernLoanService {
         dto.setOriginationDate(formatDate(account.getOriginationDate()));
         dto.setPropertyAddress(account.getPropertyAddress() + ", " + account.getPropertyCity()
                 + ", " + account.getPropertyState() + " " + account.getPropertyZip());
-        dto.setPropertyType(account.getPropertyType());
+        dto.setPropertyType(account.getPropertyType() != null ? account.getPropertyType() : "Unknown");
         return dto;
     }
 
