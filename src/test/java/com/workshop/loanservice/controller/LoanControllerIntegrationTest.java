@@ -16,18 +16,18 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(
-    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = "app.use-modern-datasource=true"
-)
+/**
+ * Integration tests for loan service REST endpoints.
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
-class LoanControllerModernModeTest {
+class LoanControllerIntegrationTest {
 
     @Autowired
     private TestRestTemplate restTemplate;
 
     @Test
-    void testGetAllLoans_modernMode() {
+    void testGetAllLoans() {
         ResponseEntity<LoanSummaryDto[]> response = restTemplate.getForEntity("/api/loans", LoanSummaryDto[].class);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
@@ -45,7 +45,7 @@ class LoanControllerModernModeTest {
     }
 
     @Test
-    void testGetLoanById_modernMode() {
+    void testGetLoanById() {
         ResponseEntity<LoanSummaryDto> response = restTemplate.getForEntity("/api/loans/LN-2020-00398", LoanSummaryDto.class);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
@@ -56,13 +56,13 @@ class LoanControllerModernModeTest {
     }
 
     @Test
-    void testGetLoanById_notFound_modernMode() {
+    void testGetLoanById_notFound() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/loans/NONEXISTENT", String.class);
         assertEquals(500, response.getStatusCode().value());
     }
 
     @Test
-    void testGetPayments_modernMode() {
+    void testGetPayments() {
         ResponseEntity<PaymentDto[]> response = restTemplate.getForEntity("/api/loans/LN-2019-00142/payments", PaymentDto[].class);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
@@ -77,7 +77,7 @@ class LoanControllerModernModeTest {
     }
 
     @Test
-    void testGetPayments_withLateFee_modernMode() {
+    void testGetPayments_withLateFee() {
         ResponseEntity<PaymentDto[]> response = restTemplate.getForEntity("/api/loans/LN-2018-00089/payments", PaymentDto[].class);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
@@ -91,7 +91,7 @@ class LoanControllerModernModeTest {
     }
 
     @Test
-    void testGetAllBorrowers_modernMode() {
+    void testGetAllBorrowers() {
         ResponseEntity<BorrowerDto[]> response = restTemplate.getForEntity("/api/borrowers", BorrowerDto[].class);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
@@ -107,7 +107,7 @@ class LoanControllerModernModeTest {
     }
 
     @Test
-    void testGetBorrowerById_modernMode() {
+    void testGetBorrowerById() {
         ResponseEntity<BorrowerDto> response = restTemplate.getForEntity("/api/borrowers/B-10001", BorrowerDto.class);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
@@ -120,7 +120,7 @@ class LoanControllerModernModeTest {
     }
 
     @Test
-    void testGetBorrowerById_nullMiddleInitial_modernMode() {
+    void testGetBorrowerById_nullMiddleInitial() {
         ResponseEntity<BorrowerDto> response = restTemplate.getForEntity("/api/borrowers/B-10005", BorrowerDto.class);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
@@ -128,7 +128,7 @@ class LoanControllerModernModeTest {
     }
 
     @Test
-    void testGetBorrowerById_notFound_modernMode() {
+    void testGetBorrowerById_notFound() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/borrowers/NONEXISTENT", String.class);
         assertEquals(500, response.getStatusCode().value());
     }

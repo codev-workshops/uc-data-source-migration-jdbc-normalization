@@ -1,3 +1,5 @@
+> **Status: COMPLETED** — All migration tasks have been completed. See `MIGRATION_NOTES.md` for the full migration record.
+
 # Data Source Migration Tasks
 
 This document describes the workshop tasks for migrating the loan-service application from its legacy data source to the modern schema.

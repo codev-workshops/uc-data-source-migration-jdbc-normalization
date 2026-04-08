@@ -1,3 +1,5 @@
+> **Note:** This migration has been completed. The application now runs entirely on the modern schema. This document is retained as a historical reference.
+
 # Legacy to Modern Column Mappings
 
 ## CDW_BORR_MSTR → borrowers

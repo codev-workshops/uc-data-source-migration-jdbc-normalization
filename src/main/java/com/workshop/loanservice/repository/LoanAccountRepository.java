@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ModernLoanAccountRepository extends JpaRepository<LoanAccount, Long> {
+public interface LoanAccountRepository extends JpaRepository<LoanAccount, Long> {
     Optional<LoanAccount> findByAccountNumber(String accountNumber);
     List<LoanAccount> findByBorrowerId(Long borrowerId);
     List<LoanAccount> findByStatus(String status);
