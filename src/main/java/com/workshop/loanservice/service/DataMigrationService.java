@@ -237,6 +237,7 @@ public class DataMigrationService {
                 }
 
                 Payment modern = new Payment();
+                modern.setExternalId(legacy.getPaymentSequenceNumber());
                 modern.setLoanAccount(loanAccount);
                 modern.setPaymentDate(parseLegacyDate(legacy.getPaymentDate()));
                 modern.setTotalAmount(parseLegacyAmount(legacy.getTotalAmount()));

@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS loan_accounts (
 
 CREATE TABLE IF NOT EXISTS payments (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
+    external_id         VARCHAR(20) UNIQUE,
     loan_account_id     BIGINT NOT NULL,
     payment_date        DATE NOT NULL,
     total_amount        DECIMAL(10, 2) NOT NULL,

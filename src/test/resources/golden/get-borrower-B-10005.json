@@ -1,0 +1,25 @@
+{
+    "id": "B-10005",
+    "fullName": "Robert Williams",
+    "email": "r.williams@email.com",
+    "phone": "602-555-0156",
+    "city": "Phoenix",
+    "state": "AZ",
+    "creditScore": 658,
+    "employmentStatus": "RETIRED",
+    "loans": [
+        {
+            "loanAccountNumber": "LN-2017-00034",
+            "borrowerName": "Robert Williams",
+            "productDescription": "FHA 30-Year Fixed",
+            "originalAmount": 165000,
+            "currentBalance": 142567.9,
+            "interestRate": 4.25,
+            "monthlyPayment": 811.61,
+            "status": "Active",
+            "originationDate": "03/01/2017",
+            "propertyAddress": "2200 Cedar Lane, Phoenix, AZ 85001",
+            "propertyType": "Single Family Residence"
+        }
+    ]
+}
