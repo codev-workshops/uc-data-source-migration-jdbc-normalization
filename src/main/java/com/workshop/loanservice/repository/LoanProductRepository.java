@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface ModernLoanProductRepository extends JpaRepository<LoanProduct, Long> {
+public interface LoanProductRepository extends JpaRepository<LoanProduct, Long> {
     Optional<LoanProduct> findByCode(String code);
 }

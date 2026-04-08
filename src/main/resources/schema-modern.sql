@@ -1,4 +1,4 @@
-CREATE TABLE borrowers (
+CREATE TABLE IF NOT EXISTS borrowers (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
     external_id     VARCHAR(20) UNIQUE NOT NULL,
     first_name      VARCHAR(50) NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE borrowers (
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE loan_products (
+CREATE TABLE IF NOT EXISTS loan_products (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
     code            VARCHAR(10) UNIQUE NOT NULL,
     name            VARCHAR(200) NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE loan_products (
     expiration_date DATE
 );
 
-CREATE TABLE loan_accounts (
+CREATE TABLE IF NOT EXISTS loan_accounts (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
     account_number      VARCHAR(20) UNIQUE NOT NULL,
     borrower_id         BIGINT NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE loan_accounts (
     FOREIGN KEY (product_id) REFERENCES loan_products(id)
 );
 
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
     loan_account_id     BIGINT NOT NULL,
     payment_date        DATE NOT NULL,
@@ -83,9 +83,9 @@ CREATE TABLE payments (
     FOREIGN KEY (loan_account_id) REFERENCES loan_accounts(id)
 );
 
-CREATE INDEX idx_borrowers_email ON borrowers(email);
-CREATE INDEX idx_borrowers_status ON borrowers(status);
-CREATE INDEX idx_loan_accounts_borrower ON loan_accounts(borrower_id);
-CREATE INDEX idx_loan_accounts_status ON loan_accounts(status);
-CREATE INDEX idx_payments_loan ON payments(loan_account_id);
-CREATE INDEX idx_payments_date ON payments(payment_date);
+CREATE INDEX IF NOT EXISTS idx_borrowers_email ON borrowers(email);
+CREATE INDEX IF NOT EXISTS idx_borrowers_status ON borrowers(status);
+CREATE INDEX IF NOT EXISTS idx_loan_accounts_borrower ON loan_accounts(borrower_id);
+CREATE INDEX IF NOT EXISTS idx_loan_accounts_status ON loan_accounts(status);
+CREATE INDEX IF NOT EXISTS idx_payments_loan ON payments(loan_account_id);
+CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date);

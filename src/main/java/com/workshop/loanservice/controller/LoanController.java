@@ -2,7 +2,7 @@ package com.workshop.loanservice.controller;
 
 import com.workshop.loanservice.dto.LoanSummaryDto;
 import com.workshop.loanservice.dto.PaymentDto;
-import com.workshop.loanservice.service.ModernLoanService;
+import com.workshop.loanservice.service.LoanService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,24 +14,24 @@ import java.util.List;
 @RequestMapping("/api/loans")
 public class LoanController {
 
-    private final ModernLoanService modernLoanService;
+    private final LoanService loanService;
 
-    public LoanController(ModernLoanService modernLoanService) {
-        this.modernLoanService = modernLoanService;
+    public LoanController(LoanService loanService) {
+        this.loanService = loanService;
     }
 
     @GetMapping
     public List<LoanSummaryDto> getAllLoans() {
-        return modernLoanService.getAllLoans();
+        return loanService.getAllLoans();
     }
 
     @GetMapping("/{id}")
     public LoanSummaryDto getLoan(@PathVariable String id) {
-        return modernLoanService.getLoanById(id);
+        return loanService.getLoanById(id);
     }
 
     @GetMapping("/{loanId}/payments")
     public List<PaymentDto> getPayments(@PathVariable String loanId) {
-        return modernLoanService.getPaymentsByLoan(loanId);
+        return loanService.getPaymentsByLoan(loanId);
     }
 }
