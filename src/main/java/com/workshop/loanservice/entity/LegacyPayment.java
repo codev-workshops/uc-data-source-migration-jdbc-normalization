@@ -7,7 +7,12 @@ import jakarta.persistence.Table;
 
 /**
  * Maps to the legacy CDW_PMT_HIST table.
+ *
+ * @deprecated Superseded by {@link Payment}. Retained for the
+ *             {@link com.workshop.loanservice.service.DataMigrationService}
+ *             which reads legacy data on startup.
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_PMT_HIST")
 public class LegacyPayment {

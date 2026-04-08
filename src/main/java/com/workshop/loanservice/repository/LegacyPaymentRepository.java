@@ -6,6 +6,11 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * @deprecated Superseded by {@link PaymentRepository}. Retained for the
+ *             {@link com.workshop.loanservice.service.DataMigrationService}.
+ */
+@Deprecated
 @Repository
 public interface LegacyPaymentRepository extends JpaRepository<LegacyPayment, String> {
 
