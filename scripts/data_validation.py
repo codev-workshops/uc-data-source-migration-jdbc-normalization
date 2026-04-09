@@ -35,7 +35,7 @@ import random
 import sys
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -425,7 +425,7 @@ class ValidationEngine:
         self._session: aioboto3.Session | None = None
         self._read_semaphore = asyncio.Semaphore(config.max_concurrent_reads)
         self.report: dict[str, Any] = {
-            "validation_timestamp": datetime.utcnow().isoformat() + "Z",
+            "validation_timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "config": {
                 "sample_pct": config.sample_pct,
                 "sample_count": config.sample_count,
