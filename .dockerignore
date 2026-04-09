@@ -1,0 +1,10 @@
+target/
+.git/
+.gitignore
+.classpath
+.project
+.settings/
+*.md
+LICENSE
+docs/
+data/

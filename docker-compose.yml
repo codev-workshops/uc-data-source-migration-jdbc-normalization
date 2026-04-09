@@ -1,0 +1,13 @@
+services:
+  loan-service:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_H2_CONSOLE_SETTINGS_WEB-ALLOW-OTHERS=true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/loans || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
