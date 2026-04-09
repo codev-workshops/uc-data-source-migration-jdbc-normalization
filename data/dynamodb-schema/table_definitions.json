@@ -1,0 +1,124 @@
+{
+  "Tables": [
+    {
+      "TableName": "Borrowers",
+      "KeySchema": [
+        { "AttributeName": "borrower_id", "KeyType": "HASH" }
+      ],
+      "AttributeDefinitions": [
+        { "AttributeName": "borrower_id", "AttributeType": "S" },
+        { "AttributeName": "status", "AttributeType": "S" },
+        { "AttributeName": "email", "AttributeType": "S" },
+        { "AttributeName": "last_name", "AttributeType": "S" }
+      ],
+      "GlobalSecondaryIndexes": [
+        {
+          "IndexName": "StatusIndex",
+          "KeySchema": [
+            { "AttributeName": "status", "KeyType": "HASH" },
+            { "AttributeName": "borrower_id", "KeyType": "RANGE" }
+          ],
+          "Projection": { "ProjectionType": "ALL" }
+        },
+        {
+          "IndexName": "EmailIndex",
+          "KeySchema": [
+            { "AttributeName": "email", "KeyType": "HASH" }
+          ],
+          "Projection": { "ProjectionType": "ALL" }
+        },
+        {
+          "IndexName": "LastNameIndex",
+          "KeySchema": [
+            { "AttributeName": "last_name", "KeyType": "HASH" },
+            { "AttributeName": "borrower_id", "KeyType": "RANGE" }
+          ],
+          "Projection": { "ProjectionType": "ALL" }
+        }
+      ],
+      "BillingMode": "PAY_PER_REQUEST"
+    },
+    {
+      "TableName": "LoanProducts",
+      "KeySchema": [
+        { "AttributeName": "product_code", "KeyType": "HASH" }
+      ],
+      "AttributeDefinitions": [
+        { "AttributeName": "product_code", "AttributeType": "S" }
+      ],
+      "BillingMode": "PAY_PER_REQUEST"
+    },
+    {
+      "TableName": "LoanAccounts",
+      "KeySchema": [
+        { "AttributeName": "account_number", "KeyType": "HASH" }
+      ],
+      "AttributeDefinitions": [
+        { "AttributeName": "account_number", "AttributeType": "S" },
+        { "AttributeName": "borrower_id", "AttributeType": "S" },
+        { "AttributeName": "origination_date", "AttributeType": "S" },
+        { "AttributeName": "status", "AttributeType": "S" },
+        { "AttributeName": "product_code", "AttributeType": "S" }
+      ],
+      "GlobalSecondaryIndexes": [
+        {
+          "IndexName": "BorrowerIndex",
+          "KeySchema": [
+            { "AttributeName": "borrower_id", "KeyType": "HASH" },
+            { "AttributeName": "origination_date", "KeyType": "RANGE" }
+          ],
+          "Projection": { "ProjectionType": "ALL" }
+        },
+        {
+          "IndexName": "StatusIndex",
+          "KeySchema": [
+            { "AttributeName": "status", "KeyType": "HASH" },
+            { "AttributeName": "account_number", "KeyType": "RANGE" }
+          ],
+          "Projection": { "ProjectionType": "ALL" }
+        },
+        {
+          "IndexName": "ProductIndex",
+          "KeySchema": [
+            { "AttributeName": "product_code", "KeyType": "HASH" },
+            { "AttributeName": "account_number", "KeyType": "RANGE" }
+          ],
+          "Projection": { "ProjectionType": "ALL" }
+        }
+      ],
+      "BillingMode": "PAY_PER_REQUEST"
+    },
+    {
+      "TableName": "Payments",
+      "KeySchema": [
+        { "AttributeName": "loan_account_id", "KeyType": "HASH" },
+        { "AttributeName": "payment_sort_key", "KeyType": "RANGE" }
+      ],
+      "AttributeDefinitions": [
+        { "AttributeName": "loan_account_id", "AttributeType": "S" },
+        { "AttributeName": "payment_sort_key", "AttributeType": "S" },
+        { "AttributeName": "payment_id", "AttributeType": "S" },
+        { "AttributeName": "payment_date", "AttributeType": "S" },
+        { "AttributeName": "status", "AttributeType": "S" }
+      ],
+      "GlobalSecondaryIndexes": [
+        {
+          "IndexName": "PaymentIdIndex",
+          "KeySchema": [
+            { "AttributeName": "payment_id", "KeyType": "HASH" }
+          ],
+          "Projection": { "ProjectionType": "ALL" }
+        },
+        {
+          "IndexName": "StatusIndex",
+          "KeySchema": [
+            { "AttributeName": "status", "KeyType": "HASH" },
+            { "AttributeName": "payment_date", "KeyType": "RANGE" }
+          ],
+          "Projection": { "ProjectionType": "ALL" }
+        }
+      ],
+      "BillingMode": "PAY_PER_REQUEST"
+    }
+  ]
+}
