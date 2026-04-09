@@ -152,7 +152,4 @@ public class DynamoDbTableInitializer {
         return builder.build();
     }
 
-    private static List<KeySchemaElement> keySchema(String hashKey) {
-        return List.of(key(hashKey, KeyType.HASH));
-    }
 }
