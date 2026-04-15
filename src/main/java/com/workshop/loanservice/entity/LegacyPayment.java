@@ -8,6 +8,7 @@ import jakarta.persistence.Table;
 /**
  * Maps to the legacy CDW_PMT_HIST table.
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_PMT_HIST")
 public class LegacyPayment {
