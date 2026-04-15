@@ -324,16 +324,14 @@ public class DataMigrationService {
     }
 
     private String expandLoanStatus(String code) {
-    private String expandLoanStatus(String code) {
-        if (code == null) return "ACTIVE";
+        if (code == null) return "Active";
         return switch (code) {
-            case "ACT" -> "ACTIVE";
-            case "CLO" -> "CLOSED";
-            case "DFT" -> "DEFAULT";
-            case "FRB" -> "FORBEARANCE";
+            case "ACT" -> "Active";
+            case "CLO" -> "Closed";
+            case "DFT" -> "Default";
+            case "FRB" -> "Forbearance";
             default -> code;
         };
-    }
     }
 
     private Boolean expandProductStatus(String code) {
