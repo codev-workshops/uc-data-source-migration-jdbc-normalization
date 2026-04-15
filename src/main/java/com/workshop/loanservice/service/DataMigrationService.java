@@ -324,12 +324,12 @@ public class DataMigrationService {
     }
 
     private String expandLoanStatus(String code) {
-        if (code == null) return "ACTIVE";
+        if (code == null) return "Active";
         return switch (code) {
-            case "ACT" -> "ACTIVE";
-            case "CLO" -> "CLOSED";
-            case "DFT" -> "DEFAULT";
-            case "FRB" -> "FORBEARANCE";
+            case "ACT" -> "Active";
+            case "CLO" -> "Closed";
+            case "DFT" -> "Default";
+            case "FRB" -> "Forbearance";
             default -> code;
         };
     }
@@ -346,9 +346,9 @@ public class DataMigrationService {
     private String expandPropertyType(String code) {
         if (code == null) return null;
         return switch (code) {
-            case "SFR" -> "Single Family";
+            case "SFR" -> "Single Family Residence";
             case "CND" -> "Condominium";
-            case "MFR" -> "Multi-Family";
+            case "MFR" -> "Multi-Family Residence";
             case "TWN" -> "Townhouse";
             default -> code;
         };
@@ -357,10 +357,10 @@ public class DataMigrationService {
     private String expandPaymentType(String code) {
         if (code == null) return null;
         return switch (code) {
-            case "REG" -> "REGULAR";
-            case "EXT" -> "EXTRA";
-            case "PRT" -> "PARTIAL";
-            case "PRE" -> "PREPAYMENT";
+            case "REG" -> "Regular";
+            case "EXT" -> "Extra";
+            case "PRT" -> "Partial";
+            case "PRE" -> "Prepayment";
             default -> code;
         };
     }
@@ -368,10 +368,10 @@ public class DataMigrationService {
     private String expandPaymentStatus(String code) {
         if (code == null) return null;
         return switch (code) {
-            case "PST" -> "POSTED";
-            case "REV" -> "REVERSED";
-            case "NSF" -> "NSF";
-            case "PND" -> "PENDING";
+            case "PST" -> "Posted";
+            case "REV" -> "Reversed";
+            case "NSF" -> "Non-Sufficient Funds";
+            case "PND" -> "Pending";
             default -> code;
         };
     }
