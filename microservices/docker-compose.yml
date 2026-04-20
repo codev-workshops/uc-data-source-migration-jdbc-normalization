@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+
+  borrower-service:
+    build:
+      context: ./borrower-service
+      dockerfile: Dockerfile
+    container_name: borrower-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_APPLICATION_NAME=borrower-service
+      - SERVER_PORT=8081
+      - SERVICES_LOAN_SERVICE_URL=http://loan-service:8082
+    networks:
+      - loan-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  loan-service:
+    build:
+      context: ./loan-service
+      dockerfile: Dockerfile
+    container_name: loan-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_APPLICATION_NAME=loan-service-ms
+      - SERVER_PORT=8082
+      - SERVICES_PAYMENT_SERVICE_URL=http://payment-service:8083
+      - SERVICES_BORROWER_SERVICE_URL=http://borrower-service:8081
+    depends_on:
+      payment-service:
+        condition: service_healthy
+    networks:
+      - loan-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_APPLICATION_NAME=payment-service
+      - SERVER_PORT=8083
+    networks:
+      - loan-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8083/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_APPLICATION_NAME=api-gateway
+      - SERVER_PORT=8080
+      - SERVICES_BORROWER_SERVICE_URL=http://borrower-service:8081
+      - SERVICES_LOAN_SERVICE_URL=http://loan-service:8082
+      - SERVICES_PAYMENT_SERVICE_URL=http://payment-service:8083
+    depends_on:
+      borrower-service:
+        condition: service_healthy
+      loan-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+    networks:
+      - loan-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+networks:
+  loan-network:
+    driver: bridge

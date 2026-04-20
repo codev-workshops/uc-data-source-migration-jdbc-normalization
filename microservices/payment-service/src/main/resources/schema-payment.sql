@@ -1,0 +1,17 @@
+-- Payment History table for payment-service
+CREATE TABLE CDW_PMT_HIST (
+    PMT_SEQ_NBR     VARCHAR(20) PRIMARY KEY,
+    LN_ACCT_NBR     VARCHAR(20),
+    PMT_DT          VARCHAR(10),
+    PMT_AMT         VARCHAR(15),
+    PMT_PRIN_AMT    VARCHAR(15),
+    PMT_INT_AMT     VARCHAR(15),
+    PMT_ESCROW_AMT  VARCHAR(15),
+    PMT_LATE_FEE    VARCHAR(15),
+    PMT_TYP_CD      VARCHAR(5),
+    PMT_STAT_CD     VARCHAR(5),
+    PMT_RECV_DT     VARCHAR(10),
+    PMT_PROC_DT     VARCHAR(10),
+    PMT_CRET_DT     VARCHAR(10),
+    PMT_UPDT_DT     VARCHAR(10)
+);

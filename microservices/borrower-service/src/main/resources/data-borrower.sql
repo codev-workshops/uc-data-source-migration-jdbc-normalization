@@ -1,0 +1,6 @@
+-- Borrower seed data
+INSERT INTO CDW_BORR_MSTR VALUES ('B-10001', 'James', 'Mitchell', 'R', 'ENC_XXX_001', '03/15/1978', '742 Elm Street', 'Apt 3B', 'Springfield', 'IL', '62701', '217-555-0142', 'j.mitchell@email.com', '745', 'EMPLOYED', '92,500', '01/15/2019', '11/03/2025', 'ACT', 'PRI');
+INSERT INTO CDW_BORR_MSTR VALUES ('B-10002', 'Sarah', 'Chen', 'L', 'ENC_XXX_002', '07/22/1985', '1100 Oak Avenue', NULL, 'Portland', 'OR', '97201', '503-555-0198', 's.chen@email.com', '780', 'EMPLOYED', '125,000', '03/20/2020', '09/15/2025', 'ACT', 'PRI');
+INSERT INTO CDW_BORR_MSTR VALUES ('B-10003', 'Michael', 'Torres', 'A', 'ENC_XXX_003', '11/08/1972', '305 Pine Road', NULL, 'Austin', 'TX', '78701', '512-555-0167', 'm.torres@email.com', '692', 'SELF-EMP', '78,000', '06/10/2018', '08/20/2025', 'ACT', 'PRI');
+INSERT INTO CDW_BORR_MSTR VALUES ('B-10004', 'Emily', 'Johnson', 'M', 'ENC_XXX_004', '02/28/1990', '89 Maple Drive', 'Suite 12', 'Denver', 'CO', '80202', '303-555-0134', 'e.johnson@email.com', '810', 'EMPLOYED', '145,000', '09/01/2021', '10/10/2025', 'ACT', 'PRI');
+INSERT INTO CDW_BORR_MSTR VALUES ('B-10005', 'Robert', 'Williams', NULL, 'ENC_XXX_005', '06/14/1968', '2200 Cedar Lane', NULL, 'Phoenix', 'AZ', '85001', '602-555-0156', 'r.williams@email.com', '658', 'RETIRED', '65,000', '02/14/2017', '07/30/2025', 'ACT', 'PRI');
