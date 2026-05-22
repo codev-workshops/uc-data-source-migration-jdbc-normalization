@@ -6,6 +6,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/** @deprecated Use {@link LoanAccountRepository} instead. */
+@Deprecated
 @Repository
 public interface LegacyLoanAccountRepository extends JpaRepository<LegacyLoanAccount, String> {
 

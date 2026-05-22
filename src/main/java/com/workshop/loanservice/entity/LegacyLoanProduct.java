@@ -7,7 +7,9 @@ import jakarta.persistence.Table;
 
 /**
  * Maps to the legacy CDW_LN_PROD table.
+ * @deprecated Use {@link LoanProduct} with the modern normalized schema instead.
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_LN_PROD")
 public class LegacyLoanProduct {
