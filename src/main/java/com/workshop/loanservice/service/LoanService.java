@@ -13,17 +13,22 @@ import com.workshop.loanservice.repository.PaymentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
  * Service layer backed by the modern normalized schema.
- * Modern entities already carry proper Java types, so the legacy
- * string-to-type parsing and code-expansion logic is no longer needed here.
+ * Modern entities carry proper Java types; this layer maps the canonical
+ * stored values back to the original API presentation format (title-case
+ * status/type labels and MM/dd/yyyy dates) so responses are unchanged.
  */
 @Service
 @Transactional(readOnly = true)
 public class LoanService {
+
+    private static final DateTimeFormatter API_DATE_FMT = DateTimeFormatter.ofPattern("MM/dd/yyyy");
 
     private final BorrowerRepository borrowerRepository;
     private final LoanAccountRepository loanAccountRepository;
@@ -93,8 +98,8 @@ public class LoanService {
         dto.setCurrentBalance(acct.getCurrentBalance());
         dto.setInterestRate(acct.getInterestRate());
         dto.setMonthlyPayment(acct.getMonthlyPayment());
-        dto.setStatus(acct.getStatus());
-        dto.setOriginationDate(acct.getOriginationDate().toString());
+        dto.setStatus(displayLoanStatus(acct.getStatus()));
+        dto.setOriginationDate(formatDate(acct.getOriginationDate()));
         dto.setPropertyAddress(acct.getPropertyAddress() + ", " + acct.getPropertyCity()
                 + ", " + acct.getPropertyState() + " " + acct.getPropertyZip());
         dto.setPropertyType(acct.getPropertyType());
@@ -117,16 +122,57 @@ public class LoanService {
 
     private PaymentDto toPaymentDto(Payment pmt) {
         PaymentDto dto = new PaymentDto();
-        dto.setPaymentId(String.valueOf(pmt.getId()));
+        dto.setPaymentId(pmt.getExternalId());
         dto.setLoanAccountNumber(pmt.getLoanAccount().getAccountNumber());
-        dto.setPaymentDate(pmt.getPaymentDate().toString());
+        dto.setPaymentDate(formatDate(pmt.getPaymentDate()));
         dto.setTotalAmount(pmt.getTotalAmount());
         dto.setPrincipalAmount(pmt.getPrincipalAmount());
         dto.setInterestAmount(pmt.getInterestAmount());
         dto.setEscrowAmount(pmt.getEscrowAmount());
         dto.setLateFee(pmt.getLateFee());
-        dto.setType(pmt.getType());
-        dto.setStatus(pmt.getStatus());
+        dto.setType(displayPaymentType(pmt.getType()));
+        dto.setStatus(displayPaymentStatus(pmt.getStatus()));
         return dto;
+    }
+
+    // =========================================================================
+    // Presentation mapping: canonical stored values -> original API labels
+    // =========================================================================
+
+    private String formatDate(LocalDate date) {
+        return date == null ? null : date.format(API_DATE_FMT);
+    }
+
+    private String displayLoanStatus(String status) {
+        if (status == null) return "Unknown";
+        return switch (status) {
+            case "ACTIVE" -> "Active";
+            case "CLOSED" -> "Closed";
+            case "DEFAULT" -> "Default";
+            case "FORBEARANCE" -> "Forbearance";
+            default -> status;
+        };
+    }
+
+    private String displayPaymentType(String type) {
+        if (type == null) return "Unknown";
+        return switch (type) {
+            case "REGULAR" -> "Regular";
+            case "EXTRA" -> "Extra";
+            case "PARTIAL" -> "Partial";
+            case "PREPAYMENT" -> "Prepayment";
+            default -> type;
+        };
+    }
+
+    private String displayPaymentStatus(String status) {
+        if (status == null) return "Unknown";
+        return switch (status) {
+            case "POSTED" -> "Posted";
+            case "REVERSED" -> "Reversed";
+            case "NSF" -> "Non-Sufficient Funds";
+            case "PENDING" -> "Pending";
+            default -> status;
+        };
     }
 }

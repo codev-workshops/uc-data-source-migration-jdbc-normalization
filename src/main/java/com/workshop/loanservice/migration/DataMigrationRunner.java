@@ -162,6 +162,7 @@ public class DataMigrationRunner implements CommandLineRunner {
     private void migratePayments(Map<String, LoanAccount> loanMap) {
         for (LegacyPayment legacy : legacyPaymentRepo.findAll()) {
             Payment p = new Payment();
+            p.setExternalId(legacy.getPaymentSequenceNumber());
             p.setLoanAccount(loanMap.get(legacy.getLoanAccountNumber()));
             p.setPaymentDate(parseLegacyDate(legacy.getPaymentDate()));
             p.setTotalAmount(parseLegacyAmount(legacy.getTotalAmount()));
