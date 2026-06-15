@@ -1,6 +1,7 @@
 package com.workshop.loanservice.controller;
 
 import com.workshop.loanservice.dto.LoanSummaryDto;
+import com.workshop.loanservice.dto.PaymentDto;
 import com.workshop.loanservice.service.LoanService;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -22,5 +23,10 @@ public class LoanController {
     @GetMapping("/{id}")
     public LoanSummaryDto getLoan(@PathVariable String id) {
         return loanService.getLoanById(id);
+    }
+
+    @GetMapping("/{loanId}/payments")
+    public List<PaymentDto> getPayments(@PathVariable String loanId) {
+        return loanService.getPaymentsByLoan(loanId);
     }
 }
