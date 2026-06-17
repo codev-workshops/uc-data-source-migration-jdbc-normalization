@@ -1,7 +1,7 @@
 package com.workshop.loanservice.controller;
 
 import com.workshop.loanservice.dto.BorrowerDto;
-import com.workshop.loanservice.service.LoanService;
+import com.workshop.loanservice.service.LoanServiceInterface;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,9 +13,9 @@ import java.util.List;
 @RequestMapping("/api/borrowers")
 public class BorrowerController {
 
-    private final LoanService loanService;
+    private final LoanServiceInterface loanService;
 
-    public BorrowerController(LoanService loanService) {
+    public BorrowerController(LoanServiceInterface loanService) {
         this.loanService = loanService;
     }
 

@@ -11,6 +11,7 @@ import com.workshop.loanservice.repository.LegacyBorrowerRepository;
 import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import com.workshop.loanservice.repository.LegacyLoanProductRepository;
 import com.workshop.loanservice.repository.LegacyPaymentRepository;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -18,33 +19,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Service layer that reads from legacy tables and translates
- * cryptic legacy fields into clean DTOs.
- *
- * MIGRATION TASK: This service contains all the translation logic
- * between legacy string-typed fields and proper Java types.
- * When switching data sources, this layer needs to be updated
- * (or replaced) to read from the modern schema.
- */
 @Service
-public class LoanService {
+@ConditionalOnProperty(name = "app.service.mode", havingValue = "legacy", matchIfMissing = true)
+public class LegacyLoanServiceImpl implements LoanServiceInterface {
 
     private final LegacyBorrowerRepository borrowerRepository;
     private final LegacyLoanAccountRepository loanAccountRepository;
     private final LegacyLoanProductRepository loanProductRepository;
     private final LegacyPaymentRepository paymentRepository;
 
-    public LoanService(LegacyBorrowerRepository borrowerRepository,
-                       LegacyLoanAccountRepository loanAccountRepository,
-                       LegacyLoanProductRepository loanProductRepository,
-                       LegacyPaymentRepository paymentRepository) {
+    public LegacyLoanServiceImpl(LegacyBorrowerRepository borrowerRepository,
+                                 LegacyLoanAccountRepository loanAccountRepository,
+                                 LegacyLoanProductRepository loanProductRepository,
+                                 LegacyPaymentRepository paymentRepository) {
         this.borrowerRepository = borrowerRepository;
         this.loanAccountRepository = loanAccountRepository;
         this.loanProductRepository = loanProductRepository;
         this.paymentRepository = paymentRepository;
     }
 
+    @Override
     public List<LoanSummaryDto> getAllLoans() {
         Map<String, LegacyLoanProduct> products = loanProductRepository.findAll()
                 .stream()
@@ -55,6 +49,7 @@ public class LoanService {
                 .collect(Collectors.toList());
     }
 
+    @Override
     public LoanSummaryDto getLoanById(String loanAccountNumber) {
         LegacyLoanAccount acct = loanAccountRepository.findById(loanAccountNumber)
                 .orElseThrow(() -> new RuntimeException("Loan not found: " + loanAccountNumber));
@@ -63,18 +58,19 @@ public class LoanService {
         return toLoanSummary(acct, product);
     }
 
+    @Override
     public List<BorrowerDto> getAllBorrowers() {
         return borrowerRepository.findAll().stream()
                 .map(this::toBorrowerDto)
                 .collect(Collectors.toList());
     }
 
+    @Override
     public BorrowerDto getBorrowerById(String borrowerId) {
         LegacyBorrower borrower = borrowerRepository.findById(borrowerId)
                 .orElseThrow(() -> new RuntimeException("Borrower not found: " + borrowerId));
         BorrowerDto dto = toBorrowerDto(borrower);
 
-        // Attach loans for this borrower
         Map<String, LegacyLoanProduct> products = loanProductRepository.findAll()
                 .stream()
                 .collect(Collectors.toMap(LegacyLoanProduct::getProductCode, p -> p));
@@ -87,18 +83,13 @@ public class LoanService {
         return dto;
     }
 
+    @Override
     public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
         return paymentRepository.findByLoanAccountNumberOrderByPaymentDateDesc(loanAccountNumber)
                 .stream()
                 .map(this::toPaymentDto)
                 .collect(Collectors.toList());
     }
-
-    // =========================================================================
-    // LEGACY TRANSLATION METHODS
-    // These methods handle the messy conversion from legacy string fields
-    // to proper types. After migration, these should be simplified or removed.
-    // =========================================================================
 
     private LoanSummaryDto toLoanSummary(LegacyLoanAccount acct, LegacyLoanProduct product) {
         LoanSummaryDto dto = new LoanSummaryDto();
@@ -146,9 +137,6 @@ public class LoanService {
         return dto;
     }
 
-    /**
-     * Parse legacy amount strings like "285,000" or "1,487.02" into BigDecimal.
-     */
     private BigDecimal parseLegacyAmount(String amount) {
         if (amount == null || amount.isBlank()) return BigDecimal.ZERO;
         return new BigDecimal(amount.replace(",", ""));
