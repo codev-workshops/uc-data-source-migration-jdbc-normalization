@@ -8,10 +8,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.io.ClassPathResource;
 
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -65,53 +62,10 @@ abstract class AbstractApiGoldenTest {
         JsonNode actual = readTree(actualBody);
         JsonNode expected = readGolden(goldenResource);
 
-        List<String> diffs = new ArrayList<>();
-        compare("$", expected, actual, diffs);
+        List<String> diffs = JsonCompare.diff(expected, actual);
         if (!diffs.isEmpty()) {
             fail("Response for %s did not match golden file %s:%n%s",
                     path, goldenResource, String.join("\n", diffs));
-        }
-    }
-
-    /** Recursive, numeric-aware comparison; collects human-readable diffs. */
-    private void compare(String path, JsonNode expected, JsonNode actual, List<String> diffs) {
-        if (expected.isNumber() && actual.isNumber()) {
-            if (expected.decimalValue().compareTo(actual.decimalValue()) != 0) {
-                diffs.add(path + ": expected " + expected + " but was " + actual);
-            }
-            return;
-        }
-        if (expected.getNodeType() != actual.getNodeType()) {
-            diffs.add(path + ": expected " + expected + " but was " + actual);
-            return;
-        }
-        if (expected.isObject()) {
-            for (Iterator<Map.Entry<String, JsonNode>> it = expected.fields(); it.hasNext(); ) {
-                Map.Entry<String, JsonNode> field = it.next();
-                String name = field.getKey();
-                if (!actual.has(name)) {
-                    diffs.add(path + "." + name + ": missing in response");
-                } else {
-                    compare(path + "." + name, field.getValue(), actual.get(name), diffs);
-                }
-            }
-            for (Iterator<String> it = actual.fieldNames(); it.hasNext(); ) {
-                String name = it.next();
-                if (!expected.has(name)) {
-                    diffs.add(path + "." + name + ": unexpected field in response (" + actual.get(name) + ")");
-                }
-            }
-        } else if (expected.isArray()) {
-            if (expected.size() != actual.size()) {
-                diffs.add(path + ": expected array of size " + expected.size()
-                        + " but was " + actual.size());
-                return;
-            }
-            for (int i = 0; i < expected.size(); i++) {
-                compare(path + "[" + i + "]", expected.get(i), actual.get(i), diffs);
-            }
-        } else if (!expected.equals(actual)) {
-            diffs.add(path + ": expected " + expected + " but was " + actual);
         }
     }
 
