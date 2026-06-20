@@ -7,7 +7,12 @@ import jakarta.persistence.Table;
 
 /**
  * Maps to the legacy CDW_LN_PROD table.
+ *
+ * @deprecated Legacy CDW model. Retained only as the data-migration source and
+ * for the {@code LEGACY} dual-read fallback; the modern entities are the
+ * go-forward model.
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_LN_PROD")
 public class LegacyLoanProduct {

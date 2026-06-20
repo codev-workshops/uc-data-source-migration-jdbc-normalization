@@ -35,6 +35,7 @@ import java.util.Optional;
  *    (table, business key, field, invalid value) instead of aborting the run.
  */
 @Service
+@SuppressWarnings("deprecation") // reads the deprecated legacy model as the migration source
 public class DataMigrationService {
 
     private static final String T_BORROWERS = "borrowers";
