@@ -112,6 +112,27 @@ formatting must be revisited.
 > (encapsulated in `LegacyLoanDataProvider`). It is **not** used on the default
 > modern path; flip the flag to `LEGACY` to exercise it.
 
+- Invalid mode values are rejected with **HTTP 400** and leave the active mode
+  unchanged.
+
+### 6.1 Rollback procedure
+The dual-read flag *is* the rollback mechanism — no redeploy or data restore is
+needed:
+
+1. **Instant runtime rollback:** `PUT /api/admin/datasource-mode/LEGACY`. The read
+   path immediately serves from the legacy CDW tables (byte-identical responses,
+   per `DualReadModeTest`). Flip back with `.../MODERN`.
+2. **Persistent rollback:** set `loanservice.datasource.mode=LEGACY` in
+   `application.properties` (or `-Dloanservice.datasource.mode=LEGACY`) and
+   restart, so the app boots in legacy mode.
+3. **Safety of the underlying data:** the legacy datasource is never written to by
+   the application; the migration only *reads* legacy and *writes* modern. So the
+   legacy data remains a pristine source of truth at all times.
+4. **Re-running the migration is safe:** it is idempotent (skips existing records
+   by business key), so a restart never duplicates data. To rebuild the modern
+   side from scratch, restart the app (the in-memory modern DB is recreated and
+   re-migrated); for a persistent DB, `TRUNCATE` the modern tables and restart.
+
 ## 7. Reconciliation (bonus 2)
 
 `data/reconciliation/reconciliation_queries.sql` contains per-database queries
@@ -126,22 +147,29 @@ Programmatic equivalents are asserted in `ModernSchemaIntegrationTest`
 ## 8. Performance comparison (bonus 3)
 
 `PerformanceComparisonTest` benchmarks the legacy (parse-on-read) vs modern
-(typed) read paths (10k iterations, after warmup). Representative local results:
+(typed) read paths (10k iterations, after warmup). Representative local results
+**after the N+1 fix** (LAZY associations + fetch-join read queries):
 
-| Operation | Legacy µs/op | Modern µs/op |
-|---|---|---|
-| `getAllLoans` | ~84 | ~87 |
-| `getBorrowerById` | ~71 | ~74 |
-| `getPaymentsByLoan` | ~24 | ~40 |
+| Operation | Legacy µs/op | Modern µs/op | Speedup |
+|---|---|---|---|
+| `getAllLoans` | ~89 | ~46 | ~1.95x |
+| `getBorrowerById` | ~106 | ~70 | ~1.51x |
+| `getPaymentsByLoan` | ~32 | ~27 | ~1.18x |
 
-**Interpretation (honest):** at this fixture size (5 loans / 10 payments) the
-modern path is comparable or marginally slower. Two reasons: (1) VARCHAR parsing
-is negligible on tiny rows, so it cannot dominate; (2) the modern path navigates
-`@ManyToOne` relationships (eager joins) and `getAllLoans` currently triggers
-per-loan borrower/product loads (an N+1 pattern). The modern schema's real wins —
-indexed typed columns, no per-read parsing, query pushdown, and correctness — only
-materialize at larger scale and with the N+1 addressed (see fix recommendations).
-The benchmark is included as an honest measurement, not a claim of speedup.
+**Interpretation (honest):** the modern path is faster across the board. The win
+comes from (1) no per-read VARCHAR→type parsing and (2) collapsing each endpoint
+to a single fetch-joined query. The gap was initially smaller (the modern path was
+even marginally slower) because the relationships defaulted to `EAGER` and
+`getAllLoans` issued a select per loan for borrower/product (classic N+1); see
+§8.1. Absolute numbers vary by machine; the comparison is the point.
+
+### 8.1 N+1 elimination
+`LoanAccount.borrower/product` and `Payment.loanAccount` are mapped
+`@ManyToOne(fetch = LAZY)`. The read queries in `LoanAccountRepository` and
+`PaymentRepository` use JPQL `join fetch`, so every endpoint loads its full object
+graph in one query. Verified with SQL logging (`--spring.jpa.show-sql=true`):
+`GET /api/loans` issues **1** statement (previously ~11), `.../payments` **1**,
+`/api/borrowers` **1**, `/api/borrowers/{id}` **2** (borrower + its loans).
 
 ## 9. Cleanup / deprecation
 
