@@ -14,7 +14,5 @@ import java.util.List;
 @Repository
 public interface LegacyPaymentRepository extends JpaRepository<LegacyPayment, String> {
 
-    List<LegacyPayment> findByLoanAccountNumber(String loanAccountNumber);
-
     List<LegacyPayment> findByLoanAccountNumberOrderByPaymentDateDesc(String loanAccountNumber);
 }

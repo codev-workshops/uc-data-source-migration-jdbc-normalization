@@ -29,7 +29,7 @@ public class Payment {
     @Column(name = "external_id", nullable = false, unique = true)
     private String externalId;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "loan_account_id", nullable = false)
     private LoanAccount loanAccount;
 

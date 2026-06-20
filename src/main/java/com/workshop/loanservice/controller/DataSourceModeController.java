@@ -5,9 +5,12 @@ import com.workshop.loanservice.config.DataSourceModeHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -34,9 +37,19 @@ public class DataSourceModeController {
 
     @PutMapping("/{mode}")
     public Map<String, DataSourceMode> setMode(@PathVariable String mode) {
-        DataSourceMode requested = DataSourceMode.valueOf(mode.trim().toUpperCase());
+        DataSourceMode requested = parseMode(mode);
         DataSourceMode previous = modeHolder.getMode();
         modeHolder.setMode(requested);
         return Map.of("previous", previous, "mode", requested);
+    }
+
+    private DataSourceMode parseMode(String mode) {
+        try {
+            return DataSourceMode.valueOf(mode.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid data source mode '" + mode + "'; expected one of "
+                            + Arrays.toString(DataSourceMode.values()));
+        }
     }
 }

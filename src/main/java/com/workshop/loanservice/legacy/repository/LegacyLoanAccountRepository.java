@@ -15,8 +15,4 @@ import java.util.List;
 public interface LegacyLoanAccountRepository extends JpaRepository<LegacyLoanAccount, String> {
 
     List<LegacyLoanAccount> findByBorrowerId(String borrowerId);
-
-    List<LegacyLoanAccount> findByStatusCode(String statusCode);
-
-    List<LegacyLoanAccount> findByProductCode(String productCode);
 }

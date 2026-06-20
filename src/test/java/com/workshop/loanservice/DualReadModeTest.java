@@ -76,4 +76,11 @@ class DualReadModeTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.mode").value("LEGACY"));
     }
+
+    @Test
+    void invalidModeReturns400AndDoesNotChangeMode() throws Exception {
+        mockMvc.perform(put("/api/admin/datasource-mode/BOGUS"))
+                .andExpect(status().isBadRequest());
+        assertThat(modeHolder.getMode()).isEqualTo(DataSourceMode.MODERN);
+    }
 }

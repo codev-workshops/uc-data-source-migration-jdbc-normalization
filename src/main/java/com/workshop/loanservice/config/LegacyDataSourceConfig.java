@@ -2,6 +2,7 @@ package com.workshop.loanservice.config;
 
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
@@ -45,9 +46,12 @@ public class LegacyDataSourceConfig {
     @Bean
     public LocalContainerEntityManagerFactoryBean legacyEntityManagerFactory(
             EntityManagerFactoryBuilder builder,
-            @Qualifier("legacyDataSource") DataSource dataSource) {
+            @Qualifier("legacyDataSource") DataSource dataSource,
+            @Value("${spring.jpa.show-sql:false}") boolean showSql) {
         Map<String, Object> properties = new HashMap<>();
         properties.put("hibernate.hbm2ddl.auto", "none");
+        properties.put("hibernate.show_sql", showSql);
+        properties.put("hibernate.format_sql", showSql);
         return builder.dataSource(dataSource)
                 .packages("com.workshop.loanservice.legacy.entity")
                 .persistenceUnit("legacy")
