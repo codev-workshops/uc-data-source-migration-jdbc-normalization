@@ -1,4 +1,4 @@
-package com.workshop.loanservice.entity;
+package com.workshop.loanservice.legacy.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

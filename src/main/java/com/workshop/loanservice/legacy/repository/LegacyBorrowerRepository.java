@@ -1,6 +1,6 @@
-package com.workshop.loanservice.repository;
+package com.workshop.loanservice.legacy.repository;
 
-import com.workshop.loanservice.entity.LegacyBorrower;
+import com.workshop.loanservice.legacy.entity.LegacyBorrower;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
