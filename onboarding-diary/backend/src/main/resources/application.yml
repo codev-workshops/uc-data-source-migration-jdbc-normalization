@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/onboarding_diary
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+
+jwt:
+  secret: mySecretKeyForJWTTokenGenerationThatIsAtLeast256BitsLong123456
+  expiration: 86400000
+
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  model: gpt-3.5-turbo
+  embedding-model: text-embedding-ada-002
+
+server:
+  port: 8080
