@@ -7,6 +7,7 @@ import com.onboarding.diary.entity.User;
 import com.onboarding.diary.security.UserPrincipal;
 import com.onboarding.diary.service.AuthService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +40,9 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> me(@AuthenticationPrincipal UserPrincipal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         User user = principal.getUser();
         return ResponseEntity.ok(Map.of(
                 "id", user.getId(),
