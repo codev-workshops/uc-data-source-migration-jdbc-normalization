@@ -7,6 +7,9 @@ import jakarta.persistence.Table;
 
 /**
  * Maps to the legacy CDW_PMT_HIST table.
+ *
+ * <p>Retained only as the source for the one-time startup migration
+ * ({@code DataMigrationRunner}); not part of the API read path.</p>
  */
 @Entity
 @Table(name = "CDW_PMT_HIST")

@@ -6,6 +6,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * Legacy repository used only by the startup migration as the data source;
+ * not part of the API read path.
+ */
 @Repository
 public interface LegacyPaymentRepository extends JpaRepository<LegacyPayment, String> {
 
