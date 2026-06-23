@@ -6,7 +6,16 @@
 -- legacy rows into these tables at startup.
 --
 -- Mirrors data/modern-schema/modern_tables.sql.
+--
+-- Idempotent: drops existing tables first so the script can run cleanly across
+-- multiple application contexts that share the same in-memory H2 instance
+-- (e.g. several @SpringBootTest classes in one test JVM).
 -- =============================================================================
+
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS loan_accounts;
+DROP TABLE IF EXISTS loan_products;
+DROP TABLE IF EXISTS borrowers;
 
 CREATE TABLE borrowers (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
