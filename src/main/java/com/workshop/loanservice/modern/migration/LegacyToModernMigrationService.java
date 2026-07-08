@@ -43,7 +43,9 @@ import java.util.Optional;
  *
  * <p>Null or malformed legacy values are logged as warnings and mapped to
  * null; records are never silently dropped. Records that cannot satisfy a
- * mandatory foreign key are logged as errors and counted as failures.
+ * mandatory column or foreign key are validated BEFORE any duplicate check
+ * or save: they are logged with the legacy record identifier, counted in a
+ * per-entity skipped-records counter, and never abort the run.
  */
 @Service
 public class LegacyToModernMigrationService {
@@ -111,7 +113,8 @@ public class LegacyToModernMigrationService {
 
     /**
      * Runs the full migration and returns per-table counts of migrated,
-     * skipped (already present), and failed records.
+     * skipped-duplicate (already present), and skipped-record (malformed or
+     * unresolvable) records.
      */
     @Transactional("modernTransactionManager")
     public MigrationResult migrateAll() {
@@ -128,8 +131,8 @@ public class LegacyToModernMigrationService {
         for (LegacyBorrower legacy : legacyBorrowerRepository.findAll()) {
             String id = legacy.getBorrowerId();
             if (id == null || id.isBlank()) {
-                log.error("Skipping legacy borrower with missing BORR_ID");
-                result.borrowersFailed++;
+                log.warn("Skipping legacy borrower with missing BORR_ID");
+                result.borrowersSkippedRecords++;
                 continue;
             }
             if (modernBorrowerRepository.findByExternalId(id).isPresent()) {
@@ -166,8 +169,8 @@ public class LegacyToModernMigrationService {
         for (LegacyLoanProduct legacy : legacyLoanProductRepository.findAll()) {
             String code = legacy.getProductCode();
             if (code == null || code.isBlank()) {
-                log.error("Skipping legacy loan product with missing PROD_CD");
-                result.productsFailed++;
+                log.warn("Skipping legacy loan product with missing PROD_CD");
+                result.productsSkippedRecords++;
                 continue;
             }
             if (modernLoanProductRepository.findByCode(code).isPresent()) {
@@ -195,8 +198,8 @@ public class LegacyToModernMigrationService {
         for (LegacyLoanAccount legacy : legacyLoanAccountRepository.findAll()) {
             String acctNbr = legacy.getLoanAccountNumber();
             if (acctNbr == null || acctNbr.isBlank()) {
-                log.error("Skipping legacy loan account with missing LN_ACCT_NBR");
-                result.accountsFailed++;
+                log.warn("Skipping legacy loan account with missing LN_ACCT_NBR");
+                result.accountsSkippedRecords++;
                 continue;
             }
             if (modernLoanAccountRepository.findByAccountNumber(acctNbr).isPresent()) {
@@ -207,17 +210,17 @@ public class LegacyToModernMigrationService {
             Optional<Borrower> borrower = Optional.ofNullable(legacy.getBorrowerId())
                     .flatMap(modernBorrowerRepository::findByExternalId);
             if (borrower.isEmpty()) {
-                log.error("Loan account {}: cannot resolve borrower '{}'; record not migrated",
+                log.warn("Loan account {}: cannot resolve borrower '{}'; record skipped",
                         acctNbr, legacy.getBorrowerId());
-                result.accountsFailed++;
+                result.accountsSkippedRecords++;
                 continue;
             }
             Optional<LoanProduct> product = Optional.ofNullable(legacy.getProductCode())
                     .flatMap(modernLoanProductRepository::findByCode);
             if (product.isEmpty()) {
-                log.error("Loan account {}: cannot resolve product '{}'; record not migrated",
+                log.warn("Loan account {}: cannot resolve product '{}'; record skipped",
                         acctNbr, legacy.getProductCode());
-                result.accountsFailed++;
+                result.accountsSkippedRecords++;
                 continue;
             }
             LoanAccount modern = new LoanAccount();
@@ -256,14 +259,21 @@ public class LegacyToModernMigrationService {
             Optional<LoanAccount> account = Optional.ofNullable(legacy.getLoanAccountNumber())
                     .flatMap(modernLoanAccountRepository::findByAccountNumber);
             if (account.isEmpty()) {
-                log.error("Payment {}: cannot resolve loan account '{}'; record not migrated",
+                log.warn("Payment {}: cannot resolve loan account '{}'; record skipped",
                         seqNbr, legacy.getLoanAccountNumber());
-                result.paymentsFailed++;
+                result.paymentsSkippedRecords++;
                 continue;
             }
             LocalDate paymentDate = parseDate(legacy.getPaymentDate(), seqNbr, "PMT_DT");
             BigDecimal totalAmount = parseDecimal(legacy.getTotalAmount(), seqNbr, "PMT_AMT");
             String type = expandCode(PAYMENT_TYPE, legacy.getTypeCode(), seqNbr, "PMT_TYP_CD");
+            if (paymentDate == null || totalAmount == null || type == null) {
+                log.warn("Payment {}: mandatory value missing/malformed after parsing "
+                        + "(paymentDate={}, totalAmount={}, type={}); record skipped",
+                        seqNbr, paymentDate, totalAmount, type);
+                result.paymentsSkippedRecords++;
+                continue;
+            }
             if (modernPaymentRepository.existsByLoanAccountIdAndPaymentDateAndTotalAmountAndType(
                     account.get().getId(), paymentDate, totalAmount, type)) {
                 log.info("Payment {} already migrated; skipping", seqNbr);
@@ -356,37 +366,37 @@ public class LegacyToModernMigrationService {
     public static class MigrationResult {
         private int borrowersMigrated;
         private int borrowersSkipped;
-        private int borrowersFailed;
+        private int borrowersSkippedRecords;
         private int productsMigrated;
         private int productsSkipped;
-        private int productsFailed;
+        private int productsSkippedRecords;
         private int accountsMigrated;
         private int accountsSkipped;
-        private int accountsFailed;
+        private int accountsSkippedRecords;
         private int paymentsMigrated;
         private int paymentsSkipped;
-        private int paymentsFailed;
+        private int paymentsSkippedRecords;
 
         public int getBorrowersMigrated() { return borrowersMigrated; }
         public int getBorrowersSkipped() { return borrowersSkipped; }
-        public int getBorrowersFailed() { return borrowersFailed; }
+        public int getBorrowersSkippedRecords() { return borrowersSkippedRecords; }
         public int getProductsMigrated() { return productsMigrated; }
         public int getProductsSkipped() { return productsSkipped; }
-        public int getProductsFailed() { return productsFailed; }
+        public int getProductsSkippedRecords() { return productsSkippedRecords; }
         public int getAccountsMigrated() { return accountsMigrated; }
         public int getAccountsSkipped() { return accountsSkipped; }
-        public int getAccountsFailed() { return accountsFailed; }
+        public int getAccountsSkippedRecords() { return accountsSkippedRecords; }
         public int getPaymentsMigrated() { return paymentsMigrated; }
         public int getPaymentsSkipped() { return paymentsSkipped; }
-        public int getPaymentsFailed() { return paymentsFailed; }
+        public int getPaymentsSkippedRecords() { return paymentsSkippedRecords; }
 
         @Override
         public String toString() {
-            return "MigrationResult{borrowers=" + borrowersMigrated + "/" + borrowersSkipped + "/" + borrowersFailed
-                    + ", products=" + productsMigrated + "/" + productsSkipped + "/" + productsFailed
-                    + ", accounts=" + accountsMigrated + "/" + accountsSkipped + "/" + accountsFailed
-                    + ", payments=" + paymentsMigrated + "/" + paymentsSkipped + "/" + paymentsFailed
-                    + " (migrated/skipped/failed)}";
+            return "MigrationResult{borrowers=" + borrowersMigrated + "/" + borrowersSkipped + "/" + borrowersSkippedRecords
+                    + ", products=" + productsMigrated + "/" + productsSkipped + "/" + productsSkippedRecords
+                    + ", accounts=" + accountsMigrated + "/" + accountsSkipped + "/" + accountsSkippedRecords
+                    + ", payments=" + paymentsMigrated + "/" + paymentsSkipped + "/" + paymentsSkippedRecords
+                    + " (migrated/skipped-duplicate/skipped-record)}";
         }
     }
 }
