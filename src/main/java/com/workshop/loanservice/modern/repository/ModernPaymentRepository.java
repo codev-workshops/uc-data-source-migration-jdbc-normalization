@@ -12,6 +12,8 @@ import java.util.List;
 public interface ModernPaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByLoanAccountId(Long loanAccountId);
 
+    List<Payment> findByLoanAccountAccountNumberOrderByPaymentDateDesc(String accountNumber);
+
     boolean existsByLoanAccountIdAndPaymentDateAndTotalAmountAndType(
             Long loanAccountId, LocalDate paymentDate, BigDecimal totalAmount, String type);
 }
