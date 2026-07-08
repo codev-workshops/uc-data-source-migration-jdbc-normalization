@@ -29,6 +29,9 @@ public class Payment {
     @JoinColumn(name = "loan_account_id", nullable = false)
     private LoanAccount loanAccount;
 
+    @Column(name = "payment_number", unique = true, length = 20)
+    private String paymentNumber;
+
     @Column(name = "payment_date", nullable = false)
     private LocalDate paymentDate;
 
@@ -69,6 +72,8 @@ public class Payment {
     public void setId(Long id) { this.id = id; }
     public LoanAccount getLoanAccount() { return loanAccount; }
     public void setLoanAccount(LoanAccount loanAccount) { this.loanAccount = loanAccount; }
+    public String getPaymentNumber() { return paymentNumber; }
+    public void setPaymentNumber(String paymentNumber) { this.paymentNumber = paymentNumber; }
     public LocalDate getPaymentDate() { return paymentDate; }
     public void setPaymentDate(LocalDate paymentDate) { this.paymentDate = paymentDate; }
     public BigDecimal getTotalAmount() { return totalAmount; }
