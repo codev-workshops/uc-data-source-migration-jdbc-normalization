@@ -3,6 +3,7 @@ package com.workshop.loanservice.modern.migration;
 import com.workshop.loanservice.entity.LegacyBorrower;
 import com.workshop.loanservice.entity.LegacyLoanAccount;
 import com.workshop.loanservice.entity.LegacyPayment;
+
 import com.workshop.loanservice.modern.entity.Borrower;
 import com.workshop.loanservice.modern.entity.LoanAccount;
 import com.workshop.loanservice.modern.entity.Payment;
@@ -71,10 +72,10 @@ class LegacyToModernMigrationServiceTest {
         assertEquals(5, result.getProductsMigrated());
         assertEquals(5, result.getAccountsMigrated());
         assertEquals(10, result.getPaymentsMigrated());
-        assertEquals(0, result.getBorrowersFailed());
-        assertEquals(0, result.getProductsFailed());
-        assertEquals(0, result.getAccountsFailed());
-        assertEquals(0, result.getPaymentsFailed());
+        assertEquals(0, result.getBorrowersSkippedRecords());
+        assertEquals(0, result.getProductsSkippedRecords());
+        assertEquals(0, result.getAccountsSkippedRecords());
+        assertEquals(0, result.getPaymentsSkippedRecords());
 
         assertEquals(5, modernBorrowerRepository.count());
         assertEquals(5, modernLoanProductRepository.count());
@@ -176,6 +177,41 @@ class LegacyToModernMigrationServiceTest {
 
         assertTrue(modernPaymentRepository.findAll().stream()
                 .allMatch(p -> "REGULAR".equals(p.getType()) && "POSTED".equals(p.getStatus())));
+    }
+
+    @Test
+    @Order(7)
+    void skipsMalformedPaymentWithWarningWithoutAbortingRun() {
+        LegacyPayment malformed = new LegacyPayment();
+        malformed.setPaymentSequenceNumber("P-99999");
+        malformed.setLoanAccountNumber("LN-2019-00142");
+        malformed.setPaymentDate("NOT-A-DATE");
+        malformed.setTotalAmount("1,000.00");
+        malformed.setTypeCode("REG");
+        malformed.setStatusCode("PST");
+        legacyPaymentRepository.save(malformed);
+        try {
+            assertEquals(11, legacyPaymentRepository.count());
+
+            MigrationResult first = migrationService.migrateAll();
+            assertEquals(10, first.getPaymentsMigrated());
+            assertEquals(1, first.getPaymentsSkippedRecords());
+            assertEquals(10, modernPaymentRepository.count());
+
+            BigDecimal legacyValidSum = sumLegacy(legacyPaymentRepository.findAll().stream()
+                    .filter(p -> !"P-99999".equals(p.getPaymentSequenceNumber()))
+                    .map(LegacyPayment::getTotalAmount));
+            BigDecimal modernSum = sumModern(modernPaymentRepository.findAll(), Payment::getTotalAmount);
+            assertEquals(0, legacyValidSum.compareTo(modernSum), "payment total_amount sums differ");
+
+            MigrationResult second = migrationService.migrateAll();
+            assertEquals(0, second.getPaymentsMigrated());
+            assertEquals(10, second.getPaymentsSkipped());
+            assertEquals(1, second.getPaymentsSkippedRecords());
+            assertEquals(10, modernPaymentRepository.count());
+        } finally {
+            legacyPaymentRepository.deleteById("P-99999");
+        }
     }
 
     private static BigDecimal sumLegacy(java.util.stream.Stream<String> values) {
