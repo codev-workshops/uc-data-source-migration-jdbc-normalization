@@ -223,17 +223,35 @@ public class LegacyToModernMigrationService {
                 result.accountsSkippedRecords++;
                 continue;
             }
+            BigDecimal originalAmount = parseDecimal(legacy.getOriginalAmount(), acctNbr, "LN_ORIG_AMT");
+            BigDecimal currentBalance = parseDecimal(legacy.getCurrentBalance(), acctNbr, "LN_CURR_BAL");
+            BigDecimal interestRate = parseDecimal(legacy.getInterestRate(), acctNbr, "LN_INT_RT");
+            Integer termMonths = parseInteger(legacy.getTermMonths(), acctNbr, "LN_TERM_MOS");
+            BigDecimal monthlyPayment = parseDecimal(legacy.getMonthlyPayment(), acctNbr, "LN_PMT_AMT");
+            LocalDate originationDate = parseDate(legacy.getOriginationDate(), acctNbr, "LN_ORIG_DT");
+            LocalDate maturityDate = parseDate(legacy.getMaturityDate(), acctNbr, "LN_MAT_DT");
+            if (originalAmount == null || currentBalance == null || interestRate == null
+                    || termMonths == null || monthlyPayment == null
+                    || originationDate == null || maturityDate == null) {
+                log.warn("Loan account {}: mandatory value missing/malformed after parsing "
+                        + "(originalAmount={}, currentBalance={}, interestRate={}, termMonths={}, "
+                        + "monthlyPayment={}, originationDate={}, maturityDate={}); record skipped",
+                        acctNbr, originalAmount, currentBalance, interestRate, termMonths,
+                        monthlyPayment, originationDate, maturityDate);
+                result.accountsSkippedRecords++;
+                continue;
+            }
             LoanAccount modern = new LoanAccount();
             modern.setAccountNumber(acctNbr);
             modern.setBorrower(borrower.get());
             modern.setProduct(product.get());
-            modern.setOriginalAmount(parseDecimal(legacy.getOriginalAmount(), acctNbr, "LN_ORIG_AMT"));
-            modern.setCurrentBalance(parseDecimal(legacy.getCurrentBalance(), acctNbr, "LN_CURR_BAL"));
-            modern.setInterestRate(parseDecimal(legacy.getInterestRate(), acctNbr, "LN_INT_RT"));
-            modern.setTermMonths(parseInteger(legacy.getTermMonths(), acctNbr, "LN_TERM_MOS"));
-            modern.setMonthlyPayment(parseDecimal(legacy.getMonthlyPayment(), acctNbr, "LN_PMT_AMT"));
-            modern.setOriginationDate(parseDate(legacy.getOriginationDate(), acctNbr, "LN_ORIG_DT"));
-            modern.setMaturityDate(parseDate(legacy.getMaturityDate(), acctNbr, "LN_MAT_DT"));
+            modern.setOriginalAmount(originalAmount);
+            modern.setCurrentBalance(currentBalance);
+            modern.setInterestRate(interestRate);
+            modern.setTermMonths(termMonths);
+            modern.setMonthlyPayment(monthlyPayment);
+            modern.setOriginationDate(originationDate);
+            modern.setMaturityDate(maturityDate);
             modern.setFirstPaymentDate(parseDate(legacy.getFirstPaymentDate(), acctNbr, "LN_1ST_PMT_DT"));
             modern.setNextPaymentDate(parseDate(legacy.getNextPaymentDate(), acctNbr, "LN_NXT_PMT_DT"));
             modern.setStatus(expandCode(LOAN_STATUS, legacy.getStatusCode(), acctNbr, "LN_STAT_CD"));
