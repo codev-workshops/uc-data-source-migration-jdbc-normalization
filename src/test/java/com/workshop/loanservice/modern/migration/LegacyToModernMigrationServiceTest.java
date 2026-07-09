@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * resolution, amount reconciliation between legacy (parsed) and modern
  * values, and idempotency (running twice creates no duplicates).
  */
-@SpringBootTest
+@SpringBootTest(properties = "migration.run-on-startup=false")
 @Transactional("modernTransactionManager")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class LegacyToModernMigrationServiceTest {

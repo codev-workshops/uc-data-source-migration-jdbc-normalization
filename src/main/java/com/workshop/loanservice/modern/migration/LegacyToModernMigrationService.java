@@ -300,6 +300,7 @@ public class LegacyToModernMigrationService {
             }
             Payment modern = new Payment();
             modern.setLoanAccount(account.get());
+            modern.setPaymentNumber(seqNbr);
             modern.setPaymentDate(paymentDate);
             modern.setTotalAmount(totalAmount);
             modern.setPrincipalAmount(parseDecimal(legacy.getPrincipalAmount(), seqNbr, "PMT_PRIN_AMT"));

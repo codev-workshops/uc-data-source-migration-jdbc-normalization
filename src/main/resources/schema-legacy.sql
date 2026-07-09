@@ -9,6 +9,14 @@
 --   - Inconsistent date formats stored as strings
 -- =============================================================================
 
+-- Recreated from scratch on each initialization so that multiple
+-- application contexts (e.g. test contexts sharing the in-memory H2
+-- instance) always start from a clean, fully-seeded state.
+DROP TABLE IF EXISTS CDW_PMT_HIST;
+DROP TABLE IF EXISTS CDW_LN_ACCT;
+DROP TABLE IF EXISTS CDW_LN_PROD;
+DROP TABLE IF EXISTS CDW_BORR_MSTR;
+
 -- Borrower Master
 CREATE TABLE CDW_BORR_MSTR (
     BORR_ID         VARCHAR(20) PRIMARY KEY,

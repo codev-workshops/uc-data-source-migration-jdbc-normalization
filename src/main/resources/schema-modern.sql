@@ -12,6 +12,15 @@
 --   7. Enum-like status fields with CHECK constraints
 -- =============================================================================
 
+-- Recreated from scratch on each initialization so that multiple
+-- application contexts (e.g. test contexts sharing the in-memory H2
+-- instance) always start from a clean state; the startup migration
+-- repopulates the tables from the legacy source.
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS loan_accounts;
+DROP TABLE IF EXISTS loan_products;
+DROP TABLE IF EXISTS borrowers;
+
 CREATE TABLE borrowers (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
     external_id     VARCHAR(20) UNIQUE NOT NULL,
@@ -83,6 +92,7 @@ CREATE TABLE loan_accounts (
 CREATE TABLE payments (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
     loan_account_id     BIGINT NOT NULL,
+    payment_number      VARCHAR(20) UNIQUE,        -- legacy PMT_SEQ_NBR, kept for API continuity
     payment_date        DATE NOT NULL,
     total_amount        DECIMAL(10, 2) NOT NULL,
     principal_amount    DECIMAL(10, 2),
