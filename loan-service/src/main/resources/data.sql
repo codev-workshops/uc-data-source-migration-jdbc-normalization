@@ -1,0 +1,9 @@
+-- Migrated from legacy CDW_LN_ACCT: amounts de-comma'd to DECIMAL, dates parsed
+-- to DATE, status/property codes expanded, denormalized borrower fields dropped
+-- in favor of the borrower_id reference.
+INSERT INTO loan_accounts (account_number, borrower_id, product_code, original_amount, current_balance, interest_rate, term_months, monthly_payment, origination_date, maturity_date, first_payment_date, next_payment_date, status, delinquency_days, escrow_balance, ltv_percent, property_address, property_city, property_state, property_zip, property_type, appraised_value) VALUES
+    ('LN-2019-00142', 'B-10001', 'FXD30', 285000.00, 271432.56, 4.750, 360, 1487.02, DATE '2019-02-15', DATE '2049-02-15', DATE '2019-03-15', DATE '2026-01-15', 'ACTIVE', 0, 3245.80, 82.5, '742 Elm Street', 'Springfield', 'IL', '62701', 'Single Family Residence', 345000.00),
+    ('LN-2020-00398', 'B-10002', 'FXD15', 420000.00, 312876.43, 3.125, 180, 2924.18, DATE '2020-04-01', DATE '2035-04-01', DATE '2020-05-01', DATE '2026-01-01', 'ACTIVE', 0, 4890.12, 68.2, '1100 Oak Avenue', 'Portland', 'OR', '97201', 'Condominium', 615000.00),
+    ('LN-2018-00089', 'B-10003', 'ARM51', 195000.00, 178234.12, 5.250, 360, 1077.05, DATE '2018-07-01', DATE '2048-07-01', DATE '2018-08-01', DATE '2026-01-01', 'ACTIVE', 15, 2100.00, 75.0, '305 Pine Road', 'Austin', 'TX', '78701', 'Single Family Residence', 260000.00),
+    ('LN-2021-00567', 'B-10004', 'FXD30', 525000.00, 498123.78, 3.875, 360, 2468.35, DATE '2021-10-01', DATE '2051-10-01', DATE '2021-11-01', DATE '2026-01-01', 'ACTIVE', 0, 6750.00, 72.8, '89 Maple Drive', 'Denver', 'CO', '80202', 'Townhouse', 721000.00),
+    ('LN-2017-00034', 'B-10005', 'FHA30', 165000.00, 142567.90, 4.250, 360, 811.61, DATE '2017-03-01', DATE '2047-03-01', DATE '2017-04-01', DATE '2026-01-01', 'ACTIVE', 0, 1890.45, 80.0, '2200 Cedar Lane', 'Phoenix', 'AZ', '85001', 'Single Family Residence', 206000.00);
