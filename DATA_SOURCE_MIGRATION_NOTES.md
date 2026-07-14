@@ -1,125 +1,94 @@
-# Data Source Migration Notes — Legacy CDW → Modern Schema
+# Legacy-to-Modern Data Source Migration
 
-Status: **complete**. The application serves from the modern normalized schema by
-default (`datasource.mode=modern`), with the legacy CDW read path retained as a
-dual-read fallback (`datasource.mode=legacy`). All 5 API endpoints are
-byte-identical to the golden snapshots in `src/test/resources/golden/` in both
-modes.
+The API now reads the normalized modern schema by default while retaining the
+legacy read path as a temporary rollback option.
 
-## Architecture & Patterns
+## Design
 
-### Sibling-package persistence units (dual datasources)
-Two independent JPA persistence units live side by side:
+```text
+Controllers -> LoanService -> LoanDataProvider
+                                 |          |
+                              modern     legacy
+                                 |          |
+                         modern schema   CDW schema
+```
 
-- **Legacy** (`@Primary`): `com.workshop.loanservice.entity` /
-  `...loanservice.repository`, backed by `spring.datasource.*`
-  (H2 `legacydw`), configured in `LegacyDataSourceConfig`.
-- **Modern**: `com.workshop.loanservice.modern.entity` /
-  `...modern.repository`, backed by `modern.datasource.*` (H2 `moderndb`),
-  configured in `ModernDataSourceConfig` with qualifier-wired
-  `modernDataSource`, `modernEntityManagerFactory`, and
-  `modernTransactionManager` beans. The modern schema
-  (`schema-modern.sql`) is applied via an explicit `DataSourceInitializer`
-  because Spring Boot's SQL init only covers the primary datasource.
+- `datasource.mode=modern` selects typed modern entities and repositories.
+- `datasource.mode=legacy` selects the original CDW-backed behavior.
+- Controllers and DTOs are unchanged.
+- `LegacyApiCharacterizationTest` and its 17 golden responses were created and
+  passed against the legacy implementation before the data source changed.
+  The same test is unchanged and passes against the modern implementation.
 
-### Golden-guarded cutover
-Before any rewiring, the exact HTTP response bytes of every endpoint were
-captured from the legacy-backed API into `src/test/resources/golden/`
-(17 files). The cutover to the modern schema is only considered correct if
-every endpoint remains **byte-identical** — enforced continuously by
-`GoldenFileComparisonTest` (modern mode) and
-`GoldenFileLegacyModeComparisonTest` (legacy mode).
+## Migration assets
 
-### Dual-read flag (`datasource.mode`)
-`LoanService` depends on a `LoanDataProvider` interface with two
-implementations selected by plain Spring conditional wiring (no reflection):
+- `data/modern-schema/modern_tables.sql`: non-destructive production DDL.
+- `src/main/resources/schema-modern.sql`: disposable H2 initialization only;
+  it drops tables to keep local and test runs deterministic.
+- `LegacyToModernMigrationService`: idempotent backfill in foreign-key order:
+  borrowers, products, accounts, then payments.
+- `data/validation/reconciliation_queries.sql`: row-count, amount, key-coverage,
+  and orphan checks.
 
-- `ModernLoanDataProvider` — `@ConditionalOnProperty(name = "datasource.mode",
-  havingValue = "modern", matchIfMissing = true)`; reads the modern
-  repositories inside `modernTransactionManager` read-only transactions.
-- `LegacyLoanDataProvider` — `havingValue = "legacy"`; the original
-  string-parsing translation logic, moved verbatim out of `LoanService`.
+The migration converts legacy strings to `LocalDate`, `BigDecimal`, `Integer`,
+and canonical status values. Records with missing mandatory values or
+unresolvable foreign keys are logged and counted rather than partially saved.
+The legacy payment sequence is retained as `payments.payment_number`, providing
+a stable API identifier and migration key.
 
-Controllers and DTOs are unchanged; `LoanService` is now source-agnostic and
-contains no string-to-type parsing.
+## Runtime switches
 
-### Startup migration (idempotent)
-`MigrationStartupRunner` (an `ApplicationRunner`) runs
-`LegacyToModernMigrationService.migrateAll()` at boot when the modern tables
-are empty, so the app serves migrated data from the first request. The
-migration itself is idempotent (natural-key duplicate checks), so re-running
-is safe; the emptiness check just avoids redundant work. Tests that need
-empty modern tables disable it with `migration.run-on-startup=false`.
+| Property | Local default | Production usage |
+| --- | --- | --- |
+| `datasource.mode` | `modern` | Start with `legacy`, then switch to `modern` |
+| `migration.run-on-startup` | `true` | Enable only on a controlled migration instance |
+| `modern.datasource.initialize-schema` | `true` | Set `false`; apply DDL through the release process |
+| `spring.sql.init.mode` | `always` | Set `never` for an existing legacy database |
 
-### Migration service (Task 2 recap)
-Order respects FKs: borrowers → products → accounts → payments. Malformed
-records are validated **before** any duplicate check or save
-(validate-then-skip), logged with the legacy record identifier, and counted in
-per-entity `skippedRecords` counters; runs never abort. Reconciliation
-expectations: 5 borrowers / 5 products / 5 accounts / 10 payments.
+Production deployments must also supply the legacy and modern connection
+properties instead of the in-memory H2 defaults.
 
-## Presentation formatting in the modern read path
-The modern tables store proper types (DATE, DECIMAL, INTEGER), so no parsing
-happens on read — only formatting so responses match the golden bytes:
+## Production rollout
 
-- Dates rendered as `MM/dd/yyyy` (the legacy string format).
-- Canonical stored codes expanded to display labels
-  (`ACTIVE` → `Active`, `NSF` → `Non-Sufficient Funds`,
-  `Single Family` → `Single Family Residence`, etc.).
-- Original loan amounts: the legacy source records them in whole dollars
-  (e.g. `"285,000"`), so integral values are rendered without a fractional
-  part even though the modern column is `DECIMAL(12,2)`
-  (`ModernLoanDataProvider#wholeDollarsWithoutCents`).
+1. **Deploy compatibility release** with both data sources configured,
+   `datasource.mode=legacy`, `migration.run-on-startup=false`,
+   `modern.datasource.initialize-schema=false`, and
+   `spring.sql.init.mode=never`. API traffic remains on legacy.
+2. **Create the modern schema** using
+   `data/modern-schema/modern_tables.sql` through the normal reviewed database
+   change process.
+3. **Quiesce legacy writes** and run one isolated application instance with
+   `migration.run-on-startup=true`. Keep traffic on legacy while it backfills.
+4. **Reconcile** counts, natural keys, monetary totals, and foreign keys with
+   `data/validation/reconciliation_queries.sql`. Treat skipped-record counts
+   as a cutover blocker unless explicitly accepted.
+5. **Canary the modern read path** by setting `datasource.mode=modern` on a
+   small instance group. Compare API responses and operational metrics, then
+   roll the setting through the remaining instances.
+6. **Rollback if needed** by restoring `datasource.mode=legacy`; no redeploy or
+   reverse data migration is required for this read-only service.
+7. **Retire legacy support** only after the agreed rollback window and after
+   confirming no downstream dependency still uses the CDW schema.
 
-## Schema addition: `payments.payment_number`
-The API exposes the legacy payment sequence number (`PMT_SEQ_NBR`, e.g.
-`PMT-2025120001`) as `paymentId`. The modern payments table originally had no
-such column, which would have made byte-identical responses impossible. A
-nullable unique `payment_number VARCHAR(20)` column was added and is populated
-from `PMT_SEQ_NBR` during migration. This is a deliberate, documented schema
-extension — not an API difference (the API output is unchanged).
-
-## Seeded defects found and fixed
-1. **README vs code: payments endpoint path.** The README documents
-   `GET /api/payments/loan/{loanId}`, but the actual controller mapping is
-   `GET /api/loans/{id}/payments` (`LoanController#getPayments`). Golden files
-   were captured against the real path.
-2. **`pom.xml` repo-health issues** fixed on `priyal/fix-repo-health`
-   (prerequisite branch) so the project builds cleanly with `./mvnw`.
-3. **Legacy type-punning defects** absorbed by the migration parsers:
-   comma-grouped currency strings (`"1,487.02"`), `MM/DD/YYYY` string dates,
-   string integers, and cryptic status codes — all converted to native
-   DECIMAL/DATE/INTEGER/expanded values with warn-and-null (or
-   validate-then-skip for mandatory fields) handling for malformed input.
-
-## Edge cases handled
-- **Malformed records**: mandatory-field parse failures (e.g. a payment with
-  `PMT_DT='NOT-A-DATE'`) are skipped with a warning and counted; the run
-  continues (covered by `skipsMalformedPaymentWithWarningWithoutAbortingRun`).
-- **Unresolvable FKs**: accounts/payments whose borrower/product/account
-  cannot be resolved are skipped and counted, never saved partially.
-- **Duplicate/idempotent runs**: natural-key matching (borrower external id,
-  product code, account number; payments by loan+date+amount+type) means
-  re-running migrates nothing twice.
-- **Unknown codes**: kept as raw values with a warning rather than dropped.
-- **Null optional values**: mapped to null with a warning, never silently.
-- **Shared in-memory H2 across Spring test contexts**: `schema-legacy.sql`
-  and `schema-modern.sql` now `DROP TABLE IF EXISTS` first so each context
-  initializes from a clean, deterministic state.
-
-## Legacy cleanup
-Legacy entities and repositories are marked `@Deprecated` with Javadoc
-pointing to their modern equivalents. They are **not deleted** because the
-dual-read fallback (`datasource.mode=legacy`) and the migration service still
-require them.
+This simple plan intentionally uses a write freeze instead of dual-write or
+CDC. If production writers must remain active during backfill, add change-data
+capture or an upsert-based delta migration before using this rollout.
 
 ## Validation
-- `./mvnw clean test` — 18/18 green, including both golden suites.
-- Manual smoke: booted in each mode, hit all 5 endpoints, `cmp` against all
-  17 golden files → zero byte differences in both modes.
-- Bonus reconciliation SQL: `data/validation/reconciliation_queries.sql`
-  (row counts, per-loan amount sums, orphaned-FK checks).
 
-## Intentional differences
-None at the API level. The only intentional divergence from the pre-existing
-modern DDL is the additive `payments.payment_number` column described above.
+Run:
+
+```bash
+./mvnw clean test
+```
+
+The suite checks:
+
+- byte-identical API behavior for all borrowers, loans, and payments;
+- migrated row counts and monetary totals;
+- foreign-key resolution and typed conversions;
+- idempotent reruns;
+- malformed-record handling.
+
+The payment characterization test uses the implemented route:
+`GET /api/loans/{loanId}/payments`.

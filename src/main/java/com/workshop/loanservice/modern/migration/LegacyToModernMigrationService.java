@@ -38,14 +38,13 @@ import java.util.Optional;
  *
  * <p>Idempotent: records already present in the modern tables (matched by
  * natural key) are skipped, so running the migration multiple times does
- * not create duplicates. Payments, which have no unique natural key column,
- * are matched on (loan account, payment date, total amount, type).
+ * not create duplicates. Payments retain the legacy sequence number as a
+ * stable unique migration key.
  *
  * <p>Null or malformed legacy values are logged as warnings and mapped to
- * null; records are never silently dropped. Records that cannot satisfy a
- * mandatory column or foreign key are validated BEFORE any duplicate check
- * or save: they are logged with the legacy record identifier, counted in a
- * per-entity skipped-records counter, and never abort the run.
+ * null. Records that cannot satisfy a mandatory column or foreign key are
+ * logged with the legacy identifier, counted as skipped, and never partially
+ * saved.
  */
 @Service
 public class LegacyToModernMigrationService {
@@ -68,8 +67,7 @@ public class LegacyToModernMigrationService {
             "SFR", "Single Family",
             "CND", "Condominium",
             "TWN", "Townhouse",
-            "MFR", "Multi Family",
-            "MAN", "Manufactured");
+            "MFR", "Multi Family");
 
     private static final Map<String, String> PAYMENT_TYPE = Map.of(
             "REG", "REGULAR",
@@ -130,7 +128,7 @@ public class LegacyToModernMigrationService {
     private void migrateBorrowers(MigrationResult result) {
         for (LegacyBorrower legacy : legacyBorrowerRepository.findAll()) {
             String id = legacy.getBorrowerId();
-            if (id == null || id.isBlank()) {
+            if (isBlank(id)) {
                 log.warn("Skipping legacy borrower with missing BORR_ID");
                 result.borrowersSkippedRecords++;
                 continue;
@@ -138,6 +136,11 @@ public class LegacyToModernMigrationService {
             if (modernBorrowerRepository.findByExternalId(id).isPresent()) {
                 log.info("Borrower {} already migrated; skipping", id);
                 result.borrowersSkipped++;
+                continue;
+            }
+            if (isBlank(legacy.getFirstName()) || isBlank(legacy.getLastName())) {
+                log.warn("Skipping legacy borrower {} with missing mandatory name fields", id);
+                result.borrowersSkippedRecords++;
                 continue;
             }
             Borrower modern = new Borrower();
@@ -168,7 +171,7 @@ public class LegacyToModernMigrationService {
     private void migrateLoanProducts(MigrationResult result) {
         for (LegacyLoanProduct legacy : legacyLoanProductRepository.findAll()) {
             String code = legacy.getProductCode();
-            if (code == null || code.isBlank()) {
+            if (isBlank(code)) {
                 log.warn("Skipping legacy loan product with missing PROD_CD");
                 result.productsSkippedRecords++;
                 continue;
@@ -178,11 +181,18 @@ public class LegacyToModernMigrationService {
                 result.productsSkipped++;
                 continue;
             }
+            Integer termMonths = parseInteger(legacy.getTermMonths(), code, "PROD_TERM_MOS");
+            if (isBlank(legacy.getDescription()) || isBlank(legacy.getTypeCode())
+                    || termMonths == null || isBlank(legacy.getRateType())) {
+                log.warn("Skipping legacy loan product {} with missing mandatory fields", code);
+                result.productsSkippedRecords++;
+                continue;
+            }
             LoanProduct modern = new LoanProduct();
             modern.setCode(code);
             modern.setName(legacy.getDescription());
             modern.setType(legacy.getTypeCode());
-            modern.setTermMonths(parseInteger(legacy.getTermMonths(), code, "PROD_TERM_MOS"));
+            modern.setTermMonths(termMonths);
             modern.setRateType(legacy.getRateType());
             modern.setMinAmount(parseDecimal(legacy.getMinAmount(), code, "PROD_MIN_AMT"));
             modern.setMaxAmount(parseDecimal(legacy.getMaxAmount(), code, "PROD_MAX_AMT"));
@@ -274,6 +284,16 @@ public class LegacyToModernMigrationService {
     private void migratePayments(MigrationResult result) {
         for (LegacyPayment legacy : legacyPaymentRepository.findAll()) {
             String seqNbr = legacy.getPaymentSequenceNumber();
+            if (isBlank(seqNbr)) {
+                log.warn("Skipping legacy payment with missing PMT_SEQ_NBR");
+                result.paymentsSkippedRecords++;
+                continue;
+            }
+            if (modernPaymentRepository.existsByPaymentNumber(seqNbr)) {
+                log.info("Payment {} already migrated; skipping", seqNbr);
+                result.paymentsSkipped++;
+                continue;
+            }
             Optional<LoanAccount> account = Optional.ofNullable(legacy.getLoanAccountNumber())
                     .flatMap(modernLoanAccountRepository::findByAccountNumber);
             if (account.isEmpty()) {
@@ -285,17 +305,12 @@ public class LegacyToModernMigrationService {
             LocalDate paymentDate = parseDate(legacy.getPaymentDate(), seqNbr, "PMT_DT");
             BigDecimal totalAmount = parseDecimal(legacy.getTotalAmount(), seqNbr, "PMT_AMT");
             String type = expandCode(PAYMENT_TYPE, legacy.getTypeCode(), seqNbr, "PMT_TYP_CD");
-            if (paymentDate == null || totalAmount == null || type == null) {
+            String status = expandCode(PAYMENT_STATUS, legacy.getStatusCode(), seqNbr, "PMT_STAT_CD");
+            if (paymentDate == null || totalAmount == null || type == null || status == null) {
                 log.warn("Payment {}: mandatory value missing/malformed after parsing "
-                        + "(paymentDate={}, totalAmount={}, type={}); record skipped",
-                        seqNbr, paymentDate, totalAmount, type);
+                        + "(paymentDate={}, totalAmount={}, type={}, status={}); record skipped",
+                        seqNbr, paymentDate, totalAmount, type, status);
                 result.paymentsSkippedRecords++;
-                continue;
-            }
-            if (modernPaymentRepository.existsByLoanAccountIdAndPaymentDateAndTotalAmountAndType(
-                    account.get().getId(), paymentDate, totalAmount, type)) {
-                log.info("Payment {} already migrated; skipping", seqNbr);
-                result.paymentsSkipped++;
                 continue;
             }
             Payment modern = new Payment();
@@ -308,7 +323,7 @@ public class LegacyToModernMigrationService {
             modern.setEscrowAmount(parseDecimal(legacy.getEscrowAmount(), seqNbr, "PMT_ESCROW_AMT"));
             modern.setLateFee(parseDecimal(legacy.getLateFee(), seqNbr, "PMT_LATE_FEE"));
             modern.setType(type);
-            modern.setStatus(expandCode(PAYMENT_STATUS, legacy.getStatusCode(), seqNbr, "PMT_STAT_CD"));
+            modern.setStatus(status);
             modern.setReceivedDate(parseDate(legacy.getReceivedDate(), seqNbr, "PMT_RECV_DT"));
             modern.setProcessedDate(parseDate(legacy.getProcessedDate(), seqNbr, "PMT_PROC_DT"));
             modern.setCreatedAt(parseTimestamp(legacy.getCreatedDate(), seqNbr, "PMT_CRET_DT"));
@@ -330,6 +345,10 @@ public class LegacyToModernMigrationService {
                     recordId, field, value);
             return null;
         }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private LocalDateTime parseTimestamp(String value, String recordId, String field) {

@@ -16,10 +16,7 @@ import com.workshop.loanservice.repository.LegacyBorrowerRepository;
 import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import com.workshop.loanservice.repository.LegacyLoanProductRepository;
 import com.workshop.loanservice.repository.LegacyPaymentRepository;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,9 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * resolution, amount reconciliation between legacy (parsed) and modern
  * values, and idempotency (running twice creates no duplicates).
  */
-@SpringBootTest
+@SpringBootTest(properties = "migration.run-on-startup=false")
 @Transactional("modernTransactionManager")
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class LegacyToModernMigrationServiceTest {
 
     @Autowired
@@ -64,7 +60,6 @@ class LegacyToModernMigrationServiceTest {
     private ModernPaymentRepository modernPaymentRepository;
 
     @Test
-    @Order(1)
     void migratesAllRecordsWithExpectedCounts() {
         MigrationResult result = migrationService.migrateAll();
 
@@ -84,7 +79,6 @@ class LegacyToModernMigrationServiceTest {
     }
 
     @Test
-    @Order(2)
     void rowCountsReconcileLegacyVsModern() {
         migrationService.migrateAll();
 
@@ -95,7 +89,6 @@ class LegacyToModernMigrationServiceTest {
     }
 
     @Test
-    @Order(3)
     void amountSumsReconcileLegacyVsModern() {
         migrationService.migrateAll();
 
@@ -121,7 +114,6 @@ class LegacyToModernMigrationServiceTest {
     }
 
     @Test
-    @Order(4)
     void resolvesForeignKeys() {
         migrationService.migrateAll();
 
@@ -139,7 +131,6 @@ class LegacyToModernMigrationServiceTest {
     }
 
     @Test
-    @Order(5)
     void migrationIsIdempotent() {
         migrationService.migrateAll();
         MigrationResult second = migrationService.migrateAll();
@@ -160,7 +151,6 @@ class LegacyToModernMigrationServiceTest {
     }
 
     @Test
-    @Order(6)
     void transformsTypesAndExpandsCodes() {
         migrationService.migrateAll();
 
@@ -180,7 +170,6 @@ class LegacyToModernMigrationServiceTest {
     }
 
     @Test
-    @Order(7)
     void skipsMalformedPaymentWithWarningWithoutAbortingRun() {
         LegacyPayment malformed = new LegacyPayment();
         malformed.setPaymentSequenceNumber("P-99999");

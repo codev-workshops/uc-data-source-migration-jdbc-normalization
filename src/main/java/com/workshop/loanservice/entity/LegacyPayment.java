@@ -7,13 +7,7 @@ import jakarta.persistence.Table;
 
 /**
  * Maps to the legacy CDW_PMT_HIST table.
- *
- * @deprecated the modern schema is the operative data source; use
- * {@link com.workshop.loanservice.modern.entity.Payment} instead. Retained
- * only for the dual-read fallback ({@code datasource.mode=legacy}) and as
- * the migration source.
  */
-@Deprecated
 @Entity
 @Table(name = "CDW_PMT_HIST")
 public class LegacyPayment {

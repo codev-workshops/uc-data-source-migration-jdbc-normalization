@@ -29,7 +29,7 @@ public class Payment {
     @JoinColumn(name = "loan_account_id", nullable = false)
     private LoanAccount loanAccount;
 
-    @Column(name = "payment_number", unique = true, length = 20)
+    @Column(name = "payment_number", nullable = false, unique = true, length = 20)
     private String paymentNumber;
 
     @Column(name = "payment_date", nullable = false)

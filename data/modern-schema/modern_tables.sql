@@ -9,7 +9,7 @@
 --   4. Foreign key constraints for referential integrity
 --   5. Proper indexing
 --   6. Timestamps instead of string dates
---   7. Enum-like status fields with CHECK constraints
+--   7. Canonical status and type values
 -- =============================================================================
 
 CREATE TABLE borrowers (
@@ -83,6 +83,7 @@ CREATE TABLE loan_accounts (
 CREATE TABLE payments (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
     loan_account_id     BIGINT NOT NULL,
+    payment_number      VARCHAR(20) UNIQUE NOT NULL,
     payment_date        DATE NOT NULL,
     total_amount        DECIMAL(10, 2) NOT NULL,
     principal_amount    DECIMAL(10, 2),

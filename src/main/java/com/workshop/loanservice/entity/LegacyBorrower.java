@@ -8,13 +8,7 @@ import jakarta.persistence.Table;
 /**
  * Maps to the legacy CDW_BORR_MSTR table.
  * All fields are strings (legacy DW pattern — loose typing).
- *
- * @deprecated the modern schema is the operative data source; use
- * {@link com.workshop.loanservice.modern.entity.Borrower} instead. Retained
- * only for the dual-read fallback ({@code datasource.mode=legacy}) and as
- * the migration source.
  */
-@Deprecated
 @Entity
 @Table(name = "CDW_BORR_MSTR")
 public class LegacyBorrower {

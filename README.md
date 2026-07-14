@@ -1,10 +1,14 @@
 # Data Source Migration: Legacy to Modern
 
-A small Spring Boot loan management application that currently connects to a **legacy data warehouse** (simulated via H2 with legacy-style schemas). The workshop challenge is to migrate the data source to a **modern schema** while keeping the application functional.
+A small Spring Boot loan management application demonstrating migration from a
+**legacy data warehouse** to a normalized **modern schema** while preserving
+API behavior.
 
 ## Overview
 
-This app manages loan data: borrowers, loan products, loan accounts, and payment history. It currently reads from legacy tables with denormalized structures, cryptic column names, and outdated patterns. The goal is to rewire it to use a normalized modern schema with clear naming conventions.
+This app manages loan data: borrowers, loan products, loan accounts, and
+payment history. It reads the modern schema by default and retains the legacy
+CDW read path behind `datasource.mode=legacy` for rollback during rollout.
 
 ## Architecture
 
@@ -44,6 +48,9 @@ Migrate to normalized tables:
 
 See `data/modern-schema/` for target DDL.
 
+See `DATA_SOURCE_MIGRATION_NOTES.md` for migration behavior, validation, and
+the production rollout plan.
+
 ## Quick Start
 
 ```bash
@@ -55,7 +62,7 @@ The app runs on `http://localhost:8080` with endpoints:
 - `GET /api/loans/{id}` — Get loan details
 - `GET /api/borrowers` — List borrowers
 - `GET /api/borrowers/{id}` — Get borrower with loans
-- `GET /api/payments/loan/{loanId}` — Payment history for a loan
+- `GET /api/loans/{loanId}/payments` - Payment history for a loan
 
 ## Tech Stack
 
