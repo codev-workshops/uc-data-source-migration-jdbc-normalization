@@ -67,7 +67,7 @@
 | `PROP_CTY_NM` | VARCHAR(50) | `property_city` | VARCHAR(50) | Direct copy |
 | `PROP_ST_CD` | VARCHAR(2) | `property_state` | VARCHAR(2) | Direct copy |
 | `PROP_ZIP_CD` | VARCHAR(10) | `property_zip` | VARCHAR(10) | Direct copy |
-| `PROP_TYP_CD` | VARCHAR(10) | `property_type` | VARCHAR(30) | Expand: SFR→Single Family, CND→Condominium, etc. |
+| `PROP_TYP_CD` | VARCHAR(10) | `property_type` | VARCHAR(30) | Expand: SFR→Single Family Residence, CND→Condominium, MFR→Multi-Family Residence, TWN→Townhouse |
 | `PROP_APRS_VAL` | VARCHAR(15) | `appraised_value` | DECIMAL(12,2) | Remove commas, parse → decimal |
 | `LN_CRET_DT` | VARCHAR(10) | `created_at` | TIMESTAMP | Parse MM/DD/YYYY → timestamp |
 | `LN_UPDT_DT` | VARCHAR(10) | `updated_at` | TIMESTAMP | Parse MM/DD/YYYY → timestamp |
@@ -76,7 +76,8 @@
 
 | Legacy Column | Legacy Type | Modern Column | Modern Type | Transformation |
 |---------------|-------------|---------------|-------------|----------------|
-| `PMT_SEQ_NBR` | VARCHAR(20) | `id` | BIGINT | Auto-generated; legacy ID stored if needed |
+| `PMT_SEQ_NBR` | VARCHAR(20) | `external_id` | VARCHAR(20) | Direct copy; unique API-facing payment ID |
+| *(generated)* | — | `id` | BIGINT | Auto-generated internal primary key |
 | `LN_ACCT_NBR` | VARCHAR(20) | `loan_account_id` | BIGINT | Lookup loan_accounts.id by account_number |
 | `PMT_DT` | VARCHAR(10) | `payment_date` | DATE | Parse MM/DD/YYYY → DATE |
 | `PMT_AMT` | VARCHAR(15) | `total_amount` | DECIMAL(10,2) | Remove commas, parse → decimal |

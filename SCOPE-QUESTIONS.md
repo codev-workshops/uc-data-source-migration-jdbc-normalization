@@ -2,6 +2,21 @@
 
 The recommendations below were approved on 2026-07-15 before implementation began.
 
+## Final Resolution Summary
+
+| Item | Resolution |
+|---|---|
+| Maven baseline defects | Corrected the parent POM element and restored both wrapper launchers. |
+| Payment endpoint | Preserved `GET /api/loans/{loanId}/payments` and corrected the README. |
+| Payment identifiers | Added unique `payments.external_id` and preserved every `PMT-*` value. |
+| Migration execution | Added isolated service/test profiles plus the explicit `legacy-migration-run` runner profile. |
+| Reruns | Complete reconciled targets are no-ops; partial or conflicting targets fail before writes. |
+| Malformed values | Required malformed values, unknown codes, and missing references fail the transaction. |
+| Payment ordering | Uses typed `payment_date DESC` with generated ID as a stable secondary key. |
+| API dates | Remain `MM/dd/yyyy` strings while persistence uses typed dates. |
+| Legacy cleanup | Legacy artifacts are profile-isolated and retained only for migration execution/tests. |
+| Not-found behavior | Preserved exactly and recorded as a separate backlog improvement. |
+
 ## 1. Pre-existing Maven build defects
 
 **Ambiguity/conflict:** The protocol requires a green-or-documented baseline before implementation, but `main` cannot be parsed by Maven because `pom.xml` contains invalid `<relativeTo/>`. The scope also requires the application to build with the Maven wrapper, but `mvnw` and `mvnw.cmd` are missing.

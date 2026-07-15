@@ -1,10 +1,19 @@
 # Data Source Migration Tasks
 
-This document describes the workshop tasks for migrating the loan-service application from its legacy data source to the modern schema.
+This document records the workshop tasks used to migrate the loan-service
+application from its legacy data source to the modern schema.
+
+> Status: completed. The modern schema is now the default runtime, all required
+> migration and parity tests pass, and implementation details are documented in
+> [`DATA_SOURCE_MIGRATION_NOTES.md`](../DATA_SOURCE_MIGRATION_NOTES.md).
 
 ## Overview
 
-The loan-service app currently reads from legacy CDW (Corporate Data Warehouse) tables with cryptic column names, all-VARCHAR typing, denormalized structures, and string-encoded dates/amounts. The goal is to migrate to a clean, normalized modern schema while keeping the API endpoints functioning identically.
+The original loan-service app read from legacy CDW (Corporate Data Warehouse)
+tables with cryptic column names, all-VARCHAR typing, denormalized structures,
+and string-encoded dates/amounts. The completed migration uses a clean,
+normalized modern schema while keeping the API endpoints functioning
+identically.
 
 ## Task 1: Create Modern Schema and Entities
 

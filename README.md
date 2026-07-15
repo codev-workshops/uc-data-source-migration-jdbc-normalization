@@ -1,10 +1,14 @@
 # Data Source Migration: Legacy to Modern
 
-A small Spring Boot loan management application that currently connects to a **legacy data warehouse** (simulated via H2 with legacy-style schemas). The workshop challenge is to migrate the data source to a **modern schema** while keeping the application functional.
+A small Spring Boot loan management application migrated from a legacy data
+warehouse schema to a normalized, typed H2 schema while preserving the
+original REST API.
 
 ## Overview
 
-This app manages loan data: borrowers, loan products, loan accounts, and payment history. It currently reads from legacy tables with denormalized structures, cryptic column names, and outdated patterns. The goal is to rewire it to use a normalized modern schema with clear naming conventions.
+This app manages loan data: borrowers, loan products, loan accounts, and
+payment history. The default runtime now uses clear modern table and column
+names, proper Java and SQL types, and normalized relationships.
 
 ## Architecture
 
@@ -16,54 +20,118 @@ This app manages loan data: borrowers, loan products, loan accounts, and payment
 │                  │          │
 │              Repositories   │
 │                  │          │
-│         Legacy DataSource   │  ← YOU ARE HERE
-│         (H2 / legacy schema)│
-│                             │
-│         Modern DataSource   │  ← MIGRATE TO HERE
-│         (H2 / modern schema)│
+│         Modern DataSource   │
+│         (H2 / typed schema) │
 └─────────────────────────────┘
 ```
 
-## Current State (Legacy)
+## Legacy Migration Source
 
-The app connects to legacy tables:
-- `CDW_BORR_MSTR` — Borrower master (denormalized, cryptic columns)
-- `CDW_LN_PROD` — Loan products
-- `CDW_LN_ACCT` — Loan accounts (wide table with embedded borrower data)
-- `CDW_PMT_HIST` — Payment history
+The retained migration path reads:
 
-See `data/legacy-schema/` for full DDL and `data/mappings/` for column-level mappings.
+- `CDW_BORR_MSTR` — borrower master
+- `CDW_LN_PROD` — loan products
+- `CDW_LN_ACCT` — denormalized loan accounts
+- `CDW_PMT_HIST` — payment history
 
-## Target State (Modern)
+See `data/legacy-schema/` for the source DDL and `data/mappings/` for
+column-level transformations. Legacy components are enabled only by migration
+profiles and tests.
 
-Migrate to normalized tables:
-- `borrowers` — Clean borrower records
-- `loan_products` — Product catalog
-- `loan_accounts` — Normalized loan accounts with foreign keys
-- `payments` — Payment records
+## Current State (Modern)
 
-See `data/modern-schema/` for target DDL.
+The default application reads:
+
+- `borrowers` — typed borrower records
+- `loan_products` — product catalog
+- `loan_accounts` — normalized accounts with borrower and product foreign keys
+- `payments` — typed payments with preserved external payment IDs
+
+See `data/modern-schema/` for the target DDL.
 
 ## Quick Start
+
+Requirements:
+
+- Java 17
+- No system Maven installation is required
+
+macOS/Linux:
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-The app runs on `http://localhost:8080` with endpoints:
-- `GET /api/loans` — List all loans
-- `GET /api/loans/{id}` — Get loan details
-- `GET /api/borrowers` — List borrowers
-- `GET /api/borrowers/{id}` — Get borrower with loans
-- `GET /api/payments/loan/{loanId}` — Payment history for a loan
+Windows:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+The default application initializes `schema-modern.sql` and `data-modern.sql`
+in an in-memory H2 database and runs on `http://localhost:8080`.
+
+## API
+
+- `GET /api/loans` — list all loans
+- `GET /api/loans/{id}` — get a loan by account number
+- `GET /api/loans/{loanId}/payments` — get payment history for a loan
+- `GET /api/borrowers` — list borrowers
+- `GET /api/borrowers/{id}` — get a borrower and their loans
+
+External borrower IDs (`B-*`), loan account numbers (`LN-*`), and payment IDs
+(`PMT-*`) are preserved in API responses.
+
+## Run the Legacy Migration
+
+The `legacy-migration-run` profile initializes the migration runner. Supply
+both schemas and the legacy seed data so the runner can read the source tables
+and write the modern target tables:
+
+```bash
+./mvnw package
+java -jar target/loan-service-1.0.0.jar \
+  --spring.profiles.active=legacy-migration-run \
+  --spring.sql.init.schema-locations=classpath:schema-legacy.sql,classpath:schema-modern.sql \
+  --spring.sql.init.data-locations=classpath:data-legacy.sql
+```
+
+The migration:
+
+- writes borrowers, products, loans, then payments in one transaction;
+- preserves source business identifiers;
+- treats a fully reconciled rerun as a no-op;
+- rejects partial or conflicting target data before writing;
+- rolls back all writes when a transformation or foreign-key validation fails.
+
+See [DATA_SOURCE_MIGRATION_NOTES.md](DATA_SOURCE_MIGRATION_NOTES.md) for
+transformation rules, retained legacy artifacts, and verification evidence.
+
+## Tests
+
+macOS/Linux:
+
+```bash
+./mvnw test
+```
+
+Windows:
+
+```powershell
+.\mvnw.cmd test
+```
+
+The suite covers typed persistence, migration reconciliation and rollback,
+the runner profile, modern-default startup, and API parity against the captured
+legacy responses.
 
 ## Tech Stack
 
 - Java 17
-- Spring Boot 3.2
+- Spring Boot 3.2.3
 - Spring Data JPA
-- H2 (in-memory, simulating legacy DW)
-- Maven
+- H2 2.2.224
+- Maven Wrapper 3.9.6
 
 ## License
 
