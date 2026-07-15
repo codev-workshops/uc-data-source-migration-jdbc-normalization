@@ -8,7 +8,8 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.2.3</version>
-        <relativeTo/>
+        <!-- OUT-OF-SCOPE FIX: Restore Maven model parsing so the approved refactor can be built and tested. -->
+        <relativePath/>
     </parent>
 
     <groupId>com.workshop</groupId>
