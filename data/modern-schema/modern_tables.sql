@@ -30,7 +30,8 @@ CREATE TABLE borrowers (
     credit_score    INTEGER,
     employment_status VARCHAR(20),
     annual_income   DECIMAL(12, 2),
-    status          VARCHAR(10) DEFAULT 'ACTIVE',
+    status          VARCHAR(10) DEFAULT 'ACTIVE'
+                    CHECK (status IN ('ACTIVE', 'INACTIVE')),
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -63,7 +64,8 @@ CREATE TABLE loan_accounts (
     maturity_date       DATE NOT NULL,
     first_payment_date  DATE,
     next_payment_date   DATE,
-    status              VARCHAR(15) DEFAULT 'ACTIVE',
+    status              VARCHAR(15) DEFAULT 'ACTIVE'
+                        CHECK (status IN ('ACTIVE', 'CLOSED', 'DEFAULT', 'FORBEARANCE')),
     delinquency_days    INTEGER DEFAULT 0,
     escrow_balance      DECIMAL(10, 2) DEFAULT 0,
     ltv_percent         DECIMAL(5, 2),
@@ -82,6 +84,7 @@ CREATE TABLE loan_accounts (
 
 CREATE TABLE payments (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
+    external_id         VARCHAR(20) UNIQUE NOT NULL,
     loan_account_id     BIGINT NOT NULL,
     payment_date        DATE NOT NULL,
     total_amount        DECIMAL(10, 2) NOT NULL,
@@ -89,8 +92,10 @@ CREATE TABLE payments (
     interest_amount     DECIMAL(10, 2),
     escrow_amount       DECIMAL(10, 2),
     late_fee            DECIMAL(10, 2) DEFAULT 0,
-    type                VARCHAR(15) NOT NULL,      -- REGULAR, EXTRA, PARTIAL, PREPAYMENT
-    status              VARCHAR(15) NOT NULL,      -- POSTED, REVERSED, NSF, PENDING
+    type                VARCHAR(15) NOT NULL       -- REGULAR, EXTRA, PARTIAL, PREPAYMENT
+                        CHECK (type IN ('REGULAR', 'EXTRA', 'PARTIAL', 'PREPAYMENT')),
+    status              VARCHAR(15) NOT NULL       -- POSTED, REVERSED, NSF, PENDING
+                        CHECK (status IN ('POSTED', 'REVERSED', 'NSF', 'PENDING')),
     received_date       DATE,
     processed_date      DATE,
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -106,3 +111,4 @@ CREATE INDEX idx_loan_accounts_borrower ON loan_accounts(borrower_id);
 CREATE INDEX idx_loan_accounts_status ON loan_accounts(status);
 CREATE INDEX idx_payments_loan ON payments(loan_account_id);
 CREATE INDEX idx_payments_date ON payments(payment_date);
+CREATE INDEX idx_payments_external_id ON payments(external_id);
