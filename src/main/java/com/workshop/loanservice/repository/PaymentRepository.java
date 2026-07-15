@@ -11,12 +11,16 @@ import java.util.Optional;
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
+    @EntityGraph(attributePaths = "loanAccount")
     Optional<Payment> findByExternalId(String externalId);
 
     @EntityGraph(attributePaths = "loanAccount")
     List<Payment> findByLoanAccountAccountNumberOrderByPaymentDateDescIdDesc(
             String accountNumber
     );
+
+    @EntityGraph(attributePaths = "loanAccount")
+    List<Payment> findAllByOrderByIdAsc();
 
     boolean existsByExternalId(String externalId);
 }
