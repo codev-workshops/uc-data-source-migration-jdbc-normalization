@@ -25,7 +25,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "spring.datasource.url=jdbc:h2:mem:legacygolden;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+        properties = {
+                "spring.datasource.url=jdbc:h2:mem:moderngolden;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+                "spring.sql.init.schema-locations=classpath:schema-modern.sql",
+                "spring.sql.init.data-locations=classpath:data-modern.sql"
+        }
 )
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LegacyApiGoldenTest {
