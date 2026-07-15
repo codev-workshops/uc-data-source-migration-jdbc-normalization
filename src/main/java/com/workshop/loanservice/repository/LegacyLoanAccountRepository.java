@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-@Profile("legacy-migration")
+@Profile({"legacy-migration", "legacy-migration-run"})
 public interface LegacyLoanAccountRepository extends JpaRepository<LegacyLoanAccount, String> {
 
     List<LegacyLoanAccount> findByBorrowerId(String borrowerId);

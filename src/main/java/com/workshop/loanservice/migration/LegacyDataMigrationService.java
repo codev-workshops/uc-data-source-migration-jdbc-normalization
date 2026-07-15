@@ -28,7 +28,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-@Profile("legacy-migration")
+@Profile({"legacy-migration", "legacy-migration-run"})
 public class LegacyDataMigrationService {
 
     private static final String BORROWER_TABLE = "CDW_BORR_MSTR";
