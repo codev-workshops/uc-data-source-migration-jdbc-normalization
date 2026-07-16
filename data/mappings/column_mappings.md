@@ -59,7 +59,7 @@
 | `LN_MAT_DT` | VARCHAR(10) | `maturity_date` | DATE | Parse MM/DD/YYYY → DATE |
 | `LN_1ST_PMT_DT` | VARCHAR(10) | `first_payment_date` | DATE | Parse MM/DD/YYYY → DATE |
 | `LN_NXT_PMT_DT` | VARCHAR(10) | `next_payment_date` | DATE | Parse MM/DD/YYYY → DATE |
-| `LN_STAT_CD` | VARCHAR(5) | `status` | VARCHAR(15) | Expand: ACT→ACTIVE, CLO→CLOSED, DFT→DEFAULT, FRB→FORBEARANCE |
+| `LN_STAT_CD` | VARCHAR(5) | `status` | VARCHAR(15) | Store enum ACT→ACTIVE, CLO→CLOSED, DFT→DEFAULT, FRB→FORBEARANCE. **API output differs — see "API Output Parity" below** |
 | `LN_DLQ_DAYS` | VARCHAR(5) | `delinquency_days` | INTEGER | Parse string → integer |
 | `LN_ESCROW_BAL` | VARCHAR(15) | `escrow_balance` | DECIMAL(10,2) | Remove commas, parse → decimal |
 | `LN_LTV_PCT` | VARCHAR(8) | `ltv_percent` | DECIMAL(5,2) | Parse string → decimal |
@@ -67,7 +67,7 @@
 | `PROP_CTY_NM` | VARCHAR(50) | `property_city` | VARCHAR(50) | Direct copy |
 | `PROP_ST_CD` | VARCHAR(2) | `property_state` | VARCHAR(2) | Direct copy |
 | `PROP_ZIP_CD` | VARCHAR(10) | `property_zip` | VARCHAR(10) | Direct copy |
-| `PROP_TYP_CD` | VARCHAR(10) | `property_type` | VARCHAR(30) | Expand: SFR→Single Family, CND→Condominium, etc. |
+| `PROP_TYP_CD` | VARCHAR(10) | `property_type` | VARCHAR(30) | Expand: SFR→Single Family Residence, CND→Condominium, MFR→Multi-Family Residence, TWN→Townhouse. **API output must match exactly — see "API Output Parity" below** |
 | `PROP_APRS_VAL` | VARCHAR(15) | `appraised_value` | DECIMAL(12,2) | Remove commas, parse → decimal |
 | `LN_CRET_DT` | VARCHAR(10) | `created_at` | TIMESTAMP | Parse MM/DD/YYYY → timestamp |
 | `LN_UPDT_DT` | VARCHAR(10) | `updated_at` | TIMESTAMP | Parse MM/DD/YYYY → timestamp |
@@ -76,7 +76,7 @@
 
 | Legacy Column | Legacy Type | Modern Column | Modern Type | Transformation |
 |---------------|-------------|---------------|-------------|----------------|
-| `PMT_SEQ_NBR` | VARCHAR(20) | `id` | BIGINT | Auto-generated; legacy ID stored if needed |
+| `PMT_SEQ_NBR` | VARCHAR(20) | `id` (surrogate) + `legacy_payment_id` | BIGINT + VARCHAR(20) | **See parity note below.** `PMT_SEQ_NBR` currently drives `PaymentDto.paymentId` (e.g. `"PMT-2025120001"`). Auto-generated `id` is only a surrogate PK; the legacy value MUST be preserved in a dedicated `legacy_payment_id` column to keep `paymentId` output stable |
 | `LN_ACCT_NBR` | VARCHAR(20) | `loan_account_id` | BIGINT | Lookup loan_accounts.id by account_number |
 | `PMT_DT` | VARCHAR(10) | `payment_date` | DATE | Parse MM/DD/YYYY → DATE |
 | `PMT_AMT` | VARCHAR(15) | `total_amount` | DECIMAL(10,2) | Remove commas, parse → decimal |
@@ -84,8 +84,8 @@
 | `PMT_INT_AMT` | VARCHAR(15) | `interest_amount` | DECIMAL(10,2) | Remove commas, parse → decimal |
 | `PMT_ESCROW_AMT` | VARCHAR(15) | `escrow_amount` | DECIMAL(10,2) | Remove commas, parse → decimal |
 | `PMT_LATE_FEE` | VARCHAR(15) | `late_fee` | DECIMAL(10,2) | Remove commas, parse → decimal |
-| `PMT_TYP_CD` | VARCHAR(5) | `type` | VARCHAR(15) | Expand: REG→REGULAR, EXT→EXTRA, PRT→PARTIAL, PRE→PREPAYMENT |
-| `PMT_STAT_CD` | VARCHAR(5) | `status` | VARCHAR(15) | Expand: PST→POSTED, REV→REVERSED, NSF→NSF, PND→PENDING |
+| `PMT_TYP_CD` | VARCHAR(5) | `type` | VARCHAR(15) | Store enum REG→REGULAR, EXT→EXTRA, PRT→PARTIAL, PRE→PREPAYMENT. **API output differs — see "API Output Parity" below** |
+| `PMT_STAT_CD` | VARCHAR(5) | `status` | VARCHAR(15) | Store enum PST→POSTED, REV→REVERSED, NSF→NSF, PND→PENDING. **API output differs — see "API Output Parity" below** |
 | `PMT_RECV_DT` | VARCHAR(10) | `received_date` | DATE | Parse MM/DD/YYYY → DATE |
 | `PMT_PROC_DT` | VARCHAR(10) | `processed_date` | DATE | Parse MM/DD/YYYY → DATE |
 | `PMT_CRET_DT` | VARCHAR(10) | `created_at` | TIMESTAMP | Parse MM/DD/YYYY → timestamp |
@@ -98,3 +98,54 @@
 3. **Status expansion:** Short codes → readable values (ACT→ACTIVE, etc.)
 4. **Denormalization removal:** Drop borrower fields from loan_accounts, use FK instead
 5. **ID resolution:** Legacy string IDs → modern auto-increment BIGINT with FK lookups
+
+## API Output Parity (source of truth: `LoanService`)
+
+> **CRITICAL:** There are two distinct layers. The **modern DB columns** store enum-style
+> `UPPER_CASE` codes (`ACTIVE`, `CLOSED`, `POSTED`, …) as shown in the mapping tables above.
+> The **REST API JSON**, however, is produced by
+> `com.workshop.loanservice.service.LoanService` and uses **title-case, long-form** strings.
+> To keep byte-for-byte API parity after the migration, the rewired service layer MUST emit
+> exactly the strings below (map DB enum → these values), regardless of how they are stored.
+>
+> These are the actual outputs of `LoanService.expandStatusCode`, `expandPropertyType`,
+> `expandPaymentType`, and `expandPaymentStatus`:
+
+| Field | Legacy code | Exact API output string (must preserve) |
+|-------|-------------|------------------------------------------|
+| Loan `status` | `ACT` | `Active` |
+| Loan `status` | `CLO` | `Closed` |
+| Loan `status` | `DFT` | `Default` |
+| Loan `status` | `FRB` | `Forbearance` |
+| Loan `status` | `null` | `Unknown` |
+| Loan `status` | *(unmapped)* | *(passthrough of the raw code)* |
+| `propertyType` | `SFR` | `Single Family Residence` |
+| `propertyType` | `CND` | `Condominium` |
+| `propertyType` | `MFR` | `Multi-Family Residence` |
+| `propertyType` | `TWN` | `Townhouse` |
+| `propertyType` | `null` | `Unknown` |
+| `propertyType` | *(unmapped)* | *(passthrough of the raw code)* |
+| Payment `type` | `REG` | `Regular` |
+| Payment `type` | `EXT` | `Extra` |
+| Payment `type` | `PRT` | `Partial` |
+| Payment `type` | `PRE` | `Prepayment` |
+| Payment `type` | `null` | `Unknown` |
+| Payment `status` | `PST` | `Posted` |
+| Payment `status` | `REV` | `Reversed` |
+| Payment `status` | `NSF` | `Non-Sufficient Funds` |
+| Payment `status` | `PND` | `Pending` |
+| Payment `status` | `null` | `Unknown` |
+
+**Payment ID parity:** `PaymentDto.paymentId` is currently set from `PMT_SEQ_NBR`
+(`LoanService.toPaymentDto` → `dto.setPaymentId(pmt.getPaymentSequenceNumber())`), producing
+values such as `"PMT-2025120001"`. The modern `payments.id` is an auto-increment `BIGINT`
+surrogate key and will NOT reproduce these values. **Recommended:** add a
+`legacy_payment_id VARCHAR(20)` (a.k.a. `external_id`) column to the modern `payments` table
+and source `paymentId` from it. Otherwise `paymentId` output changes (parity break) — this must
+be documented as an explicit divergence if the column is not added.
+
+**Date format:** All legacy date strings are `MM/DD/YYYY` (see seed data, e.g. `02/15/2019`).
+`LoanSummaryDto.originationDate` and `PaymentDto.paymentDate` are `String` fields that pass the
+raw legacy value straight through, so the current API emits `MM/DD/YYYY`. Migrating these
+columns to `DATE`/`LocalDate` will change the JSON serialization to ISO-8601 (`YYYY-MM-DD`);
+see the migration notes for the accepted-divergence decision.

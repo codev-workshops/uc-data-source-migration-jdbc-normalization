@@ -35,6 +35,23 @@ The loan-service app currently reads from legacy CDW (Corporate Data Warehouse) 
    - Inserts into modern tables
 3. Handle edge cases: null values, malformed data, duplicate detection
 
+**Transformation reference (verified against the seed data and `LoanService`):**
+
+- **Date format:** legacy dates are stored as `MM/DD/YYYY` strings (e.g. `02/15/2019`,
+  `12/15/2025`) — **not** `YYYY-MM-DD`. Parse with `MM/dd/yyyy` when converting to `DATE`/
+  `LocalDate`.
+- **Loan status codes** are 3-letter codes, not single characters. The real codes and the
+  exact API output strings that `LoanService.expandStatusCode` produces are:
+  `ACT`→`Active`, `CLO`→`Closed`, `DFT`→`Default`, `FRB`→`Forbearance` (unknown/null →
+  `Unknown`). There is **no** `PAID_OFF` status and there are no `'A'`/`'P'` single-char codes.
+- **Property / payment codes** likewise expand to title-case long-form strings
+  (`SFR`→`Single Family Residence`, `REG`→`Regular`, `PST`→`Posted`, …). See the
+  "API Output Parity" table in `data/mappings/column_mappings.md` for the complete, exact list
+  that must be preserved.
+- **Payment ID:** `PaymentDto.paymentId` is currently the legacy `PMT_SEQ_NBR`
+  (e.g. `"PMT-2025120001"`). Preserve it via a `legacy_payment_id` column on `payments`
+  (recommended) or document the change as a parity break.
+
 **Success Criteria:**
 - All 5 borrowers migrated with proper types
 - All 5 loan products migrated
