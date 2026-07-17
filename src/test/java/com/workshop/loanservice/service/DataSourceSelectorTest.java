@@ -5,6 +5,11 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+/**
+ * Unit tests for {@link DataSourceSelector}, the dual-read feature flag: default
+ * initialization from the configured property (case-insensitive), runtime
+ * switching by enum and by string, and rejection of unknown values.
+ */
 class DataSourceSelectorTest {
 
     @Test

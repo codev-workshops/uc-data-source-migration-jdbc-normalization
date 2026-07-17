@@ -13,6 +13,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * MockMvc tests for {@link DataSourceAdminController}: reading the active data
+ * source, switching it at runtime, and returning {@code 400} for an unknown
+ * data source without changing the active selection.
+ */
 class DataSourceAdminControllerTest {
 
     private DataSourceSelector selector;
