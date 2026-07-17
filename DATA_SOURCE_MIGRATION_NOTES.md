@@ -175,6 +175,23 @@ enforced at a 95% line minimum by JaCoCo (`mvn verify`); the suite is at ~99.5%.
   selectable would be misleading. They should be removed only once the feature
   flag is retired and legacy is decommissioned.
 
+## Known discrepancy: README payments endpoint (left unchanged)
+
+`README.md` documents the payment-history endpoint as
+`GET /api/payments/loan/{loanId}`, but the actual route the application has always
+exposed is `GET /api/loans/{loanId}/payments` (`LoanController`:
+`@RequestMapping("/api/loans")` + `@GetMapping("/{loanId}/payments")`). A client
+following the README path would get a `404`.
+
+This mismatch is **pre-existing** — the controller route was not introduced or
+altered by this migration. It is called out here deliberately, and left as-is: this
+was principally a **data-source migration**, not an API/code refactor, and the
+governing goal was to keep the existing REST contract byte-for-byte stable. The
+golden fixtures and the contract suite are therefore pinned to the real route
+(`/api/loans/{loanId}/payments`). Reconciling the README and the code (either fix
+the README, or add a `PaymentController` at `/api/payments/loan/{loanId}`) is a
+follow-up outside this migration's scope.
+
 ## Task-by-task status (`docs/MIGRATION_TASKS.md`)
 
 | Task | Status | Where |
