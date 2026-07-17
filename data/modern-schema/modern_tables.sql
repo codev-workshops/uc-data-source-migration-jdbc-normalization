@@ -82,6 +82,12 @@ CREATE TABLE loan_accounts (
 
 CREATE TABLE payments (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
+    -- Preserves the legacy CDW_PMT_HIST.PMT_SEQ_NBR business key. The modern PK
+    -- is an auto-generated surrogate (see column_mappings.md: "Auto-generated;
+    -- legacy ID stored if needed"), but the REST API must keep returning the
+    -- legacy sequence number as `paymentId`, so it is retained here — mirroring
+    -- the external_id/account_number/code pattern used on the other tables.
+    legacy_sequence_number VARCHAR(20) UNIQUE,
     loan_account_id     BIGINT NOT NULL,
     payment_date        DATE NOT NULL,
     total_amount        DECIMAL(10, 2) NOT NULL,
@@ -106,3 +112,4 @@ CREATE INDEX idx_loan_accounts_borrower ON loan_accounts(borrower_id);
 CREATE INDEX idx_loan_accounts_status ON loan_accounts(status);
 CREATE INDEX idx_payments_loan ON payments(loan_account_id);
 CREATE INDEX idx_payments_date ON payments(payment_date);
+CREATE INDEX idx_payments_legacy_seq ON payments(legacy_sequence_number);

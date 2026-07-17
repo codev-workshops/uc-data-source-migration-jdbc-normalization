@@ -5,8 +5,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.cfg.JsonNodeFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.workshop.loanservice.service.DataSourceSelector;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -25,9 +30,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  * {@link ApiContractTest} for BOTH data-source parameters.
  */
 @Disabled("run manually to (re)generate golden fixtures from the legacy data source")
+@SpringBootTest
+@AutoConfigureMockMvc
 class GoldenFileGenerator {
 
     private static final Path GOLDEN_DIR = Path.of("src", "test", "resources", "golden");
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private DataSourceSelector selector;
 
     // Preserve BigDecimal scale (e.g. 4.750) when pretty-printing: read floats as
     // BigDecimal and do NOT strip trailing zeros (Jackson 2.15 strips them by default).
@@ -38,19 +51,19 @@ class GoldenFileGenerator {
 
     @Test
     void generate() throws Exception {
-        DataSourceContext ds = DataSourceContexts.forDataSource("legacy");
+        selector.setActive(DataSourceSelector.DataSource.LEGACY);
         Files.createDirectories(GOLDEN_DIR);
 
-        write(ds, "/api/loans", "loans.json");
-        write(ds, "/api/loans/LN-2019-00142", "loan-LN-2019-00142.json");
-        write(ds, "/api/loans/LN-2019-00142/payments", "payments-LN-2019-00142.json");
-        write(ds, "/api/borrowers", "borrowers.json");
-        write(ds, "/api/borrowers/B-10001", "borrower-B-10001.json");
-        write(ds, "/api/borrowers/B-10005", "borrower-B-10005.json");
+        write("/api/loans", "loans.json");
+        write("/api/loans/LN-2019-00142", "loan-LN-2019-00142.json");
+        write("/api/loans/LN-2019-00142/payments", "payments-LN-2019-00142.json");
+        write("/api/borrowers", "borrowers.json");
+        write("/api/borrowers/B-10001", "borrower-B-10001.json");
+        write("/api/borrowers/B-10005", "borrower-B-10005.json");
     }
 
-    private void write(DataSourceContext ds, String url, String fileName) throws Exception {
-        String raw = ds.mockMvc()
+    private void write(String url, String fileName) throws Exception {
+        String raw = mockMvc
                 .perform(get(url))
                 .andReturn()
                 .getResponse()

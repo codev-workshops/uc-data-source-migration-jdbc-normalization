@@ -9,6 +9,12 @@
 --   - Inconsistent date formats stored as strings
 -- =============================================================================
 
+-- Idempotent re-init (safe for restarts and repeated in-memory initialization)
+DROP TABLE IF EXISTS CDW_PMT_HIST;
+DROP TABLE IF EXISTS CDW_LN_ACCT;
+DROP TABLE IF EXISTS CDW_LN_PROD;
+DROP TABLE IF EXISTS CDW_BORR_MSTR;
+
 -- Borrower Master
 CREATE TABLE CDW_BORR_MSTR (
     BORR_ID         VARCHAR(20) PRIMARY KEY,
