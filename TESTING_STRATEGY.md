@@ -122,7 +122,13 @@ Coverage report: `target/site/jacoco/index.html` after any test run.
 mvn clean test          # full suite
 mvn clean verify        # full suite + JaCoCo 95% gate
 mvn test -Dtest=ApiContractTest   # just the contract suite
+mvn test -Pperformance  # ONLY the legacy-vs-modern benchmark (excluded by default)
 ```
+
+The `PerformanceComparisonTest` is tagged `@Tag("performance")` and excluded from
+the normal build (it runs tens of thousands of iterations); the `performance`
+Maven profile runs only it. See `DATA_SOURCE_MIGRATION_NOTES.md` for the results
+and interpretation.
 
 To regenerate golden fixtures, enable `GoldenFileGenerator` and run it:
 

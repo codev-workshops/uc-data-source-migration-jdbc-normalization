@@ -159,3 +159,86 @@ The migration is accepted by the parameterized `ApiContractTest` running the
 sources (STRICT, numeric-aware JSON, empty accepted-difference allow-list), plus
 the real-data correctness tests described in `TESTING_STRATEGY.md`. Coverage is
 enforced at a 95% line minimum by JaCoCo (`mvn verify`); the suite is at ~99.5%.
+
+## Configuration & cleanup (Task 5 deliverables)
+
+- **`application.properties` now defaults to the modern schema**
+  (`loanservice.datasource=modern`). The migration is complete, so the app reads
+  from the normalized tables by default. The legacy CDW source stays fully wired
+  as a **runtime fallback** and can be re-selected without a restart via
+  `PUT /api/admin/datasource/legacy` (or by setting the property back to `legacy`).
+- **Legacy entities/repositories are intentionally retained, not removed or
+  `@Deprecated`.** `MIGRATION_TASKS.md` Task 5 offers "remove **or** flag legacy
+  entities as deprecated", but the chosen dual-read architecture (the bonus
+  feature-flag) keeps `LegacyLoanDataProvider` and the legacy repositories as a
+  first-class, supported runtime path — deprecating code that is still actively
+  selectable would be misleading. They should be removed only once the feature
+  flag is retired and legacy is decommissioned.
+
+## Task-by-task status (`docs/MIGRATION_TASKS.md`)
+
+| Task | Status | Where |
+|------|--------|-------|
+| 1 — Modern schema & entities | Done | `modern/entity/*`, `modern/repository/*`, `Legacy/ModernDataSourceConfig` |
+| 2 — Data migration script | Done | `migration/DataMigrationService` (transforms, FK resolution, edge cases, validation) |
+| 3 — Rewire to modern | Done | `LoanService` facade + `ModernLoanDataProvider` (no string parsing on the modern path); API contract unchanged |
+| 4 — Validation tests | Done | `contract/ApiContractTest` (both sources), `integration/*` correctness tests |
+| 5 — Documentation | Done | this file, `TESTING_STRATEGY.md`, `application.properties` default → modern, legacy-retention decision above |
+| Bonus — Dual-read mode | Done | `DataSourceSelector` + `DataSourceAdminController` (see architecture section) |
+| Bonus — Reconciliation queries | Done | `data/reconciliation/reconciliation_queries.sql` |
+| Bonus — Performance comparison | Done | `mvn test -Pperformance` → `PerformanceComparisonTest` (see below) |
+
+## Bonus: reconciliation queries
+
+`data/reconciliation/reconciliation_queries.sql` cross-checks the migration
+independently of the application code: row counts (`5/5/5/10`), summed financial
+totals (comma-stripped legacy strings vs typed modern decimals), business-key set
+equality (borrower/product/account/`PMT_SEQ_NBR`), and referential-integrity
+orphan checks. Section 4 uses H2 `CREATE LINKED TABLE` so both databases can be
+reconciled from a single connection, returning explicit deltas (all zero = clean).
+
+## Bonus: performance comparison
+
+`PerformanceComparisonTest` (JUnit, `@Tag("performance")`, excluded from the normal
+build) benchmarks the **same** read operations against both providers over the
+identical migrated `5/5/5/10` data set, on the same in-memory H2, with JIT warmup
+and 20 000 timed iterations per operation. Run it and regenerate the numbers with:
+
+```bash
+mvn test -Pperformance      # prints a table and writes target/performance-comparison.md
+```
+
+This is a more controlled measure than timing whole test cases (which are
+dominated by Spring/MockMvc startup): the DB round-trip is a shared constant, so
+the delta isolates the schema/access-pattern difference.
+
+Representative run (µs per call; `speedup` = legacy ÷ modern, >1 means modern
+faster — absolute numbers are machine/JVM-dependent, the ratio is the signal):
+
+| Operation | Legacy (µs/call) | Modern (µs/call) | Speedup |
+|-----------|-----------------:|-----------------:|--------:|
+| getAllLoans | 87.35 | 112.16 | 0.78x |
+| getAllBorrowers | 37.65 | 41.89 | 0.90x |
+| getLoanById | 25.47 | 60.11 | 0.42x |
+| getPaymentsByLoan | 32.49 | 52.99 | 0.61x |
+| getBorrowerById | 69.12 | 74.65 | 0.93x |
+| **total** | **252.08** | **341.81** | **0.74x** |
+
+**Honest interpretation.** For *these* access patterns the modern schema is
+somewhat **slower**, not faster. The reason is structural, not about typing: the
+legacy CDW tables are **denormalized** (borrower name/address are embedded in
+`CDW_LN_ACCT`), so a loan read is a single-table fetch; the normalized modern
+schema resolves real foreign keys, so the same read loads the `LoanAccount` plus
+its `Borrower` and `LoanProduct` (and, for a borrower, the nested loan list) —
+more round-trips. On this tiny dataset that join/lookup cost outweighs the
+string→type parsing that the modern schema eliminates (`getLoanById` is the
+extreme: 1 legacy query vs 3 modern entity loads).
+
+The modern schema's payoff is **correctness, type-safety, referential integrity,
+and maintainability**, not raw latency for full-object denormalized-style reads.
+Where the typed/indexed schema is expected to win is filtered/range/aggregate
+queries at scale — e.g. `WHERE origination_date > ?` or `SUM(original_amount)`,
+which on legacy require per-row `REPLACE()`/`CAST()`/date-string parsing that
+defeats indexes, whereas the modern columns are natively typed and indexed. That
+workload is out of scope for the current five endpoints (all full-object reads),
+so it is called out here rather than benchmarked.

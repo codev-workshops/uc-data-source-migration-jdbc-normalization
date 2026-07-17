@@ -19,6 +19,10 @@
 
     <properties>
         <java.version>17</java.version>
+        <!-- The performance benchmark is a JUnit tag, excluded from normal builds.
+             Run it with `mvn test -Pperformance` (see the `performance` profile). -->
+        <test.groups></test.groups>
+        <test.excludedGroups>performance</test.excludedGroups>
     </properties>
 
     <dependencies>
@@ -47,6 +51,14 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <groups>${test.groups}</groups>
+                    <excludedGroups>${test.excludedGroups}</excludedGroups>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -97,4 +109,18 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Legacy-vs-modern performance comparison (bonus task). Runs ONLY the
+             @Tag("performance") benchmark, which is excluded from normal builds:
+                 mvn test -Pperformance
+             It prints a comparison table and writes target/performance-comparison.md. -->
+        <profile>
+            <id>performance</id>
+            <properties>
+                <test.groups>performance</test.groups>
+                <test.excludedGroups></test.excludedGroups>
+            </properties>
+        </profile>
+    </profiles>
 </project>
