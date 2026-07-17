@@ -236,9 +236,26 @@ extreme: 1 legacy query vs 3 modern entity loads).
 
 The modern schema's payoff is **correctness, type-safety, referential integrity,
 and maintainability**, not raw latency for full-object denormalized-style reads.
-Where the typed/indexed schema is expected to win is filtered/range/aggregate
-queries at scale — e.g. `WHERE origination_date > ?` or `SUM(original_amount)`,
-which on legacy require per-row `REPLACE()`/`CAST()`/date-string parsing that
-defeats indexes, whereas the modern columns are natively typed and indexed. That
-workload is out of scope for the current five endpoints (all full-object reads),
-so it is called out here rather than benchmarked.
+This is **non-obvious** — normalization is usually sold as "faster", but for a
+small, denormalization-friendly read workload it can be slightly slower — so it is
+called out deliberately rather than left as a surprise.
+
+**Where the modern schema is expected to win (data-size dependent).** The
+advantages below barely register on the 5/5/5/10 seed and grow with row count, so
+they are reasoned about here rather than benchmarked on a toy dataset:
+
+- **Typed, indexed filter/range/aggregate queries.** `WHERE origination_date > ?`
+  or `SUM(original_amount)` on the modern columns use native types and B-tree
+  indexes; on legacy the same queries need per-row `REPLACE()`/`CAST()`/date-string
+  parsing that defeats any index and forces full scans. This gap widens linearly
+  (or worse) with table size.
+- **Numeric surrogate primary/foreign keys.** Modern PKs/FKs are `BIGINT`
+  auto-increment; legacy joins on `VARCHAR` business keys (`BORR_ID`,
+  `LN_ACCT_NBR`, `PMT_SEQ_NBR`). At small scale the join key width is irrelevant
+  (and, as measured above, the extra normalized lookups even make modern slower).
+  **Only once the data is large** do the integer keys pay off: narrower join
+  columns, smaller and shallower indexes, more index entries per page (better cache
+  locality), and cheaper integer comparisons than collation-aware string
+  comparisons — so FK joins and index scans scale better than the legacy
+  string-keyed equivalents. In short: numeric keys are a **scale** optimization,
+  invisible at 5/5/5/10 and increasingly significant as volume grows.
