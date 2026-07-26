@@ -1,10 +1,10 @@
 # Data Source Migration: Legacy to Modern
 
-A small Spring Boot loan management application that currently connects to a **legacy data warehouse** (simulated via H2 with legacy-style schemas). The workshop challenge is to migrate the data source to a **modern schema** while keeping the application functional.
+A small Spring Boot loan management application. It originally read from a **legacy data warehouse** (simulated via H2 with legacy-style schemas) and now serves the **modern normalized schema**; the legacy tables remain only as the migration source. See [DATA_SOURCE_MIGRATION_NOTES.md](DATA_SOURCE_MIGRATION_NOTES.md).
 
 ## Overview
 
-This app manages loan data: borrowers, loan products, loan accounts, and payment history. It currently reads from legacy tables with denormalized structures, cryptic column names, and outdated patterns. The goal is to rewire it to use a normalized modern schema with clear naming conventions.
+This app manages loan data: borrowers, loan products, loan accounts, and payment history. The legacy tables use denormalized structures, cryptic column names and all-VARCHAR typing; the modern tables are normalized with proper types and foreign keys, and the REST contract is identical across both.
 
 ## Architecture
 
@@ -16,17 +16,17 @@ This app manages loan data: borrowers, loan products, loan accounts, and payment
 │                  │          │
 │              Repositories   │
 │                  │          │
-│         Legacy DataSource   │  ← YOU ARE HERE
+│         Legacy tables       │  → migration source only
 │         (H2 / legacy schema)│
 │                             │
-│         Modern DataSource   │  ← MIGRATE TO HERE
+│         Modern tables       │  ← SERVED HERE
 │         (H2 / modern schema)│
 └─────────────────────────────┘
 ```
 
-## Current State (Legacy)
+## Migration Source (Legacy)
 
-The app connects to legacy tables:
+`DataMigrationService` reads these legacy tables at startup and writes the modern tables:
 - `CDW_BORR_MSTR` — Borrower master (denormalized, cryptic columns)
 - `CDW_LN_PROD` — Loan products
 - `CDW_LN_ACCT` — Loan accounts (wide table with embedded borrower data)
@@ -34,9 +34,9 @@ The app connects to legacy tables:
 
 See `data/legacy-schema/` for full DDL and `data/mappings/` for column-level mappings.
 
-## Target State (Modern)
+## Current State (Modern)
 
-Migrate to normalized tables:
+The service layer reads these normalized tables:
 - `borrowers` — Clean borrower records
 - `loan_products` — Product catalog
 - `loan_accounts` — Normalized loan accounts with foreign keys
@@ -55,7 +55,7 @@ The app runs on `http://localhost:8080` with endpoints:
 - `GET /api/loans/{id}` — Get loan details
 - `GET /api/borrowers` — List borrowers
 - `GET /api/borrowers/{id}` — Get borrower with loans
-- `GET /api/payments/loan/{loanId}` — Payment history for a loan
+- `GET /api/loans/{loanId}/payments` — Payment history for a loan
 
 ## Tech Stack
 
