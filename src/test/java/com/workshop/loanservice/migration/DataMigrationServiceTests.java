@@ -8,6 +8,7 @@ import com.workshop.loanservice.repository.LoanProductRepository;
 import com.workshop.loanservice.repository.PaymentRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.LocalDate;
@@ -16,8 +17,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Reconciliation tests for the legacy to modern data migration.
+ *
+ * The context configuration must match {@code LoanServiceApplicationTests} so
+ * both classes share one cached context: the H2 database is a named in-memory
+ * instance, so a second context would re-run the schema scripts against tables
+ * that already exist.
  */
 @SpringBootTest
+@AutoConfigureMockMvc
 class DataMigrationServiceTests {
 
     @Autowired

@@ -6,7 +6,9 @@ import com.workshop.loanservice.dto.PaymentDto;
 import com.workshop.loanservice.service.LoanService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.Map;
@@ -15,19 +17,29 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Service-layer characterization tests for {@link LoanService}.
+ * Characterization tests for {@link LoanService} and for the REST endpoints
+ * exposed on top of it.
  *
  * These assertions describe the API contract produced from the legacy data
  * source and must keep passing unchanged after the migration to the modern
  * schema — they are the proof that the migration is behaviour preserving.
  */
 @SpringBootTest
+@AutoConfigureMockMvc
 class LoanServiceApplicationTests {
 
     @Autowired
     private LoanService loanService;
+
+    @Autowired
+    private MockMvc mockMvc;
 
     @Test
     void contextLoads() {
@@ -191,5 +203,113 @@ class LoanServiceApplicationTests {
             assertThat(detail.getLoans()).hasSize(1);
             assertThat(detail.getLoans().get(0).getStatus()).isEqualTo("Active");
         }
+    }
+
+    // =========================================================================
+    // API LEVEL TESTS (LoanController / BorrowerController)
+    // =========================================================================
+
+    @Test
+    void loansEndpointReturnsAllLoans() throws Exception {
+        mockMvc.perform(get("/api/loans"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(5)))
+                .andExpect(jsonPath("$[*].loanAccountNumber",
+                        containsInAnyOrder("LN-2019-00142", "LN-2020-00398",
+                                "LN-2018-00089", "LN-2021-00567", "LN-2017-00034")))
+                .andExpect(jsonPath("$[?(@.loanAccountNumber=='LN-2019-00142')].borrowerName")
+                        .value("James Mitchell"))
+                .andExpect(jsonPath("$[?(@.loanAccountNumber=='LN-2019-00142')].currentBalance")
+                        .value(271432.56))
+                .andExpect(jsonPath("$[?(@.loanAccountNumber=='LN-2019-00142')].status")
+                        .value("Active"));
+    }
+
+    @Test
+    void loanByIdEndpointReturnsFullLoanPayload() throws Exception {
+        mockMvc.perform(get("/api/loans/{id}", "LN-2018-00089"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.loanAccountNumber").value("LN-2018-00089"))
+                .andExpect(jsonPath("$.borrowerName").value("Michael Torres"))
+                .andExpect(jsonPath("$.productDescription").value("5/1 Adjustable Rate Mortgage"))
+                .andExpect(jsonPath("$.originalAmount").value(195000))
+                .andExpect(jsonPath("$.currentBalance").value(178234.12))
+                .andExpect(jsonPath("$.interestRate").value(5.250))
+                .andExpect(jsonPath("$.monthlyPayment").value(1077.05))
+                .andExpect(jsonPath("$.status").value("Active"))
+                .andExpect(jsonPath("$.originationDate").value("07/01/2018"))
+                .andExpect(jsonPath("$.propertyAddress").value("305 Pine Road, Austin, TX 78701"))
+                .andExpect(jsonPath("$.propertyType").value("Single Family Residence"));
+    }
+
+    @Test
+    void loanByIdEndpointFailsForUnknownLoan() {
+        assertThatThrownBy(() -> mockMvc.perform(get("/api/loans/{id}", "LN-DOES-NOT-EXIST")))
+                .hasRootCauseInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Loan not found: LN-DOES-NOT-EXIST");
+    }
+
+    @Test
+    void loanPaymentsEndpointReturnsPaymentsNewestFirst() throws Exception {
+        mockMvc.perform(get("/api/loans/{loanId}/payments", "LN-2019-00142"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].paymentId").value("PMT-2025120001"))
+                .andExpect(jsonPath("$[0].loanAccountNumber").value("LN-2019-00142"))
+                .andExpect(jsonPath("$[0].paymentDate").value("12/15/2025"))
+                .andExpect(jsonPath("$[0].totalAmount").value(1487.02))
+                .andExpect(jsonPath("$[0].principalAmount").value(456.78))
+                .andExpect(jsonPath("$[0].interestAmount").value(1074.69))
+                .andExpect(jsonPath("$[0].escrowAmount").value(355.55))
+                .andExpect(jsonPath("$[0].lateFee").value(0.00))
+                .andExpect(jsonPath("$[0].type").value("Regular"))
+                .andExpect(jsonPath("$[0].status").value("Posted"))
+                .andExpect(jsonPath("$[1].paymentDate").value("11/15/2025"));
+    }
+
+    @Test
+    void loanPaymentsEndpointReturnsEmptyArrayForUnknownLoan() throws Exception {
+        mockMvc.perform(get("/api/loans/{loanId}/payments", "LN-DOES-NOT-EXIST"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void borrowersEndpointReturnsAllBorrowersWithoutLoans() throws Exception {
+        mockMvc.perform(get("/api/borrowers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(5)))
+                .andExpect(jsonPath("$[*].id").value(containsInAnyOrder("B-10001", "B-10002",
+                        "B-10003", "B-10004", "B-10005")))
+                .andExpect(jsonPath("$[?(@.id=='B-10001')].fullName").value("James R. Mitchell"))
+                .andExpect(jsonPath("$[?(@.id=='B-10001')].creditScore").value(745))
+                .andExpect(jsonPath("$[?(@.id=='B-10005')].fullName").value("Robert Williams"))
+                .andExpect(jsonPath("$[0].loans").doesNotExist());
+    }
+
+    @Test
+    void borrowerByIdEndpointEmbedsLoans() throws Exception {
+        mockMvc.perform(get("/api/borrowers/{id}", "B-10002"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("B-10002"))
+                .andExpect(jsonPath("$.fullName").value("Sarah L. Chen"))
+                .andExpect(jsonPath("$.email").value("s.chen@email.com"))
+                .andExpect(jsonPath("$.phone").value("503-555-0198"))
+                .andExpect(jsonPath("$.city").value("Portland"))
+                .andExpect(jsonPath("$.state").value("OR"))
+                .andExpect(jsonPath("$.creditScore").value(780))
+                .andExpect(jsonPath("$.employmentStatus").value("EMPLOYED"))
+                .andExpect(jsonPath("$.loans", hasSize(1)))
+                .andExpect(jsonPath("$.loans[0].loanAccountNumber").value("LN-2020-00398"))
+                .andExpect(jsonPath("$.loans[0].productDescription")
+                        .value("15-Year Fixed Rate Mortgage"))
+                .andExpect(jsonPath("$.loans[0].currentBalance").value(312876.43));
+    }
+
+    @Test
+    void borrowerByIdEndpointFailsForUnknownBorrower() {
+        assertThatThrownBy(() -> mockMvc.perform(get("/api/borrowers/{id}", "B-99999")))
+                .hasRootCauseInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Borrower not found: B-99999");
     }
 }

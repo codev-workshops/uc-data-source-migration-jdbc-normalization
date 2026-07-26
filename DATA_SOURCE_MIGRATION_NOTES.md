@@ -32,7 +32,7 @@ Implemented in `DataMigrationService`, following `data/mappings/column_mappings.
 
 The REST contract is unchanged. Statuses and payment types are stored uppercase and rendered as the previous labels (`ACTIVE → Active`, `NSF → Non-Sufficient Funds`); dates are still emitted as `MM/dd/yyyy` strings.
 
-`LoanServiceApplicationTests` was written against the legacy data source first and passes unchanged after the migration (12 service-layer tests). `DataMigrationServiceTests` reconciles row counts (5 borrowers, 5 products, 5 loan accounts, 10 payments), typed values, FK resolution, balance totals, and idempotency of re-running the migration.
+`LoanServiceApplicationTests` was written against the legacy data source first and passes unchanged after the migration (12 service-layer tests plus 8 MockMvc tests covering every `LoanController` / `BorrowerController` endpoint). `DataMigrationServiceTests` reconciles row counts (5 borrowers, 5 products, 5 loan accounts, 10 payments), typed values, FK resolution, balance totals, and idempotency of re-running the migration.
 
 ## Legacy code status
 
