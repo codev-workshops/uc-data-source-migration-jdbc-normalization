@@ -39,8 +39,9 @@ import java.util.function.Function;
  * rolls back the migrated rows and their {@code migration_id_map} entries together. Individual
  * records that cannot be transformed are skipped (never thrown) and reported.
  *
- * <p>Transformations follow {@code data/mappings/column_mappings.md} exactly; only the code
- * expansions listed there are accepted, everything else counts as malformed.
+ * <p>Transformations follow {@code data/mappings/column_mappings.md} exactly. A code the mapping
+ * document does not expand is a gap in that document rather than bad data, so the record migrates
+ * with the raw legacy code and the gap is reported.
  */
 @Service
 public class MigrationService {
@@ -143,7 +144,7 @@ public class MigrationService {
                 borrower.setCreditScore(LegacyValues.optionalInteger(legacy.getCreditScore(), "BORR_CRDT_SCR"));
                 borrower.setEmploymentStatus(LegacyValues.optionalText(legacy.getEmploymentStatus()));
                 borrower.setAnnualIncome(LegacyValues.optionalAmount(legacy.getAnnualIncome(), "BORR_ANN_INCM"));
-                borrower.setStatus(LegacyValues.expand(legacy.getStatusCode(), "BORR_STAT_CD", BORROWER_STATUS));
+                borrower.setStatus(expand(legacy.getStatusCode(), "BORR_STAT_CD", BORROWER_STATUS, legacyId));
                 borrower.setCreatedAt(LegacyValues.optionalTimestamp(legacy.getCreatedDate(), "BORR_CRET_DT"));
                 borrower.setUpdatedAt(LegacyValues.optionalTimestamp(legacy.getUpdatedDate(), "BORR_UPDT_DT"));
 
@@ -173,7 +174,7 @@ public class MigrationService {
                 product.setRateType(LegacyValues.requiredText(legacy.getRateType(), "PROD_RT_TYP"));
                 product.setMinAmount(LegacyValues.optionalAmount(legacy.getMinAmount(), "PROD_MIN_AMT"));
                 product.setMaxAmount(LegacyValues.optionalAmount(legacy.getMaxAmount(), "PROD_MAX_AMT"));
-                product.setActive(LegacyValues.expand(legacy.getStatusCode(), "PROD_STAT_CD", PRODUCT_ACTIVE));
+                product.setActive(expandFlag(legacy.getStatusCode(), "PROD_STAT_CD", PRODUCT_ACTIVE, legacyId));
                 product.setEffectiveDate(LegacyValues.optionalDate(legacy.getEffectiveDate(), "PROD_EFF_DT"));
                 product.setExpirationDate(LegacyValues.optionalDate(legacy.getExpirationDate(), "PROD_EXP_DT"));
 
@@ -214,7 +215,7 @@ public class MigrationService {
                 account.setMaturityDate(LegacyValues.requiredDate(legacy.getMaturityDate(), "LN_MAT_DT"));
                 account.setFirstPaymentDate(LegacyValues.optionalDate(legacy.getFirstPaymentDate(), "LN_1ST_PMT_DT"));
                 account.setNextPaymentDate(LegacyValues.optionalDate(legacy.getNextPaymentDate(), "LN_NXT_PMT_DT"));
-                account.setStatus(LegacyValues.expand(legacy.getStatusCode(), "LN_STAT_CD", LOAN_STATUS));
+                account.setStatus(expand(legacy.getStatusCode(), "LN_STAT_CD", LOAN_STATUS, legacyId));
                 account.setDelinquencyDays(LegacyValues.optionalInteger(legacy.getDelinquencyDays(), "LN_DLQ_DAYS"));
                 account.setEscrowBalance(LegacyValues.optionalAmount(legacy.getEscrowBalance(), "LN_ESCROW_BAL"));
                 account.setLtvPercent(LegacyValues.optionalAmount(legacy.getLtvPercent(), "LN_LTV_PCT"));
@@ -222,7 +223,7 @@ public class MigrationService {
                 account.setPropertyCity(LegacyValues.optionalText(legacy.getPropertyCity()));
                 account.setPropertyState(LegacyValues.optionalText(legacy.getPropertyState()));
                 account.setPropertyZip(LegacyValues.optionalText(legacy.getPropertyZip()));
-                account.setPropertyType(LegacyValues.expand(legacy.getPropertyType(), "PROP_TYP_CD", PROPERTY_TYPE));
+                account.setPropertyType(expand(legacy.getPropertyType(), "PROP_TYP_CD", PROPERTY_TYPE, legacyId));
                 account.setAppraisedValue(LegacyValues.optionalAmount(legacy.getAppraisedValue(), "PROP_APRS_VAL"));
                 account.setCreatedAt(LegacyValues.optionalTimestamp(legacy.getCreatedDate(), "LN_CRET_DT"));
                 account.setUpdatedAt(LegacyValues.optionalTimestamp(legacy.getUpdatedDate(), "LN_UPDT_DT"));
@@ -256,8 +257,8 @@ public class MigrationService {
                 payment.setInterestAmount(LegacyValues.optionalAmount(legacy.getInterestAmount(), "PMT_INT_AMT"));
                 payment.setEscrowAmount(LegacyValues.optionalAmount(legacy.getEscrowAmount(), "PMT_ESCROW_AMT"));
                 payment.setLateFee(LegacyValues.optionalAmount(legacy.getLateFee(), "PMT_LATE_FEE"));
-                payment.setType(LegacyValues.expand(legacy.getTypeCode(), "PMT_TYP_CD", PAYMENT_TYPE));
-                payment.setStatus(LegacyValues.expand(legacy.getStatusCode(), "PMT_STAT_CD", PAYMENT_STATUS));
+                payment.setType(expand(legacy.getTypeCode(), "PMT_TYP_CD", PAYMENT_TYPE, legacyId));
+                payment.setStatus(expand(legacy.getStatusCode(), "PMT_STAT_CD", PAYMENT_STATUS, legacyId));
                 payment.setReceivedDate(LegacyValues.optionalDate(legacy.getReceivedDate(), "PMT_RECV_DT"));
                 payment.setProcessedDate(LegacyValues.optionalDate(legacy.getProcessedDate(), "PMT_PROC_DT"));
                 payment.setCreatedAt(LegacyValues.optionalTimestamp(legacy.getCreatedDate(), "PMT_CRET_DT"));
@@ -270,6 +271,35 @@ public class MigrationService {
                 skip(table, "CDW_PMT_HIST", legacyId, e);
             }
         }
+    }
+
+    /**
+     * Expands a legacy code, or keeps it as-is when column_mappings.md defines no expansion for it:
+     * a missing expansion is a gap in the mapping document, not a reason to lose the record.
+     */
+    private String expand(String value, String field, Map<String, String> expansions, String legacyId) {
+        String code = LegacyValues.requiredText(value, field);
+        String expanded = expansions.get(code);
+        if (expanded == null) {
+            log.warn("{} code '{}' on {} has no expansion in column_mappings.md; migrating as-is",
+                    field, code, legacyId);
+            return code;
+        }
+        return expanded;
+    }
+
+    /**
+     * Boolean counterpart of {@link #expand}. An unexpanded code cannot be represented as a
+     * boolean, so the column is left null rather than guessing; the record still migrates.
+     */
+    private Boolean expandFlag(String value, String field, Map<String, Boolean> expansions, String legacyId) {
+        String code = LegacyValues.requiredText(value, field);
+        Boolean expanded = expansions.get(code);
+        if (expanded == null) {
+            log.warn("{} code '{}' on {} has no expansion in column_mappings.md; leaving the column null",
+                    field, code, legacyId);
+        }
+        return expanded;
     }
 
     private boolean skipAlreadyMigrated(TableReport table, String entityType, String legacyId) {
@@ -310,6 +340,41 @@ public class MigrationService {
         validateProducts(report.getTables().get(1), report);
         validateAccounts(report.getTables().get(2), report);
         validatePayments(report.getTables().get(3), report);
+        scanForMappingGaps(report);
+    }
+
+    /**
+     * Reports every legacy code, in any of the four tables, that column_mappings.md does not
+     * expand. Scans the legacy source rather than this run's inserts, so the list is complete even
+     * when the records were migrated by an earlier run.
+     */
+    private void scanForMappingGaps(MigrationReport report) {
+        TableReport borrowerTable = report.getTables().get(0);
+        for (LegacyBorrower legacy : legacyBorrowers.findAll()) {
+            checkCode(borrowerTable, legacy.getBorrowerId(), "BORR_STAT_CD", legacy.getStatusCode(), BORROWER_STATUS);
+        }
+        TableReport productTable = report.getTables().get(1);
+        for (LegacyLoanProduct legacy : legacyProducts.findAll()) {
+            checkCode(productTable, legacy.getProductCode(), "PROD_STAT_CD", legacy.getStatusCode(), PRODUCT_ACTIVE);
+        }
+        TableReport accountTable = report.getTables().get(2);
+        for (LegacyLoanAccount legacy : legacyAccounts.findAll()) {
+            checkCode(accountTable, legacy.getLoanAccountNumber(), "LN_STAT_CD", legacy.getStatusCode(), LOAN_STATUS);
+            checkCode(accountTable, legacy.getLoanAccountNumber(), "PROP_TYP_CD", legacy.getPropertyType(), PROPERTY_TYPE);
+        }
+        TableReport paymentTable = report.getTables().get(3);
+        for (LegacyPayment legacy : legacyPayments.findAll()) {
+            checkCode(paymentTable, legacy.getPaymentSequenceNumber(), "PMT_TYP_CD", legacy.getTypeCode(), PAYMENT_TYPE);
+            checkCode(paymentTable, legacy.getPaymentSequenceNumber(), "PMT_STAT_CD", legacy.getStatusCode(), PAYMENT_STATUS);
+        }
+    }
+
+    private static void checkCode(TableReport table, String legacyId, String field, String value,
+                                  Map<String, ?> expansions) {
+        String code = LegacyValues.optionalText(value);
+        if (code != null && !expansions.containsKey(code)) {
+            table.addMappingGap(legacyId, field, code);
+        }
     }
 
     private void validateBorrowers(TableReport table, MigrationReport report) {

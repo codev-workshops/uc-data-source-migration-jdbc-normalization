@@ -17,6 +17,10 @@ public class MigrationReport {
     public record Skip(String legacyId, String reason) {
     }
 
+    /** A legacy code the mapping document does not expand; migrated through as-is. */
+    public record MappingGap(String legacyId, String field, String code) {
+    }
+
     /** One PASS/FAIL line of the validation section. */
     public record Criterion(String description, boolean passed, String detail) {
     }
@@ -31,6 +35,7 @@ public class MigrationReport {
         private int alreadyMigrated;
         private long mapped;
         private final List<Skip> skipped = new ArrayList<>();
+        private final List<MappingGap> mappingGaps = new ArrayList<>();
         private final Map<String, BigDecimal> legacySums = new LinkedHashMap<>();
         private final Map<String, BigDecimal> modernSums = new LinkedHashMap<>();
 
@@ -50,6 +55,10 @@ public class MigrationReport {
         void setMapped(long mapped) { this.mapped = mapped; }
         public List<Skip> getSkipped() { return skipped; }
         void addSkip(String legacyId, String reason) { skipped.add(new Skip(legacyId, reason)); }
+        public List<MappingGap> getMappingGaps() { return mappingGaps; }
+        void addMappingGap(String legacyId, String field, String code) {
+            mappingGaps.add(new MappingGap(legacyId, field, code));
+        }
         void addLegacySum(String column, BigDecimal value) { legacySums.put(column, value); }
         void addModernSum(String column, BigDecimal value) { modernSums.put(column, value); }
         Map<String, BigDecimal> getLegacySums() { return legacySums; }
@@ -110,6 +119,19 @@ public class MigrationReport {
             }
         }
         if (!anySkips) {
+            out.append("(none)\n");
+        }
+
+        out.append("\n-- Codes migrated unexpanded (column_mappings.md gaps) -----------\n");
+        boolean anyGaps = false;
+        for (TableReport table : tables) {
+            for (MappingGap gap : table.mappingGaps) {
+                anyGaps = true;
+                out.append(String.format("%-14s %-16s %-13s '%s' kept as-is%n", table.modernTable,
+                        gap.legacyId(), gap.field(), gap.code()));
+            }
+        }
+        if (!anyGaps) {
             out.append("(none)\n");
         }
 

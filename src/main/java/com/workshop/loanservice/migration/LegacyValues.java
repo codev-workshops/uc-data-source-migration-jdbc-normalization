@@ -5,12 +5,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.Map;
 
 /**
  * The transformations described in {@code data/mappings/column_mappings.md}: {@code MM/DD/YYYY}
- * strings to dates, comma-separated strings to full precision decimals, and the code expansions
- * listed there. Anything else is a {@link MalformedRecordException}.
+ * strings to dates and comma-separated strings to full precision decimals. Unparseable values are a
+ * {@link MalformedRecordException}.
  */
 final class LegacyValues {
 
@@ -99,20 +98,5 @@ final class LegacyValues {
         } catch (NumberFormatException e) {
             throw new MalformedRecordException(field + " is not an integer: '" + text + "'");
         }
-    }
-
-    /** Expands a legacy code, rejecting anything the mapping document does not list. */
-    static <T> T expand(String value, String field, Map<String, T> expansions) {
-        String code = optionalText(value);
-        if (code == null) {
-            throw new MalformedRecordException(field + " is null or blank");
-        }
-        T expanded = expansions.get(code);
-        if (expanded == null) {
-            throw new MalformedRecordException(
-                    field + " code '" + code + "' has no expansion in column_mappings.md"
-                            + " (known: " + expansions.keySet() + ")");
-        }
-        return expanded;
     }
 }
