@@ -92,3 +92,453 @@ paths.
 Only test code, golden files, and this report were added/changed. Legacy and modern production read
 code (`LoanService`, `ModernLoanReader`, entities, repositories, DTOs) and the migration
 script/config were **not** modified.
+
+## Appendix: actual endpoint JSON (legacy golden vs modern)
+
+Captured in this run: legacy golden = `mode=legacy` responses committed under `src/test/resources/golden/`; modern = `mode=modern` responses served via `ModernLoanReader` after the `verification`-profile migration populated the modern schema. With the current seed data every endpoint is byte-for-byte identical, so the structural comparison passes with zero differences.
+
+### GET /api/loans
+
+Structural result: **PASS** — identical.
+
+Legacy (golden):
+
+```json
+[
+  {
+    "loanAccountNumber": "LN-2019-00142",
+    "borrowerName": "James Mitchell",
+    "productDescription": "30-Year Fixed Rate Mortgage",
+    "originalAmount": 285000,
+    "currentBalance": 271432.56,
+    "interestRate": 4.750,
+    "monthlyPayment": 1487.02,
+    "status": "Active",
+    "originationDate": "02/15/2019",
+    "propertyAddress": "742 Elm Street, Springfield, IL 62701",
+    "propertyType": "Single Family Residence"
+  },
+  {
+    "loanAccountNumber": "LN-2020-00398",
+    "borrowerName": "Sarah Chen",
+    "productDescription": "15-Year Fixed Rate Mortgage",
+    "originalAmount": 420000,
+    "currentBalance": 312876.43,
+    "interestRate": 3.125,
+    "monthlyPayment": 2924.18,
+    "status": "Active",
+    "originationDate": "04/01/2020",
+    "propertyAddress": "1100 Oak Avenue, Portland, OR 97201",
+    "propertyType": "Condominium"
+  },
+  {
+    "loanAccountNumber": "LN-2018-00089",
+    "borrowerName": "Michael Torres",
+    "productDescription": "5/1 Adjustable Rate Mortgage",
+    "originalAmount": 195000,
+    "currentBalance": 178234.12,
+    "interestRate": 5.250,
+    "monthlyPayment": 1077.05,
+    "status": "Active",
+    "originationDate": "07/01/2018",
+    "propertyAddress": "305 Pine Road, Austin, TX 78701",
+    "propertyType": "Single Family Residence"
+  },
+  {
+    "loanAccountNumber": "LN-2021-00567",
+    "borrowerName": "Emily Johnson",
+    "productDescription": "30-Year Fixed Rate Mortgage",
+    "originalAmount": 525000,
+    "currentBalance": 498123.78,
+    "interestRate": 3.875,
+    "monthlyPayment": 2468.35,
+    "status": "Active",
+    "originationDate": "10/01/2021",
+    "propertyAddress": "89 Maple Drive, Denver, CO 80202",
+    "propertyType": "Townhouse"
+  },
+  {
+    "loanAccountNumber": "LN-2017-00034",
+    "borrowerName": "Robert Williams",
+    "productDescription": "FHA 30-Year Fixed",
+    "originalAmount": 165000,
+    "currentBalance": 142567.90,
+    "interestRate": 4.250,
+    "monthlyPayment": 811.61,
+    "status": "Active",
+    "originationDate": "03/01/2017",
+    "propertyAddress": "2200 Cedar Lane, Phoenix, AZ 85001",
+    "propertyType": "Single Family Residence"
+  }
+]
+```
+
+Modern:
+
+```json
+[
+  {
+    "loanAccountNumber": "LN-2019-00142",
+    "borrowerName": "James Mitchell",
+    "productDescription": "30-Year Fixed Rate Mortgage",
+    "originalAmount": 285000,
+    "currentBalance": 271432.56,
+    "interestRate": 4.750,
+    "monthlyPayment": 1487.02,
+    "status": "Active",
+    "originationDate": "02/15/2019",
+    "propertyAddress": "742 Elm Street, Springfield, IL 62701",
+    "propertyType": "Single Family Residence"
+  },
+  {
+    "loanAccountNumber": "LN-2020-00398",
+    "borrowerName": "Sarah Chen",
+    "productDescription": "15-Year Fixed Rate Mortgage",
+    "originalAmount": 420000,
+    "currentBalance": 312876.43,
+    "interestRate": 3.125,
+    "monthlyPayment": 2924.18,
+    "status": "Active",
+    "originationDate": "04/01/2020",
+    "propertyAddress": "1100 Oak Avenue, Portland, OR 97201",
+    "propertyType": "Condominium"
+  },
+  {
+    "loanAccountNumber": "LN-2018-00089",
+    "borrowerName": "Michael Torres",
+    "productDescription": "5/1 Adjustable Rate Mortgage",
+    "originalAmount": 195000,
+    "currentBalance": 178234.12,
+    "interestRate": 5.250,
+    "monthlyPayment": 1077.05,
+    "status": "Active",
+    "originationDate": "07/01/2018",
+    "propertyAddress": "305 Pine Road, Austin, TX 78701",
+    "propertyType": "Single Family Residence"
+  },
+  {
+    "loanAccountNumber": "LN-2021-00567",
+    "borrowerName": "Emily Johnson",
+    "productDescription": "30-Year Fixed Rate Mortgage",
+    "originalAmount": 525000,
+    "currentBalance": 498123.78,
+    "interestRate": 3.875,
+    "monthlyPayment": 2468.35,
+    "status": "Active",
+    "originationDate": "10/01/2021",
+    "propertyAddress": "89 Maple Drive, Denver, CO 80202",
+    "propertyType": "Townhouse"
+  },
+  {
+    "loanAccountNumber": "LN-2017-00034",
+    "borrowerName": "Robert Williams",
+    "productDescription": "FHA 30-Year Fixed",
+    "originalAmount": 165000,
+    "currentBalance": 142567.90,
+    "interestRate": 4.250,
+    "monthlyPayment": 811.61,
+    "status": "Active",
+    "originationDate": "03/01/2017",
+    "propertyAddress": "2200 Cedar Lane, Phoenix, AZ 85001",
+    "propertyType": "Single Family Residence"
+  }
+]
+```
+
+### GET /api/loans/LN-2019-00142
+
+Structural result: **PASS** — identical.
+
+Legacy (golden):
+
+```json
+{
+  "loanAccountNumber": "LN-2019-00142",
+  "borrowerName": "James Mitchell",
+  "productDescription": "30-Year Fixed Rate Mortgage",
+  "originalAmount": 285000,
+  "currentBalance": 271432.56,
+  "interestRate": 4.750,
+  "monthlyPayment": 1487.02,
+  "status": "Active",
+  "originationDate": "02/15/2019",
+  "propertyAddress": "742 Elm Street, Springfield, IL 62701",
+  "propertyType": "Single Family Residence"
+}
+```
+
+Modern:
+
+```json
+{
+  "loanAccountNumber": "LN-2019-00142",
+  "borrowerName": "James Mitchell",
+  "productDescription": "30-Year Fixed Rate Mortgage",
+  "originalAmount": 285000,
+  "currentBalance": 271432.56,
+  "interestRate": 4.750,
+  "monthlyPayment": 1487.02,
+  "status": "Active",
+  "originationDate": "02/15/2019",
+  "propertyAddress": "742 Elm Street, Springfield, IL 62701",
+  "propertyType": "Single Family Residence"
+}
+```
+
+### GET /api/loans/LN-2019-00142/payments
+
+Structural result: **PASS** — identical (payment `id` on the payments endpoint is excluded from the exact match and validated separately).
+
+Legacy (golden):
+
+```json
+[
+  {
+    "paymentId": "PMT-2025120001",
+    "loanAccountNumber": "LN-2019-00142",
+    "paymentDate": "12/15/2025",
+    "totalAmount": 1487.02,
+    "principalAmount": 456.78,
+    "interestAmount": 1074.69,
+    "escrowAmount": 355.55,
+    "lateFee": 0.00,
+    "type": "Regular",
+    "status": "Posted"
+  },
+  {
+    "paymentId": "PMT-2025110001",
+    "loanAccountNumber": "LN-2019-00142",
+    "paymentDate": "11/15/2025",
+    "totalAmount": 1487.02,
+    "principalAmount": 454.97,
+    "interestAmount": 1076.50,
+    "escrowAmount": 355.55,
+    "lateFee": 0.00,
+    "type": "Regular",
+    "status": "Posted"
+  }
+]
+```
+
+Modern:
+
+```json
+[
+  {
+    "paymentId": "PMT-2025120001",
+    "loanAccountNumber": "LN-2019-00142",
+    "paymentDate": "12/15/2025",
+    "totalAmount": 1487.02,
+    "principalAmount": 456.78,
+    "interestAmount": 1074.69,
+    "escrowAmount": 355.55,
+    "lateFee": 0.00,
+    "type": "Regular",
+    "status": "Posted"
+  },
+  {
+    "paymentId": "PMT-2025110001",
+    "loanAccountNumber": "LN-2019-00142",
+    "paymentDate": "11/15/2025",
+    "totalAmount": 1487.02,
+    "principalAmount": 454.97,
+    "interestAmount": 1076.50,
+    "escrowAmount": 355.55,
+    "lateFee": 0.00,
+    "type": "Regular",
+    "status": "Posted"
+  }
+]
+```
+
+### GET /api/borrowers
+
+Structural result: **PASS** — identical.
+
+Legacy (golden):
+
+```json
+[
+  {
+    "id": "B-10001",
+    "fullName": "James R. Mitchell",
+    "email": "j.mitchell@email.com",
+    "phone": "217-555-0142",
+    "city": "Springfield",
+    "state": "IL",
+    "creditScore": 745,
+    "employmentStatus": "EMPLOYED",
+    "loans": null
+  },
+  {
+    "id": "B-10002",
+    "fullName": "Sarah L. Chen",
+    "email": "s.chen@email.com",
+    "phone": "503-555-0198",
+    "city": "Portland",
+    "state": "OR",
+    "creditScore": 780,
+    "employmentStatus": "EMPLOYED",
+    "loans": null
+  },
+  {
+    "id": "B-10003",
+    "fullName": "Michael A. Torres",
+    "email": "m.torres@email.com",
+    "phone": "512-555-0167",
+    "city": "Austin",
+    "state": "TX",
+    "creditScore": 692,
+    "employmentStatus": "SELF-EMP",
+    "loans": null
+  },
+  {
+    "id": "B-10004",
+    "fullName": "Emily M. Johnson",
+    "email": "e.johnson@email.com",
+    "phone": "303-555-0134",
+    "city": "Denver",
+    "state": "CO",
+    "creditScore": 810,
+    "employmentStatus": "EMPLOYED",
+    "loans": null
+  },
+  {
+    "id": "B-10005",
+    "fullName": "Robert Williams",
+    "email": "r.williams@email.com",
+    "phone": "602-555-0156",
+    "city": "Phoenix",
+    "state": "AZ",
+    "creditScore": 658,
+    "employmentStatus": "RETIRED",
+    "loans": null
+  }
+]
+```
+
+Modern:
+
+```json
+[
+  {
+    "id": "B-10001",
+    "fullName": "James R. Mitchell",
+    "email": "j.mitchell@email.com",
+    "phone": "217-555-0142",
+    "city": "Springfield",
+    "state": "IL",
+    "creditScore": 745,
+    "employmentStatus": "EMPLOYED",
+    "loans": null
+  },
+  {
+    "id": "B-10002",
+    "fullName": "Sarah L. Chen",
+    "email": "s.chen@email.com",
+    "phone": "503-555-0198",
+    "city": "Portland",
+    "state": "OR",
+    "creditScore": 780,
+    "employmentStatus": "EMPLOYED",
+    "loans": null
+  },
+  {
+    "id": "B-10003",
+    "fullName": "Michael A. Torres",
+    "email": "m.torres@email.com",
+    "phone": "512-555-0167",
+    "city": "Austin",
+    "state": "TX",
+    "creditScore": 692,
+    "employmentStatus": "SELF-EMP",
+    "loans": null
+  },
+  {
+    "id": "B-10004",
+    "fullName": "Emily M. Johnson",
+    "email": "e.johnson@email.com",
+    "phone": "303-555-0134",
+    "city": "Denver",
+    "state": "CO",
+    "creditScore": 810,
+    "employmentStatus": "EMPLOYED",
+    "loans": null
+  },
+  {
+    "id": "B-10005",
+    "fullName": "Robert Williams",
+    "email": "r.williams@email.com",
+    "phone": "602-555-0156",
+    "city": "Phoenix",
+    "state": "AZ",
+    "creditScore": 658,
+    "employmentStatus": "RETIRED",
+    "loans": null
+  }
+]
+```
+
+### GET /api/borrowers/B-10001
+
+Structural result: **PASS** — identical.
+
+Legacy (golden):
+
+```json
+{
+  "id": "B-10001",
+  "fullName": "James R. Mitchell",
+  "email": "j.mitchell@email.com",
+  "phone": "217-555-0142",
+  "city": "Springfield",
+  "state": "IL",
+  "creditScore": 745,
+  "employmentStatus": "EMPLOYED",
+  "loans": [
+    {
+      "loanAccountNumber": "LN-2019-00142",
+      "borrowerName": "James Mitchell",
+      "productDescription": "30-Year Fixed Rate Mortgage",
+      "originalAmount": 285000,
+      "currentBalance": 271432.56,
+      "interestRate": 4.750,
+      "monthlyPayment": 1487.02,
+      "status": "Active",
+      "originationDate": "02/15/2019",
+      "propertyAddress": "742 Elm Street, Springfield, IL 62701",
+      "propertyType": "Single Family Residence"
+    }
+  ]
+}
+```
+
+Modern:
+
+```json
+{
+  "id": "B-10001",
+  "fullName": "James R. Mitchell",
+  "email": "j.mitchell@email.com",
+  "phone": "217-555-0142",
+  "city": "Springfield",
+  "state": "IL",
+  "creditScore": 745,
+  "employmentStatus": "EMPLOYED",
+  "loans": [
+    {
+      "loanAccountNumber": "LN-2019-00142",
+      "borrowerName": "James Mitchell",
+      "productDescription": "30-Year Fixed Rate Mortgage",
+      "originalAmount": 285000,
+      "currentBalance": 271432.56,
+      "interestRate": 4.750,
+      "monthlyPayment": 1487.02,
+      "status": "Active",
+      "originationDate": "02/15/2019",
+      "propertyAddress": "742 Elm Street, Springfield, IL 62701",
+      "propertyType": "Single Family Residence"
+    }
+  ]
+}
+```
