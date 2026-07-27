@@ -9,17 +9,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
  * Maps to the modern {@code payments} table.
  */
 @Entity
 @Table(name = "payments")
-public class Payment {
+public class Payment extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,7 +46,8 @@ public class Payment {
     private BigDecimal escrowAmount;
 
     @Column(name = "late_fee", precision = 10, scale = 2)
-    private BigDecimal lateFee;
+    @ColumnDefault("0")
+    private BigDecimal lateFee = BigDecimal.ZERO;
 
     /** REGULAR, EXTRA, PARTIAL, PREPAYMENT */
     @Column(name = "type", nullable = false, length = 15)
@@ -61,12 +62,6 @@ public class Payment {
 
     @Column(name = "processed_date")
     private LocalDate processedDate;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -92,8 +87,4 @@ public class Payment {
     public void setReceivedDate(LocalDate receivedDate) { this.receivedDate = receivedDate; }
     public LocalDate getProcessedDate() { return processedDate; }
     public void setProcessedDate(LocalDate processedDate) { this.processedDate = processedDate; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

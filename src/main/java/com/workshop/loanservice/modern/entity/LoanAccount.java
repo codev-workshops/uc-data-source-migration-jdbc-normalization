@@ -10,10 +10,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,7 +22,7 @@ import java.util.List;
  */
 @Entity
 @Table(name = "loan_accounts")
-public class LoanAccount {
+public class LoanAccount extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -69,13 +69,16 @@ public class LoanAccount {
 
     /** ACTIVE, CLOSED, DEFAULT, FORBEARANCE */
     @Column(name = "status", length = 15)
-    private String status;
+    @ColumnDefault("'ACTIVE'")
+    private String status = "ACTIVE";
 
     @Column(name = "delinquency_days")
-    private Integer delinquencyDays;
+    @ColumnDefault("0")
+    private Integer delinquencyDays = 0;
 
     @Column(name = "escrow_balance", precision = 10, scale = 2)
-    private BigDecimal escrowBalance;
+    @ColumnDefault("0")
+    private BigDecimal escrowBalance = BigDecimal.ZERO;
 
     @Column(name = "ltv_percent", precision = 5, scale = 2)
     private BigDecimal ltvPercent;
@@ -97,12 +100,6 @@ public class LoanAccount {
 
     @Column(name = "appraised_value", precision = 12, scale = 2)
     private BigDecimal appraisedValue;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "loanAccount")
     private List<Payment> payments = new ArrayList<>();
@@ -153,10 +150,6 @@ public class LoanAccount {
     public void setPropertyType(String propertyType) { this.propertyType = propertyType; }
     public BigDecimal getAppraisedValue() { return appraisedValue; }
     public void setAppraisedValue(BigDecimal appraisedValue) { this.appraisedValue = appraisedValue; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public List<Payment> getPayments() { return payments; }
     public void setPayments(List<Payment> payments) { this.payments = payments; }
 }

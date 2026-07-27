@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -49,7 +50,8 @@ public class LoanProduct {
     private BigDecimal maxAmount;
 
     @Column(name = "is_active")
-    private Boolean active;
+    @ColumnDefault("TRUE")
+    private Boolean active = Boolean.TRUE;
 
     @Column(name = "effective_date")
     private LocalDate effectiveDate;

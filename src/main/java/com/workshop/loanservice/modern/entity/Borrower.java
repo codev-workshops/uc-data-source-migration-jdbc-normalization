@@ -7,10 +7,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +19,7 @@ import java.util.List;
  */
 @Entity
 @Table(name = "borrowers")
-public class Borrower {
+public class Borrower extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -75,13 +75,8 @@ public class Borrower {
     private BigDecimal annualIncome;
 
     @Column(name = "status", length = 10)
-    private String status;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @ColumnDefault("'ACTIVE'")
+    private String status = "ACTIVE";
 
     @OneToMany(mappedBy = "borrower")
     private List<LoanAccount> loanAccounts = new ArrayList<>();
@@ -122,10 +117,6 @@ public class Borrower {
     public void setAnnualIncome(BigDecimal annualIncome) { this.annualIncome = annualIncome; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public List<LoanAccount> getLoanAccounts() { return loanAccounts; }
     public void setLoanAccounts(List<LoanAccount> loanAccounts) { this.loanAccounts = loanAccounts; }
 }
