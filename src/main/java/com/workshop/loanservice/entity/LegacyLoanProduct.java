@@ -7,7 +7,13 @@ import jakarta.persistence.Table;
 
 /**
  * Maps to the legacy CDW_LN_PROD table.
+ *
+ * @deprecated backs only the legacy/fallback read path ({@code loanservice.datasource.mode=legacy},
+ *     and the dual-read fallback when the modern schema returns nothing). The modern replacement is
+ *     {@link com.workshop.loanservice.modern.entity.LoanProduct}. Retained, not removed, so
+ *     {@code mode=legacy} and the migration source reads keep working.
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_LN_PROD")
 public class LegacyLoanProduct {
