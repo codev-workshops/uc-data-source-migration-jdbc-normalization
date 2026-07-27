@@ -61,6 +61,16 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <!-- Runs the standalone data migration; see docs/DATA_MIGRATION.md. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <mainClass>com.workshop.loanservice.migration.DataMigrationRunner</mainClass>
+                    <classpathScope>runtime</classpathScope>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
