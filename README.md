@@ -57,6 +57,19 @@ The app runs on `http://localhost:8080` with endpoints:
 - `GET /api/borrowers/{id}` — Get borrower with loans
 - `GET /api/loans/{loanId}/payments` — Payment history for a loan
 
+## Data Migration
+
+The legacy tables can be copied into the modern schema with a standalone utility, independent of web
+startup:
+
+```bash
+./mvnw compile exec:java -Dexec.mainClass=com.workshop.loanservice.migration.DataMigrationRunner
+```
+
+It migrates all four tables in a single modern-datasource transaction, tracks legacy-to-modern ids
+in a `migration_id_map` table so re-runs are no-ops, and prints a PASS/FAIL validation report
+(exiting non-zero on failure). See [docs/DATA_MIGRATION.md](docs/DATA_MIGRATION.md).
+
 ## Tech Stack
 
 - Java 17
