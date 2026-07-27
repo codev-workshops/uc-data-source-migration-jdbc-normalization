@@ -69,6 +69,16 @@ public class MigrationIdMap {
         return findModernId(entityType, legacyId).isPresent();
     }
 
+    /** Reverse of {@link #findModernId}: the preserved legacy id for a migrated modern row. */
+    public Optional<String> findLegacyId(String entityType, Long modernId) {
+        Query query = entityManager.createNativeQuery(
+                "SELECT legacy_id FROM migration_id_map WHERE entity_type = ?1 AND modern_id = ?2");
+        query.setParameter(1, entityType);
+        query.setParameter(2, modernId);
+        List<?> rows = query.getResultList();
+        return rows.isEmpty() ? Optional.empty() : Optional.of((String) rows.get(0));
+    }
+
     public void record(String entityType, String legacyId, Long modernId, LocalDateTime migratedAt) {
         Query query = entityManager.createNativeQuery(
                 "INSERT INTO migration_id_map (entity_type, legacy_id, modern_id, migrated_at)"

@@ -11,6 +11,7 @@ import com.workshop.loanservice.repository.LegacyBorrowerRepository;
 import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import com.workshop.loanservice.repository.LegacyLoanProductRepository;
 import com.workshop.loanservice.repository.LegacyPaymentRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -19,13 +20,19 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Service layer that reads from legacy tables and translates
- * cryptic legacy fields into clean DTOs.
+ * Service layer that serves loan and borrower DTOs from either the legacy CDW tables or the
+ * modern normalized schema, selected once at startup by {@code loanservice.datasource.mode}.
  *
- * MIGRATION TASK: This service contains all the translation logic
- * between legacy string-typed fields and proper Java types.
- * When switching data sources, this layer needs to be updated
- * (or replaced) to read from the modern schema.
+ * <ul>
+ *   <li>{@code legacy} - the original path: reads the legacy string-typed tables and parses them
+ *       into proper Java types (unchanged).</li>
+ *   <li>{@code modern} (default) - dual-read: reads the modern schema via {@link ModernLoanReader}
+ *       and falls back to the legacy path only when the modern schema returns nothing for a
+ *       request (e.g. a datasource that has not been pre-migrated).</li>
+ * </ul>
+ *
+ * <p>The legacy translation methods below are used ONLY by the legacy path; the modern path never
+ * parses strings because the modern entities are already typed.
  */
 @Service
 public class LoanService {
@@ -34,18 +41,78 @@ public class LoanService {
     private final LegacyLoanAccountRepository loanAccountRepository;
     private final LegacyLoanProductRepository loanProductRepository;
     private final LegacyPaymentRepository paymentRepository;
+    private final ModernLoanReader modernLoanReader;
+    private final boolean modernMode;
 
     public LoanService(LegacyBorrowerRepository borrowerRepository,
                        LegacyLoanAccountRepository loanAccountRepository,
                        LegacyLoanProductRepository loanProductRepository,
-                       LegacyPaymentRepository paymentRepository) {
+                       LegacyPaymentRepository paymentRepository,
+                       ModernLoanReader modernLoanReader,
+                       @Value("${loanservice.datasource.mode:modern}") String mode) {
         this.borrowerRepository = borrowerRepository;
         this.loanAccountRepository = loanAccountRepository;
         this.loanProductRepository = loanProductRepository;
         this.paymentRepository = paymentRepository;
+        this.modernLoanReader = modernLoanReader;
+        this.modernMode = "modern".equalsIgnoreCase(mode);
     }
 
     public List<LoanSummaryDto> getAllLoans() {
+        if (modernMode) {
+            List<LoanSummaryDto> loans = modernLoanReader.getAllLoans();
+            if (!loans.isEmpty()) {
+                return loans;
+            }
+        }
+        return legacyGetAllLoans();
+    }
+
+    public LoanSummaryDto getLoanById(String loanAccountNumber) {
+        if (modernMode) {
+            LoanSummaryDto loan = modernLoanReader.getLoanById(loanAccountNumber).orElse(null);
+            if (loan != null) {
+                return loan;
+            }
+        }
+        return legacyGetLoanById(loanAccountNumber);
+    }
+
+    public List<BorrowerDto> getAllBorrowers() {
+        if (modernMode) {
+            List<BorrowerDto> result = modernLoanReader.getAllBorrowers();
+            if (!result.isEmpty()) {
+                return result;
+            }
+        }
+        return legacyGetAllBorrowers();
+    }
+
+    public BorrowerDto getBorrowerById(String borrowerId) {
+        if (modernMode) {
+            BorrowerDto dto = modernLoanReader.getBorrowerById(borrowerId).orElse(null);
+            if (dto != null) {
+                return dto;
+            }
+        }
+        return legacyGetBorrowerById(borrowerId);
+    }
+
+    public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
+        if (modernMode) {
+            List<PaymentDto> result = modernLoanReader.getPaymentsByLoan(loanAccountNumber);
+            if (!result.isEmpty()) {
+                return result;
+            }
+        }
+        return legacyGetPaymentsByLoan(loanAccountNumber);
+    }
+
+    // =========================================================================
+    // LEGACY PATH
+    // =========================================================================
+
+    private List<LoanSummaryDto> legacyGetAllLoans() {
         Map<String, LegacyLoanProduct> products = loanProductRepository.findAll()
                 .stream()
                 .collect(Collectors.toMap(LegacyLoanProduct::getProductCode, p -> p));
@@ -55,7 +122,7 @@ public class LoanService {
                 .collect(Collectors.toList());
     }
 
-    public LoanSummaryDto getLoanById(String loanAccountNumber) {
+    private LoanSummaryDto legacyGetLoanById(String loanAccountNumber) {
         LegacyLoanAccount acct = loanAccountRepository.findById(loanAccountNumber)
                 .orElseThrow(() -> new RuntimeException("Loan not found: " + loanAccountNumber));
         LegacyLoanProduct product = loanProductRepository.findById(acct.getProductCode())
@@ -63,13 +130,13 @@ public class LoanService {
         return toLoanSummary(acct, product);
     }
 
-    public List<BorrowerDto> getAllBorrowers() {
+    private List<BorrowerDto> legacyGetAllBorrowers() {
         return borrowerRepository.findAll().stream()
                 .map(this::toBorrowerDto)
                 .collect(Collectors.toList());
     }
 
-    public BorrowerDto getBorrowerById(String borrowerId) {
+    private BorrowerDto legacyGetBorrowerById(String borrowerId) {
         LegacyBorrower borrower = borrowerRepository.findById(borrowerId)
                 .orElseThrow(() -> new RuntimeException("Borrower not found: " + borrowerId));
         BorrowerDto dto = toBorrowerDto(borrower);
@@ -87,7 +154,7 @@ public class LoanService {
         return dto;
     }
 
-    public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
+    private List<PaymentDto> legacyGetPaymentsByLoan(String loanAccountNumber) {
         return paymentRepository.findByLoanAccountNumberOrderByPaymentDateDesc(loanAccountNumber)
                 .stream()
                 .map(this::toPaymentDto)
