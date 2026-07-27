@@ -110,9 +110,10 @@ primary key and the offending field, and skip that one record. Everything else k
 real record.** When `column_mappings.md` defines no expansion for a status/type code, the record
 migrates with the raw legacy code stored as-is (e.g. `property_type = 'TWN'`), a WARN is logged and
 the gap is listed in the report's *Codes migrated unexpanded* section so the mapping document can be
-extended later. The one exception is `PROD_STAT_CD`, which maps to the boolean `is_active`: an
-unexpanded code cannot be represented as a boolean, so the column is left null rather than guessed
-— the record itself still migrates.
+extended later. The one exception is `PROD_STAT_CD`, which maps to the boolean `is_active`: a
+boolean column cannot hold a raw code and guessing true/false would be worse, so an unexpanded value
+there is treated as malformed and the product row is skipped and logged like any other malformed
+record.
 
 The report scans the whole legacy dataset for gaps, not just the rows inserted by the current run,
 so the list stays complete on re-runs.

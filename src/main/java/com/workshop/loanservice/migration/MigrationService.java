@@ -41,7 +41,8 @@ import java.util.function.Function;
  *
  * <p>Transformations follow {@code data/mappings/column_mappings.md} exactly. A code the mapping
  * document does not expand is a gap in that document rather than bad data, so the record migrates
- * with the raw legacy code and the gap is reported.
+ * with the raw legacy code and the gap is reported. The exception is {@code PROD_STAT_CD}: the
+ * boolean {@code is_active} column cannot hold a raw code, so that record is skipped instead.
  */
 @Service
 public class MigrationService {
@@ -174,7 +175,7 @@ public class MigrationService {
                 product.setRateType(LegacyValues.requiredText(legacy.getRateType(), "PROD_RT_TYP"));
                 product.setMinAmount(LegacyValues.optionalAmount(legacy.getMinAmount(), "PROD_MIN_AMT"));
                 product.setMaxAmount(LegacyValues.optionalAmount(legacy.getMaxAmount(), "PROD_MAX_AMT"));
-                product.setActive(expandFlag(legacy.getStatusCode(), "PROD_STAT_CD", PRODUCT_ACTIVE, legacyId));
+                product.setActive(expandFlag(legacy.getStatusCode(), "PROD_STAT_CD", PRODUCT_ACTIVE));
                 product.setEffectiveDate(LegacyValues.optionalDate(legacy.getEffectiveDate(), "PROD_EFF_DT"));
                 product.setExpirationDate(LegacyValues.optionalDate(legacy.getExpirationDate(), "PROD_EXP_DT"));
 
@@ -289,15 +290,16 @@ public class MigrationService {
     }
 
     /**
-     * Boolean counterpart of {@link #expand}. An unexpanded code cannot be represented as a
-     * boolean, so the column is left null rather than guessing; the record still migrates.
+     * Boolean counterpart of {@link #expand}. The raw code cannot be kept in a boolean column and
+     * guessing a value would be worse than losing the row, so an unexpanded code is malformed here.
      */
-    private Boolean expandFlag(String value, String field, Map<String, Boolean> expansions, String legacyId) {
+    private Boolean expandFlag(String value, String field, Map<String, Boolean> expansions) {
         String code = LegacyValues.requiredText(value, field);
         Boolean expanded = expansions.get(code);
         if (expanded == null) {
-            log.warn("{} code '{}' on {} has no expansion in column_mappings.md; leaving the column null",
-                    field, code, legacyId);
+            throw new MalformedRecordException(field + " code '" + code
+                    + "' has no expansion in column_mappings.md and cannot be stored as a boolean"
+                    + " (known: " + expansions.keySet() + ")");
         }
         return expanded;
     }
@@ -353,10 +355,8 @@ public class MigrationService {
         for (LegacyBorrower legacy : legacyBorrowers.findAll()) {
             checkCode(borrowerTable, legacy.getBorrowerId(), "BORR_STAT_CD", legacy.getStatusCode(), BORROWER_STATUS);
         }
-        TableReport productTable = report.getTables().get(1);
-        for (LegacyLoanProduct legacy : legacyProducts.findAll()) {
-            checkCode(productTable, legacy.getProductCode(), "PROD_STAT_CD", legacy.getStatusCode(), PRODUCT_ACTIVE);
-        }
+        // PROD_STAT_CD is absent here on purpose: it maps to a boolean, so an unexpanded code is
+        // malformed and shows up under skipped records instead.
         TableReport accountTable = report.getTables().get(2);
         for (LegacyLoanAccount legacy : legacyAccounts.findAll()) {
             checkCode(accountTable, legacy.getLoanAccountNumber(), "LN_STAT_CD", legacy.getStatusCode(), LOAN_STATUS);
