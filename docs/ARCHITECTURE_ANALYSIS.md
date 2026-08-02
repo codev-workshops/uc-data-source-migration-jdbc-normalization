@@ -117,9 +117,12 @@ currently no way to answer "how slow is `/api/loans`?" except with a stopwatch.
 
 A standalone JDBC harness ([`perf/ScaleBench.java`](../perf/ScaleBench.java)) builds the modern
 schema exactly as specified in `data/modern-schema/modern_tables.sql`, loads **500,000 borrowers,
-500,000 loan accounts, 2,000,000 payments** (4 payments/loan) and 5 products, then times each query
-pattern the API actually issues (median of 5 runs after warm-up, H2 query cache disabled via
-`QUERY_CACHE_SIZE=0`) and prints `EXPLAIN ANALYZE` scan counts. Raw output:
+500,000 loan accounts, 2,000,000 payments** (4 payments/loan, plus one loan carrying a full 360-month
+history so ordering is not trivial) and 5 products, then times each query pattern the API actually
+issues (median of 5 runs after warm-up, H2 query cache disabled via `QUERY_CACHE_SIZE=0`) and prints
+`EXPLAIN ANALYZE` scan counts. The whole query set runs **three times**: baseline, baseline again
+(a control that absorbs JIT and page-cache warm-up), then after the index changes — so the index
+effect is read as *after vs. warmed control*, never against the cold first run. Raw output:
 [`docs/perf/phase0-h2-scale-bench.txt`](perf/phase0-h2-scale-bench.txt).
 
 Environment: 8 vCPU / 31 GB Ubuntu VM, OpenJDK 17.0.13, H2 2.2.224 in-memory, `-Xmx16g`, no network,
@@ -133,19 +136,27 @@ a seconds-to-minutes job when batched, and an hours job if committed per row.
 
 ### 3.2 Measured results
 
-| # | Query pattern | Baseline indexes | After proposed indexes |
-|---|---|---|---|
-| Q1 | v1 `GET /api/loans` — unbounded 3-table join, 500k rows | **434.7 ms** | 455.1 ms |
-| Q2 | v1 `GET /api/borrowers` — unbounded, 500k rows | **109.5 ms** | 115.8 ms |
-| Q3 | `GET /api/loans/{id}` by `account_number` | 0.33 ms | **0.18 ms** |
-| Q4 | payments for one loan, ordered desc | 0.26 ms | **0.17 ms** |
-| Q5 | v2 page 0, size 50 (`OFFSET 0`) | 0.34 ms | **0.15 ms** |
-| Q6 | v2 deep page (`OFFSET 450000`) | **84.5 ms** | 92.3 ms |
-| Q7 | v2 deep page, **keyset** (`WHERE id > 450000`) | **0.28 ms** | 0.18 ms |
-| Q8 | `COUNT(*)` for a `Page` total | 0.05 ms | 0.05 ms |
-| Q9 | filter `status='ACTIVE'` + order + limit 50 | **46.9 ms** (scanCount **475,001**) | 46.3 ms (unchanged) |
-| Q10 | batch-fetch 50 borrowers (one `IN`/range query) | 0.19 ms | 0.10 ms |
-| Q11 | N+1: 50 individual borrower selects | 1.00 ms | 0.58 ms |
+| # | Query pattern | Cold baseline | **Warmed control** | After index changes |
+|---|---|---|---|---|
+| Q1 | v1 `GET /api/loans` — unbounded 3-table join, 500k rows | 385.8 ms | **413.4 ms** | 454.5 ms |
+| Q2 | v1 `GET /api/borrowers` — unbounded, 500k rows | 104.2 ms | **104.2 ms** | 105.3 ms |
+| Q3 | `GET /api/loans/{id}` by `account_number` | 0.29 ms | **0.17 ms** | 0.12 ms |
+| Q4 | payments for one loan (4 rows), ordered desc | 0.23 ms | **0.12 ms** | 0.11 ms |
+| Q4b | payments for a 360-row history, ordered desc | 1.03 ms | **0.26 ms** | 0.25 ms |
+| Q4c | latest 12 payments of a 360-row history | 0.32 ms | **0.26 ms** | 0.23 ms |
+| Q5 | v2 page 0, size 50 (`OFFSET 0`) | 0.18 ms | **0.12 ms** | 0.09 ms |
+| Q6 | v2 deep page (`OFFSET 450000`) | 79.3 ms | **81.6 ms** | 85.5 ms |
+| Q7 | v2 deep page, **keyset** (`WHERE id > 450000`) | 0.25 ms | **0.15 ms** | 0.11 ms |
+| Q8 | `COUNT(*)` for a `Page` total | 0.05 ms | **0.04 ms** | 0.04 ms |
+| Q9 | filter `status='ACTIVE'` + order + limit 50 | 42.1 ms | **43.8 ms** (scanCount **475,001**) | **57.3 ms** (scanCount **475,001**) |
+| Q10 | batch-fetch 50 **scattered** borrowers (`IN` list) | 0.38 ms | **0.26 ms** | 0.16 ms |
+| Q11 | N+1: 50 scattered individual selects | 0.46 ms | **0.33 ms** | 0.24 ms |
+
+**Read the middle column as the honest baseline.** The cold→warmed drop of roughly 2× appears in
+queries the index changes cannot possibly affect (Q5, Q7, Q10, Q11), which is what the control run
+exists to expose: it is JIT and cache warm-up, not indexing. Measured against the warmed control,
+the index changes moved **nothing** in the sub-millisecond queries beyond run-to-run noise, and made
+Q9 **31 % worse**.
 
 ### 3.3 Are the indexes in `modern_tables.sql` sufficient?
 
@@ -154,26 +165,36 @@ a seconds-to-minutes job when batched, and an hours job if committed per row.
 | Index | Verdict | Evidence / reasoning |
 |---|---|---|
 | `borrowers(external_id)` UNIQUE (implicit) | **Keep — essential.** | The migration resolves 500k FKs through it; without it the backfill is O(n²). |
-| `loan_accounts(account_number)` UNIQUE (implicit) | **Keep — essential.** | Serves `GET /api/loans/{id}` (Q3, 0.18 ms) and every payment lookup. |
+| `loan_accounts(account_number)` UNIQUE (implicit) | **Keep — essential.** | Serves `GET /api/loans/{id}` (Q3, 0.17 ms) and every payment lookup. |
 | `idx_borrowers_email` | **Drop.** | No query filters by email. Pure write-side tax on a table that the dual-write path writes to; it also indexes PII. |
-| `idx_borrowers_status` | **Drop or make composite.** | Same low-selectivity problem as Q9: ~90 % of rows are `ACTIVE`. |
+| `idx_borrowers_status` | **Drop.** | Same low-selectivity problem as Q9: ~90 % of rows are `ACTIVE`, so the index cannot narrow anything, and no endpoint filters borrowers by status today. |
 | `idx_loan_accounts_borrower` | **Keep.** | Serves `GET /api/borrowers/{id}`'s loan list. |
-| `idx_loan_accounts_status` | **Ineffective — replace.** | Q9's `EXPLAIN ANALYZE` shows `scanCount: 475,001` for a `LIMIT 50` query: H2 walks every `ACTIVE` row because the index carries no ordering key. 46 ms for 50 rows. |
-| `idx_payments_loan` | **Replace with composite.** | Superseded by `(loan_account_id, payment_date DESC)`, which also serves the `ORDER BY`. |
+| `idx_loan_accounts_status` | **Ineffective.** | Q9's `EXPLAIN ANALYZE` shows `scanCount: 475,001` for a `LIMIT 50` query: H2 walks every `ACTIVE` row. 44 ms to return 50 rows. |
+| `idx_payments_loan` | **Drop — redundant.** | The `FOREIGN KEY (loan_account_id)` constraint already creates an index on the same column, and `EXPLAIN` shows H2 using that one. A duplicate index on 2M rows is pure write-side cost. |
 | `idx_payments_date` | **Drop unless a date-range report exists.** | No current query filters by `payment_date` alone; on 2M+ rows this is the most expensive index to maintain. |
-| **`payments(loan_account_id, payment_date DESC)`** | **Add.** | Covering index for the payment-history endpoint; removes the sort. |
-| **`loan_accounts(status, id)`** | **Add.** | Intended to give Q9 an ordered index scan. |
+| **`payments(loan_account_id, payment_date DESC)`** | **Add — projected, not measured.** | Intended as the covering index for the payment-history endpoint, removing the sort. |
+| **`loan_accounts(status, id)`** | **Add on PostgreSQL only — measured *worse* on H2.** | Intended to give Q9 an ordered index scan. |
 
-Two honest caveats on the "after" column:
+#### The measured verdict on those two additions: neither one worked on H2
 
-- The composite `payments` index shows **no measurable gain here** (0.26 → 0.17 ms) because the seed
-  shape is only 4 payments per loan, so the sort is trivial. Its value appears at realistic history
-  depth (24–360 rows/loan); I have not manufactured that shape, so I am **not** claiming a measured
-  win — the justification is structural (index-provided ordering), not empirical.
-- `loan_accounts(status, id)` **did not change Q9 at all** (46.9 → 46.3 ms) because H2's optimiser
-  kept choosing `idx_loan_accounts_status`. On PostgreSQL the composite index would serve both the
-  predicate and the ordering. This is a concrete example of an H2-specific limitation, and the
-  recommendation stands for the real engine — flagged rather than presented as a proven improvement.
+The "after" run applies the **complete** recommended set (both additions *and* all four drops, so no
+superseded index can win the plan). Compared against the warmed control:
+
+- **`payments(loan_account_id, payment_date DESC)` changed nothing.** Even at a realistic 360-payment
+  history (Q4b), 0.26 ms → 0.25 ms. `EXPLAIN ANALYZE` shows why: with `idx_payments_loan` dropped,
+  H2 falls back to the FK constraint index `CONSTRAINT_INDEX_8` on `payments(loan_account_id)` and
+  never picks the composite one, so the sort is never eliminated. The FK's own index makes the
+  explicit single-column index redundant either way.
+- **`loan_accounts(status, id)` made Q9 worse**: 43.8 ms → 57.3 ms, with `scanCount` pinned at
+  **475,001** in every configuration. H2 does use the new index for the predicate but still reads all
+  475k matching rows and sorts them before applying `LIMIT 50`; the wider index just costs more per
+  row. H2 does not exploit index ordering to satisfy `ORDER BY ... LIMIT` here.
+
+So the recommendation to add these two indexes rests on **PostgreSQL semantics, not on evidence from
+this harness** — on a real engine an ordered composite index normally turns Q9 into a 50-row index
+scan. Both are labelled projections. What the harness *does* prove is the negative: on H2, indexing
+cannot fix Q9, and the only reliable lever for large result sets is keyset pagination (Q7), which is
+index-independent.
 
 ### 3.4 Should pagination change?
 
@@ -184,8 +205,9 @@ Two honest caveats on the "after" column:
   loan, one request emits **~200 MB** and holds an equivalent object graph on-heap; a handful of
   concurrent calls will OOM the pod. (The 200 MB figure is an estimate from the DTO shape, not a
   measurement.)
-- Deep paging with `OFFSET` costs **84–92 ms** and grows linearly with the offset; the equivalent
-  **keyset** page costs **0.28 ms** — a ~300× difference that widens as the table grows.
+- Deep paging with `OFFSET` costs **80–85 ms** and grows linearly with the offset; the equivalent
+  **keyset** page costs **0.15 ms** — a ~540× difference that widens as the table grows. This is the
+  single largest, most robust effect in the whole benchmark, and it is unaffected by indexing.
 - `COUNT(*)` is cheap on H2 in-memory (0.05 ms) but is a full index/heap scan on PostgreSQL; `Slice`
   (no count) should be the default and `Page` (with count) opt-in.
 
@@ -202,17 +224,22 @@ Because v1 must not change, the plan is:
 ### 3.5 Which joins become expensive?
 
 1. **`loan_accounts → borrowers → loan_products` on every list row.** This is Q1: 435 ms as a single
-   set-based join. Done lazily per row it becomes N+1 — Q11 vs Q10 measures the shape of that
-   penalty (0.58 ms for 50 individual selects vs 0.10 ms for one batched query, ~6×; at 500k rows
-   that is the difference between ~0.5 s and ~100 s of round-trips on a networked DB).
+   set-based join. Done lazily per row it becomes N+1 — Q11 vs Q10 measures the shape of that penalty
+   with 50 **scattered** ids, the pattern Hibernate batch fetching actually emits: 0.33 ms for 50
+   individual selects vs 0.26 ms for one `IN` query. In-process H2 makes this look almost free
+   (~1.3×); the real cost is the **50 network round-trips**, which H2 does not have. On a networked
+   database at ~0.3 ms RTT that is ~15 ms vs ~0.3 ms per 50 rows, and at 500k rows the difference
+   between one query and 500k of them.
    *Mitigation:* `@EntityGraph`/`join fetch` on list queries, DTO projections so only the ~10 columns
    the DTO needs are read (the loan row has 26 columns), `hibernate.default_batch_fetch_size=100`,
    and `loan_products` served from cache (5 rows) instead of joined at all.
-2. **`payments → loan_accounts` for history.** Cheap per loan with the composite index; expensive for
-   any cross-loan aggregate.
-   *Mitigation:* composite index; if aggregates appear, roll them up (below).
-3. **Low-selectivity filters + ordering** (Q9). *Mitigation:* composite `(status, id)`; on a real
-   engine, a partial index on the minority status.
+2. **`payments → loan_accounts` for history.** Cheap per loan even at 360 rows (0.26 ms, Q4b);
+   expensive for any cross-loan aggregate.
+   *Mitigation:* the FK index already covers the lookup; if aggregates appear, roll them up (below).
+3. **Low-selectivity filters + ordering** (Q9) — the one pattern this analysis could **not** fix by
+   indexing on H2 (57 ms, 475k rows scanned for 50 returned). *Mitigation:* keyset pagination so the
+   scan starts at the cursor instead of the top; on PostgreSQL, a composite `(status, id)` or a
+   partial index on the minority status.
 
 **Structural recommendation (beyond indexes).** Keep the normalized schema as the write model, and
 add read-side structures rather than de-normalizing the source of truth:

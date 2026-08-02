@@ -231,9 +231,12 @@ erDiagram
     loan_accounts ||--o{ payments : receives
 ```
 
-Index plan (see `docs/ARCHITECTURE_ANALYSIS.md` §3.3 for the measurements behind it): add
-`payments(loan_account_id, payment_date DESC)` and `loan_accounts(status, id)`; drop
-`idx_payments_loan`, `idx_payments_date` and `idx_borrowers_email`.
+Index plan (see `docs/ARCHITECTURE_ANALYSIS.md` §3.3): drop `idx_payments_loan` (redundant with the
+FK constraint index), `idx_payments_date`, `idx_borrowers_email` and `idx_borrowers_status` — all
+unused by any query and pure write-side cost. The two composite indexes that look obvious,
+`payments(loan_account_id, payment_date DESC)` and `loan_accounts(status, id)`, were **measured and
+rejected on H2** (the latter made the status query 31% slower); they remain recommendations for
+PostgreSQL only.
 
 ### 6a. Sequence — migration run
 

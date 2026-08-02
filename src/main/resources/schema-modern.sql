@@ -1,0 +1,114 @@
+-- =============================================================================
+-- MODERN SCHEMA (target state) - H2 dialect
+-- =============================================================================
+-- Derived from data/modern-schema/modern_tables.sql with two deliberate changes,
+-- both justified in docs/ARCHITECTURE_ANALYSIS.md:
+--   1. version columns for optimistic locking on the concurrent write path
+--   2. index set corrected for the measured query patterns (section 3.3). The benchmark's
+--      warm-up-controlled run showed the two "obvious" composite indexes do NOT help on H2 -
+--      loan_accounts(status, id) measured 31% WORSE, and payments(loan_account_id, payment_date DESC)
+--      is never chosen because the FK constraint index already covers the lookup - so this schema
+--      keeps only indexes with a demonstrated purpose. See ARCHITECTURE_ANALYSIS.md 3.3 for the
+--      PostgreSQL-specific recommendations that are deliberately NOT applied here.
+--        dropped idx_payments_loan (redundant with the FK constraint index)
+--                idx_payments_date, idx_borrowers_email, idx_borrowers_status (unused, write-side cost)
+-- =============================================================================
+
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS loan_accounts;
+DROP TABLE IF EXISTS loan_products;
+DROP TABLE IF EXISTS borrowers;
+
+CREATE TABLE borrowers (
+    id                BIGINT PRIMARY KEY AUTO_INCREMENT,
+    external_id       VARCHAR(20) UNIQUE NOT NULL,
+    first_name        VARCHAR(50) NOT NULL,
+    last_name         VARCHAR(50) NOT NULL,
+    middle_initial    VARCHAR(1),
+    ssn_hash          VARCHAR(100),
+    date_of_birth     DATE,
+    address_line1     VARCHAR(100),
+    address_line2     VARCHAR(100),
+    city              VARCHAR(50),
+    state             VARCHAR(2),
+    zip_code          VARCHAR(10),
+    phone             VARCHAR(15),
+    email             VARCHAR(100),
+    credit_score      INTEGER,
+    employment_status VARCHAR(20),
+    annual_income     DECIMAL(12, 2),
+    status            VARCHAR(10) DEFAULT 'ACTIVE',
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    version           BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE loan_products (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    code            VARCHAR(10) UNIQUE NOT NULL,
+    name            VARCHAR(200) NOT NULL,
+    type            VARCHAR(5) NOT NULL,
+    term_months     INTEGER NOT NULL,
+    rate_type       VARCHAR(10) NOT NULL,
+    min_amount      DECIMAL(12, 2),
+    max_amount      DECIMAL(12, 2),
+    is_active       BOOLEAN DEFAULT TRUE,
+    effective_date  DATE,
+    expiration_date DATE,
+    version         BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE loan_accounts (
+    id                 BIGINT PRIMARY KEY AUTO_INCREMENT,
+    account_number     VARCHAR(20) UNIQUE NOT NULL,
+    borrower_id        BIGINT NOT NULL,
+    product_id         BIGINT NOT NULL,
+    original_amount    DECIMAL(12, 2) NOT NULL,
+    current_balance    DECIMAL(12, 2) NOT NULL,
+    interest_rate      DECIMAL(5, 3) NOT NULL,
+    term_months        INTEGER NOT NULL,
+    monthly_payment    DECIMAL(10, 2) NOT NULL,
+    origination_date   DATE NOT NULL,
+    maturity_date      DATE NOT NULL,
+    first_payment_date DATE,
+    next_payment_date  DATE,
+    status             VARCHAR(15) DEFAULT 'ACTIVE',
+    delinquency_days   INTEGER DEFAULT 0,
+    escrow_balance     DECIMAL(10, 2) DEFAULT 0,
+    ltv_percent        DECIMAL(5, 2),
+    property_address   VARCHAR(100),
+    property_city      VARCHAR(50),
+    property_state     VARCHAR(2),
+    property_zip       VARCHAR(10),
+    property_type      VARCHAR(30),
+    appraised_value    DECIMAL(12, 2),
+    created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    version            BIGINT NOT NULL DEFAULT 0,
+
+    FOREIGN KEY (borrower_id) REFERENCES borrowers (id),
+    FOREIGN KEY (product_id) REFERENCES loan_products (id)
+);
+
+CREATE TABLE payments (
+    id               BIGINT PRIMARY KEY AUTO_INCREMENT,
+    legacy_id        VARCHAR(20) UNIQUE,
+    loan_account_id  BIGINT NOT NULL,
+    payment_date     DATE NOT NULL,
+    total_amount     DECIMAL(10, 2) NOT NULL,
+    principal_amount DECIMAL(10, 2),
+    interest_amount  DECIMAL(10, 2),
+    escrow_amount    DECIMAL(10, 2),
+    late_fee         DECIMAL(10, 2) DEFAULT 0,
+    type             VARCHAR(15) NOT NULL,
+    status           VARCHAR(15) NOT NULL,
+    received_date    DATE,
+    processed_date   DATE,
+    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    version          BIGINT NOT NULL DEFAULT 0,
+
+    FOREIGN KEY (loan_account_id) REFERENCES loan_accounts (id)
+);
+
+CREATE INDEX idx_loan_accounts_borrower ON loan_accounts (borrower_id);

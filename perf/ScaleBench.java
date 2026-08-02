@@ -16,10 +16,16 @@ public class ScaleBench {
         counts();
         System.out.println("\n================ BASELINE INDEXES (as in modern_tables.sql) ================");
         queries();
+        // Second identical baseline run: isolates JIT/page-cache warm-up from the index effect.
+        // Compare AFTER against this run, not against the first one.
+        System.out.println("\n================ BASELINE INDEXES (repeat, warmed - control) ================");
+        queries();
         System.out.println("\n================ AFTER PROPOSED INDEXES ================");
         exec("CREATE INDEX idx_payments_loan_date ON payments(loan_account_id, payment_date DESC)");
         exec("CREATE INDEX idx_loan_accounts_status_id ON loan_accounts(status, id)");
         exec("DROP INDEX idx_payments_loan");
+        exec("DROP INDEX idx_payments_date");
+        exec("DROP INDEX idx_loan_accounts_status");
         exec("DROP INDEX idx_borrowers_email");
         queries();
         writeBench();
@@ -118,6 +124,16 @@ public class ScaleBench {
             p.executeBatch(); c.commit();
         }
         System.out.println("payments ms=" + (System.currentTimeMillis() - t));
+        // one loan with a realistic 30-year history so the ORDER BY is not trivial
+        try (PreparedStatement p = c.prepareStatement("INSERT INTO payments(loan_account_id,payment_date,total_amount,type,status) VALUES (?,?,?,?,?)")) {
+            java.time.LocalDate d = java.time.LocalDate.of(1996, 1, 15);
+            for (int k = 0; k < 360; k++) {
+                p.setLong(1, 1); p.setDate(2, java.sql.Date.valueOf(d.plusMonths(k)));
+                p.setBigDecimal(3, new java.math.BigDecimal("1487.02")); p.setString(4, "REGULAR"); p.setString(5, "POSTED");
+                p.addBatch();
+            }
+            p.executeBatch(); c.commit();
+        }
         c.setAutoCommit(true);
         exec("ANALYZE");
     }
@@ -156,6 +172,10 @@ public class ScaleBench {
             "SELECT la.*, b.first_name, b.last_name, lp.name FROM loan_accounts la JOIN borrowers b ON b.id=la.borrower_id JOIN loan_products lp ON lp.id=la.product_id WHERE la.account_number='LN-2019-499999'", true);
         timed("Q4 payments by loan ordered desc",
             "SELECT * FROM payments p JOIN loan_accounts la ON la.id=p.loan_account_id WHERE la.account_number='LN-2019-499999' ORDER BY p.payment_date DESC", true);
+        timed("Q4b payments, 360-row history, ordered desc",
+            "SELECT * FROM payments p JOIN loan_accounts la ON la.id=p.loan_account_id WHERE la.account_number='LN-2019-1' ORDER BY p.payment_date DESC", true);
+        timed("Q4c latest 12 payments of 360-row history",
+            "SELECT * FROM payments p JOIN loan_accounts la ON la.id=p.loan_account_id WHERE la.account_number='LN-2019-1' ORDER BY p.payment_date DESC LIMIT 12", true);
         timed("Q5 v2 offset page 0 size 50",
             "SELECT la.*, b.first_name, b.last_name FROM loan_accounts la JOIN borrowers b ON b.id=la.borrower_id ORDER BY la.id LIMIT 50 OFFSET 0", false);
         timed("Q6 v2 offset page deep (offset 450000)",
@@ -165,17 +185,36 @@ public class ScaleBench {
         timed("Q8 COUNT(*) for Page total", "SELECT COUNT(*) FROM loan_accounts", false);
         timed("Q9 filter by status ACTIVE page",
             "SELECT la.id FROM loan_accounts la WHERE la.status='ACTIVE' ORDER BY la.id LIMIT 50", true);
-        timed("Q10 batch-fetch 50 borrowers (IN clause)",
-            "SELECT b.* FROM borrowers b WHERE b.id BETWEEN 1 AND 50", false);
+        timed("Q10 batch-fetch 50 scattered borrowers (IN list)",
+            "SELECT b.* FROM borrowers b WHERE b.id IN (" + scatteredIds() + ")", false);
         nPlusOne();
     }
 
+    /** 50 ids spread across the whole table, the shape Hibernate batch fetching actually sees. */
+    static long[] scattered() {
+        long[] ids = new long[50];
+        for (int i = 0; i < 50; i++) ids[i] = 1L + (long) i * 9973L % 500_000L;
+        return ids;
+    }
+
+    static String scatteredIds() {
+        StringBuilder sb = new StringBuilder();
+        for (long id : scattered()) sb.append(sb.length() == 0 ? "" : ",").append(id);
+        return sb.toString();
+    }
+
     static void nPlusOne() throws Exception {
-        long t0 = System.nanoTime();
-        try (PreparedStatement p = c.prepareStatement("SELECT * FROM borrowers WHERE id = ?")) {
-            for (int i = 1; i <= 50; i++) { p.setLong(1, i); try (ResultSet r = p.executeQuery()) { r.next(); } }
+        long[] ids = scattered();
+        double[] runs = new double[5];
+        for (int r = 0; r < 5; r++) {
+            long t0 = System.nanoTime();
+            try (PreparedStatement p = c.prepareStatement("SELECT * FROM borrowers WHERE id = ?")) {
+                for (long id : ids) { p.setLong(1, id); try (ResultSet rs = p.executeQuery()) { rs.next(); } }
+            }
+            runs[r] = (System.nanoTime() - t0) / 1e6;
         }
-        System.out.printf("%-52s %8.2f ms%n", "Q11 N+1: 50 individual borrower selects", (System.nanoTime() - t0) / 1e6);
+        Arrays.sort(runs);
+        System.out.printf("%-52s median %8.2f ms%n", "Q11 N+1: 50 scattered individual selects", runs[2]);
     }
 
     static void concurrency() throws Exception {
