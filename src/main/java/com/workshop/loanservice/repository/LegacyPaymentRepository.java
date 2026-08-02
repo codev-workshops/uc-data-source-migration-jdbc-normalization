@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface LegacyPaymentRepository extends JpaRepository<LegacyPayment, String> {
+public interface LegacyPaymentRepository extends JpaRepository<LegacyPayment, String>, LegacyChunkSource<LegacyPayment> {
 
     List<LegacyPayment> findByLoanAccountNumber(String loanAccountNumber);
 

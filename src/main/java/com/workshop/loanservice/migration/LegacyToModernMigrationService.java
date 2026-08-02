@@ -15,15 +15,15 @@ import com.workshop.loanservice.modern.repository.LoanAccountRepository;
 import com.workshop.loanservice.modern.repository.LoanProductRepository;
 import com.workshop.loanservice.modern.repository.PaymentRepository;
 import com.workshop.loanservice.repository.LegacyBorrowerRepository;
+import com.workshop.loanservice.repository.LegacyChunkSource;
 import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import com.workshop.loanservice.repository.LegacyLoanProductRepository;
 import com.workshop.loanservice.repository.LegacyPaymentRepository;
+import jakarta.persistence.EntityManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.repository.PagingAndSortingRepository;
+import org.springframework.orm.jpa.EntityManagerFactoryUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 /**
  * Backfills the modern schema from the legacy CDW tables.
@@ -70,7 +71,9 @@ public class LegacyToModernMigrationService {
     private final CodeTranslator codes;
     private final ProductCatalog productCatalog;
     private final MigrationProperties properties;
+    private final EntityManagerFactory legacyEntityManagerFactory;
     private final TransactionTemplate modernTx;
+    private final TransactionTemplate legacyTx;
 
     public LegacyToModernMigrationService(LegacyBorrowerRepository legacyBorrowers,
                                           LegacyLoanProductRepository legacyProducts,
@@ -84,7 +87,9 @@ public class LegacyToModernMigrationService {
                                           CodeTranslator codes,
                                           ProductCatalog productCatalog,
                                           MigrationProperties properties,
-                                          @Qualifier("modernTransactionManager") PlatformTransactionManager txManager) {
+                                          @Qualifier("legacyEntityManagerFactory") EntityManagerFactory legacyEntityManagerFactory,
+                                          @Qualifier("modernTransactionManager") PlatformTransactionManager txManager,
+                                          @Qualifier("legacyTransactionManager") PlatformTransactionManager legacyTxManager) {
         this.legacyBorrowers = legacyBorrowers;
         this.legacyProducts = legacyProducts;
         this.legacyAccounts = legacyAccounts;
@@ -97,8 +102,12 @@ public class LegacyToModernMigrationService {
         this.codes = codes;
         this.productCatalog = productCatalog;
         this.properties = properties;
+        this.legacyEntityManagerFactory = legacyEntityManagerFactory;
         this.modernTx = new TransactionTemplate(txManager);
         this.modernTx.setTimeout(properties.getChunkTimeoutSeconds());
+        // The extract side is one long read-only scan; only the write side is chunked and timed out.
+        this.legacyTx = new TransactionTemplate(legacyTxManager);
+        this.legacyTx.setReadOnly(true);
     }
 
     public MigrationReport migrate() {
@@ -240,27 +249,41 @@ public class LegacyToModernMigrationService {
     }
 
     /**
-     * Reads the legacy table page by page and hands each page to {@code work} inside its own modern
+     * Streams the legacy table once and hands it to {@code work} in chunks, each in its own modern
      * transaction.
      *
-     * <p>The read is deliberately <em>unsorted</em>. The legacy warehouse is read-only for the
-     * duration of the backfill, so offset paging over it is stable, and preserving the source row
-     * order means the generated modern ids follow legacy order. That is what keeps the frozen v1
-     * list responses byte-identical: {@code GET /api/loans} has always returned rows in legacy scan
-     * order, and sorting here would silently reorder it.
+     * <p>One forward scan rather than repeated paged queries: offset paging re-reads and discards
+     * everything already migrated, which on the 2M-row payment table turned the tail of a 500k-loan
+     * backfill into seconds per chunk, and keyset paging would reorder the rows. The scan is
+     * unordered, so the modern ids land in the warehouse's physical row order - the order the frozen
+     * v1 list endpoints have always returned.
+     *
+     * <p>The legacy persistence context is cleared after every chunk. Without that, a single read
+     * transaction over 2M rows would retain all of them.
      */
-    private <T> void forEachChunk(PagingAndSortingRepository<T, String> repository,
+    private <T> void forEachChunk(LegacyChunkSource<T> repository,
                                   java.util.function.Consumer<List<T>> work) {
-        int pageNumber = 0;
-        Page<T> page;
-        do {
-            page = repository.findAll(PageRequest.of(pageNumber, properties.getChunkSize()));
-            List<T> content = page.getContent();
-            if (!content.isEmpty()) {
-                modernTx.executeWithoutResult(status -> work.accept(content));
+        legacyTx.executeWithoutResult(status -> {
+            List<T> chunk = new ArrayList<>(properties.getChunkSize());
+            try (Stream<T> rows = repository.streamAll()) {
+                for (T row : (Iterable<T>) rows::iterator) {
+                    chunk.add(row);
+                    if (chunk.size() == properties.getChunkSize()) {
+                        flushChunk(chunk, work);
+                    }
+                }
             }
-            pageNumber++;
-        } while (page.hasNext());
+            if (!chunk.isEmpty()) {
+                flushChunk(chunk, work);
+            }
+        });
+    }
+
+    private <T> void flushChunk(List<T> chunk, java.util.function.Consumer<List<T>> work) {
+        List<T> batch = List.copyOf(chunk);
+        modernTx.executeWithoutResult(status -> work.accept(batch));
+        chunk.clear();
+        EntityManagerFactoryUtils.getTransactionalEntityManager(legacyEntityManagerFactory).clear();
     }
 
     private static <T> Map<String, T> index(Collection<T> values, Function<T, String> key) {

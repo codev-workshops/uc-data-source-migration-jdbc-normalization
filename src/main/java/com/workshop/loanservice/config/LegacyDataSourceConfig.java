@@ -4,6 +4,7 @@ import com.workshop.loanservice.entity.LegacyBorrower;
 import com.zaxxer.hikari.HikariDataSource;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
@@ -72,7 +73,13 @@ public class LegacyDataSourceConfig {
         return new JpaTransactionManager(entityManagerFactory);
     }
 
+    /**
+     * Seeds the in-memory warehouse with the workshop fixture. Switched off when the data source
+     * already points at a populated database - the 500k-row load-test warehouse, for instance -
+     * where re-running the schema script would only fail.
+     */
     @Bean
+    @ConditionalOnProperty(name = "app.datasource.legacy.initialize", havingValue = "true", matchIfMissing = true)
     public DataSourceInitializer legacyDataSourceInitializer(@Qualifier("legacyDataSource") DataSource dataSource) {
         DataSourceInitializer initializer = new DataSourceInitializer();
         initializer.setDataSource(dataSource);

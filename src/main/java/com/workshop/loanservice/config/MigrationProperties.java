@@ -19,6 +19,9 @@ public class MigrationProperties {
     /** Hard ceiling on a single chunk transaction, so a stuck chunk cannot hold locks forever. */
     private int chunkTimeoutSeconds = 60;
 
+    /** Shut down once the backfill and reconciliation are done, for running it as a one-shot job. */
+    private boolean exitAfterMigration = false;
+
     public boolean isStrict() {
         return "strict".equalsIgnoreCase(mode);
     }
@@ -45,6 +48,14 @@ public class MigrationProperties {
 
     public void setMode(String mode) {
         this.mode = mode;
+    }
+
+    public boolean isExitAfterMigration() {
+        return exitAfterMigration;
+    }
+
+    public void setExitAfterMigration(boolean exitAfterMigration) {
+        this.exitAfterMigration = exitAfterMigration;
     }
 
     public int getChunkTimeoutSeconds() {

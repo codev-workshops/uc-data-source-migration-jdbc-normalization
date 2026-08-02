@@ -1,10 +1,13 @@
 package com.workshop.loanservice.migration;
 
+import com.workshop.loanservice.config.MigrationProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -24,13 +27,19 @@ public class MigrationRunner implements ApplicationRunner {
     private final LegacyToModernMigrationService migrationService;
     private final ReconciliationService reconciliation;
     private final MeterRegistry meterRegistry;
+    private final MigrationProperties properties;
+    private final ApplicationContext context;
 
     public MigrationRunner(LegacyToModernMigrationService migrationService,
                            ReconciliationService reconciliation,
-                           MeterRegistry meterRegistry) {
+                           MeterRegistry meterRegistry,
+                           MigrationProperties properties,
+                           ApplicationContext context) {
         this.migrationService = migrationService;
         this.reconciliation = reconciliation;
         this.meterRegistry = meterRegistry;
+        this.properties = properties;
+        this.context = context;
     }
 
     @Override
@@ -43,6 +52,12 @@ public class MigrationRunner implements ApplicationRunner {
             r -> r.getDuration().toMillis() / 1000.0);
         // Publishes per-table drift immediately: the backfill is only finished when it reconciles.
         reconciliation.reconcile();
+
+        if (properties.isExitAfterMigration()) {
+            // One-shot job mode: the backfill is the whole point of this process, so it stops rather
+            // than sitting there serving an API nobody asked it for.
+            SpringApplication.exit(context, () -> 0);
+        }
     }
 
     private void gauge(MigrationReport report, String outcome,

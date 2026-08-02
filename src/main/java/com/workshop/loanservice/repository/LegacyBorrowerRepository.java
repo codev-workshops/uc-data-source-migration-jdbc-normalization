@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface LegacyBorrowerRepository extends JpaRepository<LegacyBorrower, String> {
+public interface LegacyBorrowerRepository extends JpaRepository<LegacyBorrower, String>, LegacyChunkSource<LegacyBorrower> {
 
     List<LegacyBorrower> findByStatusCode(String statusCode);
 

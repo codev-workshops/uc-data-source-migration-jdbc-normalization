@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: maven
+
+      - name: Unit tests
+        run: ./mvnw -B test
+
+      - name: Integration tests, coverage and the static SQL guard
+        run: ./mvnw -B verify
+
+      - name: Security scan
+        run: ./scripts/security-scan.sh
+
+      - name: Refresh reports/TEST_REPORT.md
+        if: always()
+        run: python3 scripts/generate-test-report.py
+
+      - name: Publish test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            target/surefire-reports/**
+            target/failsafe-reports/**
+            target/site/jacoco/**
+            reports/**
+          if-no-files-found: warn
