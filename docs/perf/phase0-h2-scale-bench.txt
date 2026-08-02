@@ -1,0 +1,72 @@
+borrowers ms=3505
+loan_accounts ms=4777
+payments ms=10333
+LOAD total ms=18632
+borrowers=500000
+loan_products=5
+loan_accounts=500000
+payments=2000000
+
+================ BASELINE INDEXES (as in modern_tables.sql) ================
+Q1 v1 unbounded GET /api/loans (join)                median   434.68 ms (min 426.75 max 459.82)  rows=500000
+Q2 v1 unbounded GET /api/borrowers                   median   109.53 ms (min 109.07 max 109.95)  rows=500000
+Q3 GET /api/loans/{id} by account_number             median     0.33 ms (min 0.27 max 0.42)  rows=1
+      | /* PUBLIC.CONSTRAINT_INDEX_1: ACCOUNT_NUMBER = 'LN-2019-499999' */
+      | /* scanCount: 2 */
+      | /* PUBLIC.PRIMARY_KEY_C: ID = LA.BORROWER_ID */
+      | /* scanCount: 2 */
+      | /* PUBLIC.PRIMARY_KEY_6: ID = LA.PRODUCT_ID */
+      | /* scanCount: 2 */
+Q4 payments by loan ordered desc                     median     0.26 ms (min 0.25 max 0.31)  rows=4
+      | /* PUBLIC.CONSTRAINT_INDEX_1: ACCOUNT_NUMBER = 'LN-2019-499999' */
+      | /* scanCount: 2 */
+      | /* PUBLIC.CONSTRAINT_INDEX_8: LOAN_ACCOUNT_ID = LA.ID */
+      | /* scanCount: 5 */
+Q5 v2 offset page 0 size 50                          median     0.34 ms (min 0.33 max 0.39)  rows=50
+Q6 v2 offset page deep (offset 450000)               median    84.47 ms (min 83.65 max 117.33)  rows=50
+Q7 v2 keyset page deep (id > 450000)                 median     0.28 ms (min 0.26 max 0.38)  rows=50
+Q8 COUNT(*) for Page total                           median     0.05 ms (min 0.05 max 0.06)  rows=1
+Q9 filter by status ACTIVE page                      median    46.87 ms (min 39.77 max 86.27)  rows=50
+      | /* PUBLIC.IDX_LOAN_ACCOUNTS_STATUS: STATUS = 'ACTIVE' */
+      | /* scanCount: 475001 */
+Q10 batch-fetch 50 borrowers (IN clause)             median     0.19 ms (min 0.17 max 0.23)  rows=50
+Q11 N+1: 50 individual borrower selects                  1.00 ms
+
+================ AFTER PROPOSED INDEXES ================
+Q1 v1 unbounded GET /api/loans (join)                median   455.06 ms (min 443.46 max 466.37)  rows=500000
+Q2 v1 unbounded GET /api/borrowers                   median   115.77 ms (min 112.77 max 116.49)  rows=500000
+Q3 GET /api/loans/{id} by account_number             median     0.18 ms (min 0.18 max 0.33)  rows=1
+      | /* PUBLIC.CONSTRAINT_INDEX_1: ACCOUNT_NUMBER = 'LN-2019-499999' */
+      | /* scanCount: 2 */
+      | /* PUBLIC.PRIMARY_KEY_C: ID = LA.BORROWER_ID */
+      | /* scanCount: 2 */
+      | /* PUBLIC.PRIMARY_KEY_6: ID = LA.PRODUCT_ID */
+      | /* scanCount: 2 */
+Q4 payments by loan ordered desc                     median     0.17 ms (min 0.15 max 0.22)  rows=4
+      | /* PUBLIC.CONSTRAINT_INDEX_1: ACCOUNT_NUMBER = 'LN-2019-499999' */
+      | /* scanCount: 2 */
+      | /* PUBLIC.CONSTRAINT_INDEX_8: LOAN_ACCOUNT_ID = LA.ID */
+      | /* scanCount: 5 */
+Q5 v2 offset page 0 size 50                          median     0.15 ms (min 0.15 max 0.17)  rows=50
+Q6 v2 offset page deep (offset 450000)               median    92.30 ms (min 91.59 max 104.84)  rows=50
+Q7 v2 keyset page deep (id > 450000)                 median     0.18 ms (min 0.15 max 0.19)  rows=50
+Q8 COUNT(*) for Page total                           median     0.05 ms (min 0.05 max 0.07)  rows=1
+Q9 filter by status ACTIVE page                      median    46.26 ms (min 43.33 max 49.42)  rows=50
+      | /* PUBLIC.IDX_LOAN_ACCOUNTS_STATUS: STATUS = 'ACTIVE' */
+      | /* scanCount: 475001 */
+Q10 batch-fetch 50 borrowers (IN clause)             median     0.10 ms (min 0.08 max 0.15)  rows=50
+Q11 N+1: 50 individual borrower selects                  0.58 ms
+
+================ WRITE PATH ================
+2000 single-row commits: 23.9 ms total, 0.012 ms/write, 5014295 writes/min
+2000 hot-row balance updates (id=1): 87.2 ms total, 0.044 ms/write, 1375458 writes/min
+
+================ CONCURRENCY ================
+SAME ROW       threads= 1      16 ms   1920200 writes/min  errors=0  maxLatency=0.4 ms
+SAME ROW       threads= 4      78 ms   1543867 writes/min  errors=0  maxLatency=6.8 ms
+SAME ROW       threads= 8     119 ms   2017549 writes/min  errors=0  maxLatency=9.0 ms
+SAME ROW       threads=16     211 ms   2277171 writes/min  errors=0  maxLatency=24.7 ms
+DISTINCT ROWS  threads= 1      12 ms   2426538 writes/min  errors=0  maxLatency=0.1 ms
+DISTINCT ROWS  threads= 4      29 ms   4099133 writes/min  errors=0  maxLatency=2.2 ms
+DISTINCT ROWS  threads= 8      50 ms   4775249 writes/min  errors=0  maxLatency=11.3 ms
+DISTINCT ROWS  threads=16      95 ms   5060772 writes/min  errors=0  maxLatency=15.2 ms
