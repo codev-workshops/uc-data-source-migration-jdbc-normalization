@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
+@Deprecated // Legacy CDW mapping; retained only as the migration source. Use the modern entities/repositories instead.
 public interface LegacyBorrowerRepository extends JpaRepository<LegacyBorrower, String> {
 
     List<LegacyBorrower> findByStatusCode(String statusCode);

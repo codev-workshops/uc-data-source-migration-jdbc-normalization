@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "CDW_PMT_HIST")
+@Deprecated // Legacy CDW mapping; retained only as the migration source. Use the modern entities/repositories instead.
 public class LegacyPayment {
 
     @Id

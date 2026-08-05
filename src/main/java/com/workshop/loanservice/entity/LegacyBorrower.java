@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "CDW_BORR_MSTR")
+@Deprecated // Legacy CDW mapping; retained only as the migration source. Use the modern entities/repositories instead.
 public class LegacyBorrower {
 
     @Id
