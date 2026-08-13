@@ -10,6 +10,10 @@
 --   5. Proper indexing
 --   6. Timestamps instead of string dates
 --   7. Enum-like status fields with CHECK constraints
+--
+-- Runtime copy of data/modern-schema/modern_tables.sql. The only deviation is
+-- payments.external_id, which retains the legacy PMT_SEQ_NBR so the API can keep
+-- exposing the original payment identifier (see DATA_SOURCE_MIGRATION_NOTES.md).
 -- =============================================================================
 
 CREATE TABLE borrowers (
@@ -82,7 +86,7 @@ CREATE TABLE loan_accounts (
 
 CREATE TABLE payments (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
-    external_id         VARCHAR(20) UNIQUE,        -- legacy PMT_SEQ_NBR, kept for API compatibility
+    external_id         VARCHAR(20) UNIQUE,
     loan_account_id     BIGINT NOT NULL,
     payment_date        DATE NOT NULL,
     total_amount        DECIMAL(10, 2) NOT NULL,

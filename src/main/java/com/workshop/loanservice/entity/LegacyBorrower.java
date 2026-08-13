@@ -8,7 +8,11 @@ import jakarta.persistence.Table;
 /**
  * Maps to the legacy CDW_BORR_MSTR table.
  * All fields are strings (legacy DW pattern — loose typing).
+ *
+ * @deprecated The modern normalized schema is the application's source of truth.
+ * Retained only as input for {@link com.workshop.loanservice.migration.DataMigrationService}.
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_BORR_MSTR")
 public class LegacyBorrower {

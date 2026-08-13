@@ -8,7 +8,11 @@ import jakarta.persistence.Table;
 /**
  * Maps to the legacy CDW_LN_ACCT table.
  * Note the denormalized borrower fields embedded in the loan record.
+ *
+ * @deprecated The modern normalized schema is the application's source of truth.
+ * Retained only as input for {@link com.workshop.loanservice.migration.DataMigrationService}.
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_LN_ACCT")
 public class LegacyLoanAccount {

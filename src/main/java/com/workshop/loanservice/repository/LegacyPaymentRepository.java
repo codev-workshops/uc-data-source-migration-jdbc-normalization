@@ -6,6 +6,11 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * @deprecated The modern normalized schema is the application's source of truth.
+ * Retained only as input for {@link com.workshop.loanservice.migration.DataMigrationService}.
+ */
+@Deprecated
 @Repository
 public interface LegacyPaymentRepository extends JpaRepository<LegacyPayment, String> {
 
