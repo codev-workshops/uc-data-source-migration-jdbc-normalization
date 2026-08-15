@@ -1,0 +1,11 @@
+-- =============================================================================
+-- MODERN SEED DATA (intentionally empty)
+-- =============================================================================
+-- The modern tables are populated at startup by
+-- com.workshop.loanservice.migration.DataMigrationService, which reads the
+-- legacy CDW tables and applies the transformations documented in
+-- data/mappings/column_mappings.md. Adding static rows here would conflict with
+-- the migration's business-key idempotency checks.
+--
+-- The no-op statement below keeps the script non-empty for the script runner.
+SELECT 1;
