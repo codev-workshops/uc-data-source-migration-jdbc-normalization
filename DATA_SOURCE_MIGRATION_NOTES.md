@@ -94,8 +94,19 @@ internal, and the same reasoning is why `borrowers.external_id`,
 ## 6. API compatibility
 
 Reads go through `provider/LoanDataProvider`, selected by
-`loanservice.datasource.mode` (`modern` by default, `legacy` to fall back). The
-controllers, `LoanService`, and the DTOs are unchanged.
+`DataSourceModeSelector` — `loanservice.datasource.mode` (`modern` by default,
+`legacy` to fall back) supplies only the initial value, and the mode can be
+switched at runtime:
+
+```
+GET  /api/admin/datasource-mode      -> {"mode":"modern","availableModes":["legacy","modern"]}
+PUT  /api/admin/datasource-mode      {"mode":"legacy"}
+```
+
+`LoanService` resolves the provider per call from an `AtomicReference`, so a
+switch takes effect on the next read and no single request is ever half-served
+from two databases. An unknown mode is a 400 and leaves the active one
+untouched. The controllers and the DTOs are unchanged.
 
 The modern schema stores canonical values (`ACTIVE`, `REGULAR`, real dates), while the
 API keeps emitting exactly what it always did; `provider/PresentationFormat` reapplies

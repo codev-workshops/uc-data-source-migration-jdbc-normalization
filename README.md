@@ -23,9 +23,9 @@ This app manages loan data: borrowers, loan products, loan accounts, and payment
 └─────────────────────────────┘
 ```
 
-Reads are served from the modern data source by default. Set
-`loanservice.datasource.mode=legacy` to fall back to the CDW tables; the API
-responses are identical either way. See
+Reads are served from the modern data source by default; `loanservice.datasource.mode`
+sets the initial mode and `PUT /api/admin/datasource-mode {"mode":"legacy"}` switches it
+at runtime. The API responses are identical either way. See
 [DATA_SOURCE_MIGRATION_NOTES.md](DATA_SOURCE_MIGRATION_NOTES.md).
 
 ## Source of Truth (Legacy)
@@ -61,6 +61,7 @@ The app runs on `http://localhost:8080` with endpoints:
 - `GET /api/borrowers/{id}` — Get borrower with loans
 - `GET /api/loans/{loanId}/payments` — Payment history for a loan
 - `GET /api/admin/reconciliation` — Legacy vs modern comparison (operational)
+- `GET`/`PUT /api/admin/datasource-mode` — Read or switch the active data source (operational)
 
 ## Tech Stack
 

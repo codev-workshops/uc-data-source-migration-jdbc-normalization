@@ -3,16 +3,17 @@ package com.workshop.loanservice.service;
 import com.workshop.loanservice.dto.BorrowerDto;
 import com.workshop.loanservice.dto.LoanSummaryDto;
 import com.workshop.loanservice.dto.PaymentDto;
+import com.workshop.loanservice.provider.DataSourceModeSelector;
 import com.workshop.loanservice.provider.LoanDataProvider;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 /**
- * Delegates every read to the {@link LoanDataProvider} selected by
- * {@code loanservice.datasource.mode} ({@code modern} by default,
- * {@code legacy} to fall back to the CDW tables).
+ * Delegates every read to the {@link LoanDataProvider} currently selected by
+ * {@link DataSourceModeSelector} ({@code modern} by default, {@code legacy} to
+ * fall back to the CDW tables). The provider is resolved per call, so the mode
+ * can be switched at runtime.
  *
  * <p>The legacy string parsing and code expansion that used to live here now
  * lives in {@link com.workshop.loanservice.migration.LegacyTypeConverter} (used
@@ -23,38 +24,33 @@ import java.util.List;
 @Service
 public class LoanService {
 
-    private final LoanDataProvider provider;
+    private final DataSourceModeSelector selector;
 
-    public LoanService(List<LoanDataProvider> providers,
-                       @Value("${loanservice.datasource.mode:modern}") String mode) {
-        this.provider = providers.stream()
-                .filter(p -> p.name().equalsIgnoreCase(mode))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException(
-                        "Unknown loanservice.datasource.mode: " + mode));
+    public LoanService(DataSourceModeSelector selector) {
+        this.selector = selector;
     }
 
     public String activeDataSourceMode() {
-        return provider.name();
+        return selector.activeMode();
     }
 
     public List<LoanSummaryDto> getAllLoans() {
-        return provider.getAllLoans();
+        return selector.active().getAllLoans();
     }
 
     public LoanSummaryDto getLoanById(String loanAccountNumber) {
-        return provider.getLoanById(loanAccountNumber);
+        return selector.active().getLoanById(loanAccountNumber);
     }
 
     public List<BorrowerDto> getAllBorrowers() {
-        return provider.getAllBorrowers();
+        return selector.active().getAllBorrowers();
     }
 
     public BorrowerDto getBorrowerById(String borrowerId) {
-        return provider.getBorrowerById(borrowerId);
+        return selector.active().getBorrowerById(borrowerId);
     }
 
     public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
-        return provider.getPaymentsByLoan(loanAccountNumber);
+        return selector.active().getPaymentsByLoan(loanAccountNumber);
     }
 }
