@@ -1,21 +1,11 @@
 -- =============================================================================
--- MODERN SCHEMA (Target State)
+-- MODERN SCHEMA (executable DDL for the modern data source)
 -- =============================================================================
--- This is the target schema that the application should be migrated to.
--- Key improvements over legacy:
---   1. Proper data types (DATE, DECIMAL, INTEGER, BOOLEAN)
---   2. Clear, readable column names
---   3. Normalized structure (no duplicated borrower data in loans)
---   4. Foreign key constraints for referential integrity
---   5. Proper indexing
---   6. Timestamps instead of string dates
---   7. Canonical upper-case status values
---
--- The executable copy of this DDL lives in src/main/resources/schema-modern.sql
--- and is loaded into the modern data source at startup. Keep the two in sync.
+-- Mirrors data/modern-schema/modern_tables.sql, which is the design document.
+-- Keep the two in sync.
 -- =============================================================================
 
-CREATE TABLE borrowers (
+CREATE TABLE IF NOT EXISTS borrowers (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
     external_id     VARCHAR(20) UNIQUE NOT NULL,
     first_name      VARCHAR(50) NOT NULL,
@@ -38,13 +28,13 @@ CREATE TABLE borrowers (
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE loan_products (
+CREATE TABLE IF NOT EXISTS loan_products (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
     code            VARCHAR(10) UNIQUE NOT NULL,
     name            VARCHAR(200) NOT NULL,
-    type            VARCHAR(5) NOT NULL,          -- FXD, ARM, FHA, VA
+    type            VARCHAR(5) NOT NULL,
     term_months     INTEGER NOT NULL,
-    rate_type       VARCHAR(10) NOT NULL,          -- FIXED, VARIABLE
+    rate_type       VARCHAR(10) NOT NULL,
     min_amount      DECIMAL(12, 2),
     max_amount      DECIMAL(12, 2),
     is_active       BOOLEAN DEFAULT TRUE,
@@ -52,7 +42,7 @@ CREATE TABLE loan_products (
     expiration_date DATE
 );
 
-CREATE TABLE loan_accounts (
+CREATE TABLE IF NOT EXISTS loan_accounts (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
     account_number      VARCHAR(20) UNIQUE NOT NULL,
     borrower_id         BIGINT NOT NULL,
@@ -83,9 +73,9 @@ CREATE TABLE loan_accounts (
     FOREIGN KEY (product_id) REFERENCES loan_products(id)
 );
 
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
-    external_id         VARCHAR(20) UNIQUE NOT NULL,  -- legacy PMT_SEQ_NBR, exposed as paymentId
+    external_id         VARCHAR(20) UNIQUE NOT NULL,
     loan_account_id     BIGINT NOT NULL,
     payment_date        DATE NOT NULL,
     total_amount        DECIMAL(10, 2) NOT NULL,
@@ -93,8 +83,8 @@ CREATE TABLE payments (
     interest_amount     DECIMAL(10, 2),
     escrow_amount       DECIMAL(10, 2),
     late_fee            DECIMAL(10, 2) DEFAULT 0,
-    type                VARCHAR(15) NOT NULL,      -- REGULAR, EXTRA, PARTIAL, PREPAYMENT
-    status              VARCHAR(15) NOT NULL,      -- POSTED, REVERSED, NSF, PENDING
+    type                VARCHAR(15) NOT NULL,
+    status              VARCHAR(15) NOT NULL,
     received_date       DATE,
     processed_date      DATE,
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -103,10 +93,9 @@ CREATE TABLE payments (
     FOREIGN KEY (loan_account_id) REFERENCES loan_accounts(id)
 );
 
--- Indexes for common queries
-CREATE INDEX idx_borrowers_email ON borrowers(email);
-CREATE INDEX idx_borrowers_status ON borrowers(status);
-CREATE INDEX idx_loan_accounts_borrower ON loan_accounts(borrower_id);
-CREATE INDEX idx_loan_accounts_status ON loan_accounts(status);
-CREATE INDEX idx_payments_loan ON payments(loan_account_id);
-CREATE INDEX idx_payments_date ON payments(payment_date);
+CREATE INDEX IF NOT EXISTS idx_borrowers_email ON borrowers(email);
+CREATE INDEX IF NOT EXISTS idx_borrowers_status ON borrowers(status);
+CREATE INDEX IF NOT EXISTS idx_loan_accounts_borrower ON loan_accounts(borrower_id);
+CREATE INDEX IF NOT EXISTS idx_loan_accounts_status ON loan_accounts(status);
+CREATE INDEX IF NOT EXISTS idx_payments_loan ON payments(loan_account_id);
+CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date);
