@@ -60,8 +60,16 @@ The app runs on `http://localhost:8080` with endpoints:
 - `GET /api/borrowers` — List borrowers
 - `GET /api/borrowers/{id}` — Get borrower with loans
 - `GET /api/loans/{loanId}/payments` — Payment history for a loan
-- `GET /api/admin/reconciliation` — Legacy vs modern comparison (operational)
+- `GET /api/admin/reconciliation` — Legacy vs modern comparison of the served DTOs (operational)
+- `GET /api/admin/reconciliation/sql` — Legacy vs modern comparison at table level (operational)
 - `GET`/`PUT /api/admin/datasource-mode` — Read or switch the active data source (operational)
+
+## Tests
+
+```bash
+./mvnw verify              # unit, golden-file, and reconciliation tests
+./mvnw test -Pbenchmark    # legacy vs modern query benchmark (see docs/PERFORMANCE_COMPARISON.md)
+```
 
 ## Tech Stack
 

@@ -19,6 +19,10 @@
 
     <properties>
         <java.version>17</java.version>
+        <!-- The performance benchmark loads synthetic data and takes tens of seconds,
+             so normal builds skip it; run it with -Pbenchmark. -->
+        <test.excludedGroups>benchmark</test.excludedGroups>
+        <test.groups/>
     </properties>
 
     <dependencies>
@@ -48,6 +52,25 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludedGroups>${test.excludedGroups}</excludedGroups>
+                    <groups>${test.groups}</groups>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- ./mvnw test -Pbenchmark  runs only the schema performance benchmark. -->
+        <profile>
+            <id>benchmark</id>
+            <properties>
+                <test.excludedGroups/>
+                <test.groups>benchmark</test.groups>
+            </properties>
+        </profile>
+    </profiles>
 </project>

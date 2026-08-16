@@ -135,7 +135,23 @@ compares the two data sources in the application, since they cannot be joined in
 Any difference is reported as a mismatch with both values. This is stronger than
 comparing aggregates: it is the API-compatibility guarantee itself.
 
-## 8. Intentional differences
+`reconciliation/SqlReconciliationService` (`GET /api/admin/reconciliation/sql`) adds a
+table-level comparison from the query pairs in
+`src/main/resources/validation/reconciliation_queries.sql`, which are also runnable by
+hand in the H2 console. Each check is a pair because separate databases cannot be
+joined: the legacy query does in SQL the same conversion and code expansion the
+migration does in Java, and the two result sets must be identical. These cover ground
+the DTO comparison cannot — aggregate totals, orphaned keys, and the borrower-name
+conflicts CDW's denormalization allows and the modern schema makes impossible.
+
+## 8. Performance
+
+`docs/PERFORMANCE_COMPARISON.md` records the measured cost of the legacy schema:
+with 20k loans and 100k payments the typed schema is 1.3x–9.4x faster on the same
+queries, because CDW pays a string parse per row and cannot use an index behind a
+conversion. Run it with `./mvnw test -Pbenchmark`.
+
+## 9. Intentional differences
 
 - The modern `payments` read is ordered by `payment_date DESC, external_id DESC`. The
   legacy query ordered by a `MM/DD/YYYY` *string*, which sorts by month rather than
