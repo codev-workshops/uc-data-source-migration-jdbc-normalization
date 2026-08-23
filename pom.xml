@@ -8,14 +8,14 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.2.3</version>
-        <relativeTo/>
+        <relativePath/>
     </parent>
 
     <groupId>com.workshop</groupId>
     <artifactId>loan-service</artifactId>
     <version>1.0.0</version>
     <name>Loan Service</name>
-    <description>Legacy loan management app for data source migration workshop</description>
+    <description>Loan management app running on the modern normalized schema</description>
 
     <properties>
         <java.version>17</java.version>
