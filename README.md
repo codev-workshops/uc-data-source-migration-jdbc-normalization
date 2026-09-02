@@ -47,7 +47,7 @@ See `data/modern-schema/` for target DDL.
 ## Quick Start
 
 ```bash
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
 
 The app runs on `http://localhost:8080` with endpoints:
@@ -68,7 +68,7 @@ The app runs on `http://localhost:8080` with endpoints:
 ## Build & Run
 
 ```bash
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
 
 The app starts on `http://localhost:8080`.
