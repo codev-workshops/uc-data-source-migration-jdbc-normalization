@@ -65,6 +65,14 @@ The app runs on `http://localhost:8080` with endpoints:
 - H2 (in-memory, simulating legacy DW)
 - Maven
 
+## Build & Run
+
+```bash
+./mvnw spring-boot:run
+```
+
+The app starts on `http://localhost:8080`.
+
 ## License
 
 MIT
