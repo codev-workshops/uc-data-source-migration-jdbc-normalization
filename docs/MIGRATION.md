@@ -5,10 +5,11 @@ the normalized modern schema without changing a single byte of API output.
 
 ## Approach
 
-1. **Contract first.** `GoldenMasterApiTest` was written against the legacy
-   schema and its exact JSON responses stored in `src/test/resources/golden/`
-   (list/single loan, all payment histories, list/single borrower, not-found
-   behaviour). This commit predates the migration and acts as the contract.
+1. **Contract first.** `GoldenFileApiTest` (Phase 0 on `develop`) was written
+   against the legacy schema and its JSON responses stored in
+   `src/test/resources/golden/legacy/` (list/single loan, all payment histories,
+   list/single borrower, not-found behaviour). It predates the migration and
+   acts as the contract.
 2. **Modern schema on the classpath.** `schema-modern.sql` / `data-modern.sql`
    replace `schema-legacy.sql` / `data-legacy.sql` in `application.properties`.
 3. **Modern entities & repositories** replace the `Legacy*` classes.
@@ -73,7 +74,7 @@ originalAmount  = stripped to scale 0 when it has no cents (legacy "285,000" -> 
 ./mvnw test
 ```
 
-- `GoldenMasterApiTest` (20 tests) — JSON identical to legacy baseline
+- `GoldenFileApiTest` (19 tests) — JSON identical to legacy baseline
 - `ModernSchemaIntegrationTest` (9 tests) — modern H2 schema behaviour
 - `grep -r CDW_ src/` returns nothing; the only `CDW_*` references are in
   `data/legacy-schema/`, `data/mappings/`, and docs.

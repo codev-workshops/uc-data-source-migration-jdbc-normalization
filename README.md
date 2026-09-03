@@ -87,7 +87,7 @@ Full details: `docs/MIGRATION.md`. Legacy discovery: `docs/MIGRATION_ANALYSIS.md
 - `GET /api/borrowers/{id}` — Borrower with loans (`RuntimeException` → 500 if unknown)
 
 The exact pre-migration JSON for every endpoint is captured in
-`src/test/resources/golden/` and enforced by `GoldenMasterApiTest`.
+`src/test/resources/golden/legacy/` and enforced by `GoldenFileApiTest`.
 
 ## Running
 
@@ -98,7 +98,7 @@ The exact pre-migration JSON for every endpoint is captured in
 ```
 
 Tests:
-- `GoldenMasterApiTest` — MockMvc, byte-for-byte JSON contract for all endpoints
+- `GoldenFileApiTest` — MockMvc, golden-file JSON contract for all endpoints
 - `ModernSchemaIntegrationTest` — real H2 modern schema: listing/lookup, FK-based
   borrower/product population, borrower→loan association, payment ordering,
   absence of `CDW_*` tables
