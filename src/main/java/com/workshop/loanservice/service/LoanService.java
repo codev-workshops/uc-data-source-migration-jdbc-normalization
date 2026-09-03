@@ -117,10 +117,10 @@ public class LoanService {
         dto.setLoanAccountNumber(pmt.getLoanAccount().getAccountNumber());
         dto.setPaymentDate(formatApiDate(pmt.getPaymentDate()));
         dto.setTotalAmount(pmt.getTotalAmount());
-        dto.setPrincipalAmount(pmt.getPrincipalAmount());
-        dto.setInterestAmount(pmt.getInterestAmount());
-        dto.setEscrowAmount(pmt.getEscrowAmount());
-        dto.setLateFee(pmt.getLateFee());
+        dto.setPrincipalAmount(zeroIfNull(pmt.getPrincipalAmount()));
+        dto.setInterestAmount(zeroIfNull(pmt.getInterestAmount()));
+        dto.setEscrowAmount(zeroIfNull(pmt.getEscrowAmount()));
+        dto.setLateFee(zeroIfNull(pmt.getLateFee()));
         dto.setType(paymentTypeLabel(pmt.getType()));
         dto.setStatus(paymentStatusLabel(pmt.getStatus()));
         return dto;
@@ -135,6 +135,11 @@ public class LoanService {
 
     private static String formatApiDate(LocalDate date) {
         return date != null ? date.format(API_DATE_FORMAT) : null;
+    }
+
+    /** Optional payment amounts are presented as 0 when absent. */
+    private static BigDecimal zeroIfNull(BigDecimal amount) {
+        return amount != null ? amount : BigDecimal.ZERO;
     }
 
     /**
