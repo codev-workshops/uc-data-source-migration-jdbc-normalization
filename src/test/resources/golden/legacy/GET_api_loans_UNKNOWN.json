@@ -1,0 +1,9 @@
+{
+  "status" : 500,
+  "body" : {
+    "timestamp" : "<normalised>",
+    "status" : 500,
+    "error" : "Internal Server Error",
+    "path" : "/api/loans/UNKNOWN"
+  }
+}

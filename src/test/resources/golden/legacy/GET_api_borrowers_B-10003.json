@@ -1,0 +1,26 @@
+{
+  "status" : 200,
+  "body" : {
+    "id" : "B-10003",
+    "fullName" : "Michael A. Torres",
+    "email" : "m.torres@email.com",
+    "phone" : "512-555-0167",
+    "city" : "Austin",
+    "state" : "TX",
+    "creditScore" : 692,
+    "employmentStatus" : "SELF-EMP",
+    "loans" : [ {
+      "loanAccountNumber" : "LN-2018-00089",
+      "borrowerName" : "Michael Torres",
+      "productDescription" : "5/1 Adjustable Rate Mortgage",
+      "originalAmount" : 195000,
+      "currentBalance" : 178234.12,
+      "interestRate" : 5.25,
+      "monthlyPayment" : 1077.05,
+      "status" : "Active",
+      "originationDate" : "07/01/2018",
+      "propertyAddress" : "305 Pine Road, Austin, TX 78701",
+      "propertyType" : "Single Family Residence"
+    } ]
+  }
+}
