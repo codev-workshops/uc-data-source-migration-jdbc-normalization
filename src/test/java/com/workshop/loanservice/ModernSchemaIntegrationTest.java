@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * data-modern.sql), exercising the repositories, JPA relationships and the
  * service mapping end to end.
  */
-@SpringBootTest
+@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:modernintegration;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE")
 @AutoConfigureMockMvc
 @Transactional
 class ModernSchemaIntegrationTest {
