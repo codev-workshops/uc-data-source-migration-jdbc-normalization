@@ -8,6 +8,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
@@ -66,13 +68,13 @@ public class LoanAccount {
     private LocalDate nextPaymentDate;
 
     @Column(length = 15)
-    private String status;
+    private String status = "ACTIVE";
 
     @Column(name = "delinquency_days")
-    private Integer delinquencyDays;
+    private Integer delinquencyDays = 0;
 
     @Column(name = "escrow_balance", precision = 10, scale = 2)
-    private BigDecimal escrowBalance;
+    private BigDecimal escrowBalance = BigDecimal.ZERO;
 
     @Column(name = "ltv_percent", precision = 5, scale = 2)
     private BigDecimal ltvPercent;
@@ -100,6 +102,18 @@ public class LoanAccount {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        if (createdAt == null) createdAt = now;
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
