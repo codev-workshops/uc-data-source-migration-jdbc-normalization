@@ -1,0 +1,18 @@
+-- =============================================================================
+-- LEGACY DATA WAREHOUSE SCHEMA DOCUMENTATION
+-- =============================================================================
+-- This file documents the legacy CDW (Corporate Data Warehouse) tables
+-- that the loan-service application currently reads from.
+--
+-- Key characteristics of the legacy schema:
+--   1. All columns are VARCHAR (loose typing)
+--   2. Dates stored as MM/DD/YYYY strings
+--   3. Amounts stored as strings with commas ("285,000")
+--   4. Abbreviated column names (BORR_FST_NM = borrower first name)
+--   5. Denormalized: CDW_LN_ACCT duplicates borrower fields
+--   6. No foreign key constraints
+--   7. Status codes are cryptic abbreviations (ACT, CLO, DFT, FRB)
+-- =============================================================================
+
+-- See src/main/resources/schema-legacy.sql for the actual DDL used by the app.
+-- See data/mappings/column_mappings.md for the full legacy-to-modern field mapping.
