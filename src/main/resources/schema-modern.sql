@@ -6,11 +6,6 @@
 -- exposing the historical payment identifier (e.g. PMT-2025120001).
 -- =============================================================================
 
-DROP TABLE IF EXISTS payments;
-DROP TABLE IF EXISTS loan_accounts;
-DROP TABLE IF EXISTS loan_products;
-DROP TABLE IF EXISTS borrowers;
-
 CREATE TABLE borrowers (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
     external_id     VARCHAR(20) UNIQUE NOT NULL,
