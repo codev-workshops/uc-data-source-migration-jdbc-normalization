@@ -1,5 +1,5 @@
 -- =============================================================================
--- LEGACY SEED DATA
+-- LEGACY SEED DATA — HISTORICAL REFERENCE ONLY (matches cdw_tables.sql)
 -- =============================================================================
 
 -- Borrowers
