@@ -1,10 +1,10 @@
 # Legacy Data Source Migration Analysis
 
-> Read-only discovery of the current legacy "CDW" (Corporate Data Warehouse) data source backing the loan service. This documents the current state and its problems only — not the target solution.
+> Historical discovery of the former legacy "CDW" (Corporate Data Warehouse) data source backing the loan service. This documents the current state and its problems only — not the target solution.
 
 ## 1. Legacy Schema Inventory
 
-The legacy schema is defined in `src/main/resources/schema-legacy.sql` (the file `data/legacy-schema/cdw_tables.sql` is a descriptive stub that points to it). It contains four tables, all VARCHAR-typed with cryptic abbreviated column names.
+The legacy schema is preserved for reference in `data/legacy-schema/cdw_tables.sql` (it is no longer on the runtime classpath; see `docs/MIGRATION.md` for the completed migration). It contains four tables, all VARCHAR-typed with cryptic abbreviated column names.
 
 ### `CDW_BORR_MSTR` — Borrower Master (a person holding loans)
 Primary key `BORR_ID` (e.g. `B-10001`). Columns: `BORR_FST_NM`/`BORR_LST_NM`/`BORR_MID_INIT` = first/last/middle initial; `BORR_SSN_ENCR` = encrypted SSN (`ENC_XXX_001`); `BORR_DOB_DT` = date of birth; `BORR_ADDR_LN1`/`LN2`, `BORR_CTY_NM`, `BORR_ST_CD`, `BORR_ZIP_CD` = address; `BORR_PH_NBR`, `BORR_EMAIL_ADDR` = contact; `BORR_CRDT_SCR` = credit score; `BORR_EMP_STAT` = employment status; `BORR_ANN_INCM` = annual income; `BORR_CRET_DT`/`BORR_UPDT_DT` = audit dates; `BORR_STAT_CD`, `BORR_REC_TYP` = status/record-type codes.
@@ -18,7 +18,7 @@ Primary key `LN_ACCT_NBR` (`LN-2019-00142`). Key columns: `BORR_ID` (link to bor
 ### `CDW_PMT_HIST` — Payment History (individual loan payments)
 Primary key `PMT_SEQ_NBR` (`PMT-2025120001`). Columns: `LN_ACCT_NBR` (link to loan); `PMT_DT`; `PMT_AMT`, `PMT_PRIN_AMT`, `PMT_INT_AMT`, `PMT_ESCROW_AMT`, `PMT_LATE_FEE` (money split); `PMT_TYP_CD` (REG/EXT/PRT/PRE); `PMT_STAT_CD` (PST/REV/NSF/PND); dates `PMT_RECV_DT`/`PMT_PROC_DT`/`PMT_CRET_DT`/`PMT_UPDT_DT`.
 
-## 2. Data Quality Problems (from seed data in `src/main/resources/data-legacy.sql`)
+## 2. Data Quality Problems (from seed data in `data/legacy-schema/cdw_seed_data.sql`)
 
 | Antipattern | Evidence |
 |---|---|
