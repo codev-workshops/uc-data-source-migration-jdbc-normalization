@@ -7,7 +7,12 @@ import jakarta.persistence.Table;
 
 /**
  * Maps to the legacy CDW_LN_PROD table.
+ *
+ * <p><b>Migration source only.</b> The application serves all requests from the
+ * modern normalized tables; this type is read exclusively by
+ * {@code DataMigrationService} to populate them at startup.
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_LN_PROD")
 public class LegacyLoanProduct {
