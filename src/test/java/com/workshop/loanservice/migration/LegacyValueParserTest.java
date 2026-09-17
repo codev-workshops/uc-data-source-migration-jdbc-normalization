@@ -30,6 +30,18 @@ class LegacyValueParserTest {
     }
 
     @Test
+    void rejectsImpossibleCalendarDates() {
+        assertThatThrownBy(() -> parser.parseDate("02/30/2019"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Malformed legacy date");
+        assertThatThrownBy(() -> parser.parseDate("02/29/2019"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> parser.parseDate("04/31/2019"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(parser.parseDate("02/29/2020")).isEqualTo(LocalDate.of(2020, 2, 29));
+    }
+
+    @Test
     void parsesTimestampAtStartOfDay() {
         assertThat(parser.parseTimestamp("01/15/2019")).isEqualTo(LocalDateTime.of(2019, 1, 15, 0, 0));
         assertThat(parser.parseTimestamp(null)).isNull();

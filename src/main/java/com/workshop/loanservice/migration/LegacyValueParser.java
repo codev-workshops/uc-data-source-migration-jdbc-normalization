@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 
 /**
  * Converts loosely typed legacy CDW values (everything is VARCHAR) into the
@@ -18,7 +19,8 @@ import java.time.format.DateTimeParseException;
 @Component
 public class LegacyValueParser {
 
-    private static final DateTimeFormatter LEGACY_DATE = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+    private static final DateTimeFormatter LEGACY_DATE =
+            DateTimeFormatter.ofPattern("MM/dd/uuuu").withResolverStyle(ResolverStyle.STRICT);
 
     /**
      * Parses a legacy {@code MM/DD/YYYY} date. Null/blank input yields null.

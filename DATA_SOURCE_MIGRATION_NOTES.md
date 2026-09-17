@@ -90,8 +90,10 @@ The public API is unchanged: same paths, same DTO field names, same formatting.
 
 All conversions live in `LegacyValueParser` and are unit tested:
 
-- `parseDate` — `MM/dd/yyyy` → `LocalDate`; null/blank → `null`; malformed non-null
-  input throws `IllegalArgumentException` (the migration then fails startup).
+- `parseDate` — `MM/dd/uuuu` with `ResolverStyle.STRICT` → `LocalDate`; null/blank →
+  `null`; malformed non-null input throws `IllegalArgumentException` (the migration
+  then fails startup). Strict resolution means an impossible calendar date such as
+  `02/30/2019` is rejected rather than clamped to the end of the month.
 - `parseTimestamp` — same parsing, `LocalDateTime` at start of day.
 - `parseAmount` — strips thousands separators, → `BigDecimal`; null/blank → `null`.
 - `parseInteger` — → `Integer`; null/blank → `null`.
@@ -154,7 +156,9 @@ compares strictly (structure, ordering and values).
   `"285000"` string was emitted as `285000`; the same value read from
   `DECIMAL(12,2)` serializes as `285000.00`. The values are numerically equal and
   the golden comparison treats them as equal; no rounding or precision is lost.
-  This is the only textual difference in any of the five responses.
+  This is the only textual difference in any of the five responses; it appears in
+  `/api/loans`, the loan detail and the borrower detail, while `/api/borrowers` and
+  the payment history are byte-identical.
 
 ## Legacy cleanup decisions
 
