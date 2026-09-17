@@ -6,6 +6,12 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * <b>Migration source only.</b> Reads the legacy CDW_* tables so
+ * {@code DataMigrationService} can populate the modern schema at startup.
+ * No runtime request path uses this repository.
+ */
+@Deprecated
 @Repository
 public interface LegacyBorrowerRepository extends JpaRepository<LegacyBorrower, String> {
 

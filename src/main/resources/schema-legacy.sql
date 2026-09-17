@@ -10,6 +10,7 @@
 -- =============================================================================
 
 -- Borrower Master
+DROP TABLE IF EXISTS CDW_BORR_MSTR;
 CREATE TABLE CDW_BORR_MSTR (
     BORR_ID         VARCHAR(20) PRIMARY KEY,
     BORR_FST_NM     VARCHAR(50),
@@ -34,6 +35,7 @@ CREATE TABLE CDW_BORR_MSTR (
 );
 
 -- Loan Products
+DROP TABLE IF EXISTS CDW_LN_PROD;
 CREATE TABLE CDW_LN_PROD (
     PROD_CD         VARCHAR(10) PRIMARY KEY,
     PROD_DESC_TXT   VARCHAR(200),
@@ -48,6 +50,7 @@ CREATE TABLE CDW_LN_PROD (
 );
 
 -- Loan Accounts (denormalized — has borrower data embedded)
+DROP TABLE IF EXISTS CDW_LN_ACCT;
 CREATE TABLE CDW_LN_ACCT (
     LN_ACCT_NBR     VARCHAR(20) PRIMARY KEY,
     BORR_ID         VARCHAR(20),
@@ -81,6 +84,7 @@ CREATE TABLE CDW_LN_ACCT (
 );
 
 -- Payment History
+DROP TABLE IF EXISTS CDW_PMT_HIST;
 CREATE TABLE CDW_PMT_HIST (
     PMT_SEQ_NBR     VARCHAR(20) PRIMARY KEY,
     LN_ACCT_NBR     VARCHAR(20),
