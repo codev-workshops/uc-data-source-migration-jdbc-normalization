@@ -3,6 +3,7 @@ package com.workshop.loanservice.golden;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -15,6 +16,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,6 +51,42 @@ class GoldenFileParityTest {
                     return DynamicTest.dynamicTest(path + " == " + resource.getFilename(),
                             () -> assertMatchesGolden(path, resource));
                 });
+    }
+
+    /**
+     * Derives the full endpoint set from the live list endpoints (every loan detail, every
+     * loan's payments, every borrower detail) and checks that each one has a golden file, so
+     * a loan or borrower that appears after migration but was never captured cannot slip by.
+     */
+    @Test
+    void everyLiveEndpointHasAGoldenFile() throws Exception {
+        Set<String> goldenPaths = new HashSet<>();
+        for (Resource golden : new PathMatchingResourcePatternResolver().getResources("classpath:golden/*.json")) {
+            goldenPaths.add(endpointFor(golden.getFilename()));
+        }
+
+        Set<String> livePaths = new HashSet<>();
+        livePaths.add("/api/loans");
+        livePaths.add("/api/borrowers");
+        for (JsonNode loan : fetch("/api/loans")) {
+            String loanId = loan.get("loanAccountNumber").asText();
+            livePaths.add("/api/loans/" + loanId);
+            livePaths.add("/api/loans/" + loanId + "/payments");
+        }
+        for (JsonNode borrower : fetch("/api/borrowers")) {
+            livePaths.add("/api/borrowers/" + borrower.get("id").asText());
+        }
+
+        assertThat(livePaths).as("5 loans + 5 borrowers -> 2 list + 15 detail endpoints").hasSize(17);
+        assertThat(goldenPaths).as("golden files cover exactly the live endpoint set")
+                .containsExactlyInAnyOrderElementsOf(livePaths);
+    }
+
+    private JsonNode fetch(String path) throws Exception {
+        String body = mockMvc.perform(get(path))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(body);
     }
 
     private void assertMatchesGolden(String path, Resource golden) throws Exception {
