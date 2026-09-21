@@ -3,6 +3,7 @@ package com.workshop.loanservice;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -39,10 +40,12 @@ class SchemaInitializationTests {
     }
 
     @Test
-    void modernTablesStartEmpty() {
+    void modernTablesArePopulatedFromLegacyAtStartup() {
+        Map<String, Integer> expected = Map.of(
+                "BORROWERS", 5, "LOAN_PRODUCTS", 5, "LOAN_ACCOUNTS", 5, "PAYMENTS", 10);
         for (String table : MODERN_TABLES) {
             Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class);
-            assertThat(count).as("row count of %s", table).isZero();
+            assertThat(count).as("row count of %s", table).isEqualTo(expected.get(table));
         }
     }
 
