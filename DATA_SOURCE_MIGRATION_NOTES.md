@@ -70,8 +70,9 @@ canonicalised in the DB but are not part of any DTO, so no display mapping is ne
   and the reason is logged and reported in `MigrationSummary.quarantined`.
 * Re-runs are idempotent: borrowers/products/loan accounts are skipped when their
   natural key already exists; payments are skipped when their `legacy_payment_id`
-  (`UNIQUE`) already exists, falling back to the value-based natural key (loan
-  account, date, amounts, type, status, received date) only for rows without one.
+  (`UNIQUE`, = `PMT_SEQ_NBR`, required) already exists. Natural keys are trimmed before
+  lookup, runs are serialized in-process, and amounts are checked against the target
+  `DECIMAL(p,s)` so overflow is quarantined instead of aborting the run.
 
 ## Deprecation of legacy entities and repositories
 
