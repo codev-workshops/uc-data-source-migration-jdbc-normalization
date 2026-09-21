@@ -95,6 +95,91 @@ class MigrationServiceIntegrationTest {
                 });
     }
 
+    @Test
+    void paddedNaturalKeysAreRecognizedOnRerun() {
+        jdbc.update("UPDATE CDW_BORR_MSTR SET BORR_ID = ' B-10001 ' WHERE BORR_ID = 'B-10001'");
+        jdbc.update("UPDATE CDW_LN_PROD SET PROD_CD = ' ARM51 ' WHERE PROD_CD = 'ARM51'");
+        jdbc.update("UPDATE CDW_LN_ACCT SET LN_ACCT_NBR = ' LN-2019-00142 ' WHERE LN_ACCT_NBR = 'LN-2019-00142'");
+        jdbc.update("UPDATE CDW_PMT_HIST SET PMT_SEQ_NBR = ' PMT-2025120001 ' WHERE PMT_SEQ_NBR = 'PMT-2025120001'");
+        try {
+            MigrationSummary summary = migrationService.migrate();
+
+            assertThat(summary.getQuarantined()).isEmpty();
+            summary.getTables().values().forEach(t -> assertThat(t.inserted()).isZero());
+            assertThat(count("borrowers")).isEqualTo(5);
+            assertThat(count("loan_products")).isEqualTo(5);
+            assertThat(count("loan_accounts")).isEqualTo(5);
+            assertThat(count("payments")).isEqualTo(10);
+        } finally {
+            jdbc.update("UPDATE CDW_BORR_MSTR SET BORR_ID = 'B-10001' WHERE BORR_ID = ' B-10001 '");
+            jdbc.update("UPDATE CDW_LN_PROD SET PROD_CD = 'ARM51' WHERE PROD_CD = ' ARM51 '");
+            jdbc.update("UPDATE CDW_LN_ACCT SET LN_ACCT_NBR = 'LN-2019-00142' WHERE LN_ACCT_NBR = ' LN-2019-00142 '");
+            jdbc.update("UPDATE CDW_PMT_HIST SET PMT_SEQ_NBR = 'PMT-2025120001' WHERE PMT_SEQ_NBR = ' PMT-2025120001 '");
+        }
+    }
+
+    @Test
+    void paymentsWithIdenticalValuesButDistinctSequenceNumbersAreBothMigrated() {
+        jdbc.update("INSERT INTO CDW_PMT_HIST SELECT 'PMT-DUPVALUES', LN_ACCT_NBR, PMT_DT, PMT_AMT, PMT_PRIN_AMT, "
+                + "PMT_INT_AMT, PMT_ESCROW_AMT, PMT_LATE_FEE, PMT_TYP_CD, PMT_STAT_CD, PMT_RECV_DT, PMT_PROC_DT, "
+                + "PMT_CRET_DT, PMT_UPDT_DT FROM CDW_PMT_HIST WHERE PMT_SEQ_NBR = 'PMT-2025120001'");
+        try {
+            MigrationSummary summary = migrationService.migrate();
+
+            assertThat(summary.getQuarantined()).isEmpty();
+            assertThat(summary.getTables().get(MigrationService.TABLE_PAYMENTS).inserted()).isEqualTo(1);
+            assertThat(payments.findByLegacyPaymentId("PMT-DUPVALUES")).isPresent();
+            assertThat(count("payments")).isEqualTo(11);
+
+            assertThat(migrationService.migrate().getTables().get(MigrationService.TABLE_PAYMENTS).inserted()).isZero();
+            assertThat(count("payments")).isEqualTo(11);
+        } finally {
+            jdbc.update("DELETE FROM payments WHERE legacy_payment_id = 'PMT-DUPVALUES'");
+            jdbc.update("DELETE FROM CDW_PMT_HIST WHERE PMT_SEQ_NBR = 'PMT-DUPVALUES'");
+        }
+    }
+
+    @Test
+    void quarantinedPaymentDoesNotShadowValidRowWithSameNormalizedId() {
+        // padded id sorts first (space < 'P'), references a missing account, and must not reserve 'PMT-SHADOW'
+        jdbc.update("INSERT INTO CDW_PMT_HIST SELECT ' PMT-SHADOW', 'LN-MISSING', PMT_DT, PMT_AMT, PMT_PRIN_AMT, "
+                + "PMT_INT_AMT, PMT_ESCROW_AMT, PMT_LATE_FEE, PMT_TYP_CD, PMT_STAT_CD, PMT_RECV_DT, PMT_PROC_DT, "
+                + "PMT_CRET_DT, PMT_UPDT_DT FROM CDW_PMT_HIST WHERE PMT_SEQ_NBR = 'PMT-2025120001'");
+        jdbc.update("INSERT INTO CDW_PMT_HIST SELECT 'PMT-SHADOW', LN_ACCT_NBR, PMT_DT, PMT_AMT, PMT_PRIN_AMT, "
+                + "PMT_INT_AMT, PMT_ESCROW_AMT, PMT_LATE_FEE, PMT_TYP_CD, PMT_STAT_CD, PMT_RECV_DT, PMT_PROC_DT, "
+                + "PMT_CRET_DT, PMT_UPDT_DT FROM CDW_PMT_HIST WHERE PMT_SEQ_NBR = 'PMT-2025120001'");
+        try {
+            MigrationSummary summary = migrationService.migrate();
+
+            assertThat(summary.getQuarantined()).singleElement()
+                    .satisfies(q -> assertThat(q.recordId()).isEqualTo(" PMT-SHADOW"));
+            assertThat(summary.getTables().get(MigrationService.TABLE_PAYMENTS).inserted()).isEqualTo(1);
+            assertThat(payments.findByLegacyPaymentId("PMT-SHADOW")).isPresent();
+        } finally {
+            jdbc.update("DELETE FROM payments WHERE legacy_payment_id = 'PMT-SHADOW'");
+            jdbc.update("DELETE FROM CDW_PMT_HIST WHERE TRIM(PMT_SEQ_NBR) = 'PMT-SHADOW'");
+        }
+    }
+
+    @Test
+    void amountExceedingColumnPrecisionIsQuarantinedWithoutAbortingRun() {
+        jdbc.update("INSERT INTO CDW_PMT_HIST SELECT 'PMT-TOOBIG', LN_ACCT_NBR, PMT_DT, '123,456,789.00', PMT_PRIN_AMT, "
+                + "PMT_INT_AMT, PMT_ESCROW_AMT, PMT_LATE_FEE, PMT_TYP_CD, PMT_STAT_CD, PMT_RECV_DT, PMT_PROC_DT, "
+                + "PMT_CRET_DT, PMT_UPDT_DT FROM CDW_PMT_HIST WHERE PMT_SEQ_NBR = 'PMT-2025120001'");
+        try {
+            MigrationSummary summary = migrationService.migrate();
+
+            assertThat(summary.getQuarantined()).singleElement().satisfies(q -> {
+                assertThat(q.table()).isEqualTo(MigrationService.TABLE_PAYMENTS);
+                assertThat(q.recordId()).isEqualTo("PMT-TOOBIG");
+                assertThat(q.reason()).contains("PMT_AMT").contains("DECIMAL(10,2)");
+            });
+            assertThat(count("payments")).isEqualTo(10);
+        } finally {
+            jdbc.update("DELETE FROM CDW_PMT_HIST WHERE PMT_SEQ_NBR = 'PMT-TOOBIG'");
+        }
+    }
+
     private int count(String table) {
         Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class);
         return n == null ? -1 : n;

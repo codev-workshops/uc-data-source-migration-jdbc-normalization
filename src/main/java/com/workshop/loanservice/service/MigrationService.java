@@ -23,14 +23,15 @@ import com.workshop.loanservice.service.migration.MigrationSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
-import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static com.workshop.loanservice.service.migration.LegacyValueParser.optionalAmount;
 import static com.workshop.loanservice.service.migration.LegacyValueParser.optionalDate;
@@ -49,7 +50,9 @@ import static com.workshop.loanservice.service.migration.LegacyValueParser.requi
  * <p>Tables are processed in FK-safe order (borrowers, loan_products, loan_accounts, payments).
  * Records that cannot be transformed or whose parent row is missing are quarantined with a
  * logged reason rather than inserted with defaulted values. The run is idempotent: rows whose
- * natural key already exists in the modern schema are skipped.
+ * natural key (borrower external_id, product code, loan account_number, payment legacy_payment_id)
+ * already exists in the modern schema are skipped. Runs are serialized within this JVM, and the
+ * UNIQUE constraints on those natural keys guard against duplicates from any other writer.
  */
 @Service
 public class MigrationService {
@@ -69,6 +72,8 @@ public class MigrationService {
     private final LoanProductRepository products;
     private final LoanAccountRepository loanAccounts;
     private final PaymentRepository payments;
+    private final TransactionTemplate transaction;
+    private final ReentrantLock runLock = new ReentrantLock();
 
     public MigrationService(LegacyBorrowerRepository legacyBorrowers,
                             LegacyLoanProductRepository legacyProducts,
@@ -77,7 +82,9 @@ public class MigrationService {
                             BorrowerRepository borrowers,
                             LoanProductRepository products,
                             LoanAccountRepository loanAccounts,
-                            PaymentRepository payments) {
+                            PaymentRepository payments,
+                            PlatformTransactionManager transactionManager) {
+        this.transaction = new TransactionTemplate(transactionManager);
         this.legacyBorrowers = legacyBorrowers;
         this.legacyProducts = legacyProducts;
         this.legacyLoanAccounts = legacyLoanAccounts;
@@ -88,16 +95,28 @@ public class MigrationService {
         this.payments = payments;
     }
 
-    @Transactional
+    /**
+     * Runs the whole migration in a single transaction. The lock is held until that
+     * transaction has committed, so overlapping calls (startup runner + admin endpoint,
+     * or two concurrent POSTs) cannot both pass the read-before-write duplicate checks.
+     */
     public MigrationSummary migrate() {
-        MigrationSummary summary = new MigrationSummary();
-        migrateBorrowers(summary);
-        migrateLoanProducts(summary);
-        migrateLoanAccounts(summary);
-        migratePayments(summary);
-        log.info("Legacy -> modern migration finished: {} quarantined, tables={}",
-                summary.getQuarantinedCount(), summary.getTables());
-        return summary;
+        runLock.lock();
+        try {
+            return transaction.execute(status -> {
+                MigrationSummary summary = new MigrationSummary();
+                migrateBorrowers(summary);
+                migrateLoanProducts(summary);
+                migrateLoanAccounts(summary);
+                migratePayments(summary);
+                payments.flush();
+                log.info("Legacy -> modern migration finished: {} quarantined, tables={}",
+                        summary.getQuarantinedCount(), summary.getTables());
+                return summary;
+            });
+        } finally {
+            runLock.unlock();
+        }
     }
 
     private void migrateBorrowers(MigrationSummary summary) {
@@ -106,11 +125,12 @@ public class MigrationService {
         int skipped = 0;
         for (LegacyBorrower src : legacy) {
             String id = src.getBorrowerId();
-            if (borrowers.findByExternalId(id).isPresent()) {
-                skipped++;
-                continue;
-            }
             try {
+                String externalId = requireText(id, id, "BORR_ID");
+                if (borrowers.findByExternalId(externalId).isPresent()) {
+                    skipped++;
+                    continue;
+                }
                 borrowers.save(toBorrower(src));
                 inserted++;
             } catch (MigrationException e) {
@@ -126,11 +146,12 @@ public class MigrationService {
         int skipped = 0;
         for (LegacyLoanProduct src : legacy) {
             String id = src.getProductCode();
-            if (products.findByCode(id).isPresent()) {
-                skipped++;
-                continue;
-            }
             try {
+                String code = requireText(id, id, "PROD_CD");
+                if (products.findByCode(code).isPresent()) {
+                    skipped++;
+                    continue;
+                }
                 products.save(toLoanProduct(src));
                 inserted++;
             } catch (MigrationException e) {
@@ -146,11 +167,12 @@ public class MigrationService {
         int skipped = 0;
         for (LegacyLoanAccount src : legacy) {
             String id = src.getLoanAccountNumber();
-            if (loanAccounts.findByAccountNumber(id).isPresent()) {
-                skipped++;
-                continue;
-            }
             try {
+                String accountNumber = requireText(id, id, "LN_ACCT_NBR");
+                if (loanAccounts.findByAccountNumber(accountNumber).isPresent()) {
+                    skipped++;
+                    continue;
+                }
                 Borrower borrower = borrowers.findByExternalId(requireText(src.getBorrowerId(), id, "BORR_ID"))
                         .orElseThrow(() -> new MigrationException(id, "BORR_ID",
                                 "no modern borrower with external_id '" + src.getBorrowerId() + "'"));
@@ -170,61 +192,29 @@ public class MigrationService {
         List<LegacyPayment> legacy = legacyPayments.findAll();
         int inserted = 0;
         int skipped = 0;
-        Set<String> seenKeys = new HashSet<>();
+        Set<String> seenIds = new HashSet<>();
         for (LegacyPayment src : legacy) {
             String id = src.getPaymentSequenceNumber();
             try {
+                String legacyId = requireText(id, id, "PMT_SEQ_NBR");
+                if (seenIds.contains(legacyId) || payments.findByLegacyPaymentId(legacyId).isPresent()) {
+                    skipped++;
+                    continue;
+                }
                 Optional<LoanAccount> account =
                         loanAccounts.findByAccountNumber(requireText(src.getLoanAccountNumber(), id, "LN_ACCT_NBR"));
                 if (account.isEmpty()) {
                     throw new MigrationException(id, "LN_ACCT_NBR",
                             "no modern loan_account with account_number '" + src.getLoanAccountNumber() + "'");
                 }
-                Payment candidate = toPayment(src, account.get());
-                if (alreadyMigrated(candidate, account.get(), seenKeys)) {
-                    skipped++;
-                    continue;
-                }
-                payments.save(candidate);
+                payments.save(toPayment(src, account.get()));
+                seenIds.add(legacyId);
                 inserted++;
             } catch (MigrationException e) {
                 quarantine(summary, TABLE_PAYMENTS, id, e);
             }
         }
         summary.addTable(TABLE_PAYMENTS, legacy.size(), inserted, skipped);
-    }
-
-    /**
-     * Re-runs are detected by the legacy payment id ({@code PMT_SEQ_NBR}); payments without
-     * one fall back to the natural key (loan account, payment date, amounts, type, status).
-     */
-    private boolean alreadyMigrated(Payment candidate, LoanAccount account, Set<String> seenKeys) {
-        String legacyId = candidate.getLegacyPaymentId();
-        if (legacyId != null) {
-            return !seenKeys.add("id|" + legacyId) || payments.existsByLegacyPaymentId(legacyId);
-        }
-        String key = naturalKey(candidate);
-        return !seenKeys.add(key) || payments.findByLoanAccountId(account.getId()).stream()
-                .filter(existing -> existing.getLegacyPaymentId() == null)
-                .anyMatch(existing -> naturalKey(existing).equals(key));
-    }
-
-    private static String naturalKey(Payment p) {
-        return String.join("|",
-                String.valueOf(p.getLoanAccount().getId()),
-                String.valueOf(p.getPaymentDate()),
-                plain(p.getTotalAmount()),
-                plain(p.getPrincipalAmount()),
-                plain(p.getInterestAmount()),
-                plain(p.getEscrowAmount()),
-                plain(p.getLateFee()),
-                p.getType(),
-                p.getStatus(),
-                String.valueOf(p.getReceivedDate()));
-    }
-
-    private static String plain(BigDecimal value) {
-        return value == null ? "null" : value.stripTrailingZeros().toPlainString();
     }
 
     private void quarantine(MigrationSummary summary, String table, String recordId, MigrationException e) {
@@ -250,7 +240,7 @@ public class MigrationService {
         b.setEmail(optionalText(src.getEmail()));
         b.setCreditScore(optionalInteger(src.getCreditScore(), id, "BORR_CRDT_SCR"));
         b.setEmploymentStatus(optionalText(src.getEmploymentStatus()));
-        b.setAnnualIncome(optionalAmount(src.getAnnualIncome(), id, "BORR_ANN_INCM"));
+        b.setAnnualIncome(optionalAmount(src.getAnnualIncome(), id, "BORR_ANN_INCM", 12, 2));
         b.setStatus(LegacyCodeMapper.borrowerStatus(src.getStatusCode(), id));
         b.setCreatedAt(optionalTimestamp(src.getCreatedDate(), id, "BORR_CRET_DT"));
         b.setUpdatedAt(optionalTimestamp(src.getUpdatedDate(), id, "BORR_UPDT_DT"));
@@ -265,8 +255,8 @@ public class MigrationService {
         p.setType(requireText(src.getTypeCode(), id, "PROD_TYP_CD"));
         p.setTermMonths(requireInteger(src.getTermMonths(), id, "PROD_TERM_MOS"));
         p.setRateType(requireText(src.getRateType(), id, "PROD_RT_TYP"));
-        p.setMinAmount(optionalAmount(src.getMinAmount(), id, "PROD_MIN_AMT"));
-        p.setMaxAmount(optionalAmount(src.getMaxAmount(), id, "PROD_MAX_AMT"));
+        p.setMinAmount(optionalAmount(src.getMinAmount(), id, "PROD_MIN_AMT", 12, 2));
+        p.setMaxAmount(optionalAmount(src.getMaxAmount(), id, "PROD_MAX_AMT", 12, 2));
         p.setIsActive(LegacyCodeMapper.productActive(src.getStatusCode(), id));
         p.setEffectiveDate(optionalDate(src.getEffectiveDate(), id, "PROD_EFF_DT"));
         p.setExpirationDate(optionalDate(src.getExpirationDate(), id, "PROD_EXP_DT"));
@@ -279,26 +269,26 @@ public class MigrationService {
         a.setAccountNumber(requireText(id, id, "LN_ACCT_NBR"));
         a.setBorrower(borrower);
         a.setProduct(product);
-        a.setOriginalAmount(requireAmount(src.getOriginalAmount(), id, "LN_ORIG_AMT"));
-        a.setCurrentBalance(requireAmount(src.getCurrentBalance(), id, "LN_CURR_BAL"));
-        a.setInterestRate(requireAmount(src.getInterestRate(), id, "LN_INT_RT"));
+        a.setOriginalAmount(requireAmount(src.getOriginalAmount(), id, "LN_ORIG_AMT", 12, 2));
+        a.setCurrentBalance(requireAmount(src.getCurrentBalance(), id, "LN_CURR_BAL", 12, 2));
+        a.setInterestRate(requireAmount(src.getInterestRate(), id, "LN_INT_RT", 5, 3));
         a.setTermMonths(requireInteger(src.getTermMonths(), id, "LN_TERM_MOS"));
-        a.setMonthlyPayment(requireAmount(src.getMonthlyPayment(), id, "LN_PMT_AMT"));
+        a.setMonthlyPayment(requireAmount(src.getMonthlyPayment(), id, "LN_PMT_AMT", 10, 2));
         a.setOriginationDate(requireDate(src.getOriginationDate(), id, "LN_ORIG_DT"));
         a.setMaturityDate(requireDate(src.getMaturityDate(), id, "LN_MAT_DT"));
         a.setFirstPaymentDate(optionalDate(src.getFirstPaymentDate(), id, "LN_1ST_PMT_DT"));
         a.setNextPaymentDate(optionalDate(src.getNextPaymentDate(), id, "LN_NXT_PMT_DT"));
         a.setStatus(LegacyCodeMapper.loanStatus(src.getStatusCode(), id));
         a.setDelinquencyDays(requireInteger(src.getDelinquencyDays(), id, "LN_DLQ_DAYS"));
-        a.setEscrowBalance(requireAmount(src.getEscrowBalance(), id, "LN_ESCROW_BAL"));
-        a.setLtvPercent(optionalAmount(src.getLtvPercent(), id, "LN_LTV_PCT"));
+        a.setEscrowBalance(requireAmount(src.getEscrowBalance(), id, "LN_ESCROW_BAL", 10, 2));
+        a.setLtvPercent(optionalAmount(src.getLtvPercent(), id, "LN_LTV_PCT", 5, 2));
         a.setPropertyAddress(optionalText(src.getPropertyAddress()));
         a.setPropertyCity(optionalText(src.getPropertyCity()));
         a.setPropertyState(optionalText(src.getPropertyState()));
         a.setPropertyZip(optionalText(src.getPropertyZip()));
         a.setPropertyType(LegacyValueParser.isBlank(src.getPropertyType())
                 ? null : LegacyCodeMapper.propertyType(src.getPropertyType(), id));
-        a.setAppraisedValue(optionalAmount(src.getAppraisedValue(), id, "PROP_APRS_VAL"));
+        a.setAppraisedValue(optionalAmount(src.getAppraisedValue(), id, "PROP_APRS_VAL", 12, 2));
         a.setCreatedAt(optionalTimestamp(src.getCreatedDate(), id, "LN_CRET_DT"));
         a.setUpdatedAt(optionalTimestamp(src.getUpdatedDate(), id, "LN_UPDT_DT"));
         return a;
@@ -308,13 +298,13 @@ public class MigrationService {
         String id = src.getPaymentSequenceNumber();
         Payment p = new Payment();
         p.setLoanAccount(account);
-        p.setLegacyPaymentId(optionalText(id));
+        p.setLegacyPaymentId(requireText(id, id, "PMT_SEQ_NBR"));
         p.setPaymentDate(requireDate(src.getPaymentDate(), id, "PMT_DT"));
-        p.setTotalAmount(requireAmount(src.getTotalAmount(), id, "PMT_AMT"));
-        p.setPrincipalAmount(optionalAmount(src.getPrincipalAmount(), id, "PMT_PRIN_AMT"));
-        p.setInterestAmount(optionalAmount(src.getInterestAmount(), id, "PMT_INT_AMT"));
-        p.setEscrowAmount(optionalAmount(src.getEscrowAmount(), id, "PMT_ESCROW_AMT"));
-        p.setLateFee(optionalAmount(src.getLateFee(), id, "PMT_LATE_FEE"));
+        p.setTotalAmount(requireAmount(src.getTotalAmount(), id, "PMT_AMT", 10, 2));
+        p.setPrincipalAmount(optionalAmount(src.getPrincipalAmount(), id, "PMT_PRIN_AMT", 10, 2));
+        p.setInterestAmount(optionalAmount(src.getInterestAmount(), id, "PMT_INT_AMT", 10, 2));
+        p.setEscrowAmount(optionalAmount(src.getEscrowAmount(), id, "PMT_ESCROW_AMT", 10, 2));
+        p.setLateFee(optionalAmount(src.getLateFee(), id, "PMT_LATE_FEE", 10, 2));
         p.setType(LegacyCodeMapper.paymentType(src.getTypeCode(), id));
         p.setStatus(LegacyCodeMapper.paymentStatus(src.getStatusCode(), id));
         p.setReceivedDate(optionalDate(src.getReceivedDate(), id, "PMT_RECV_DT"));

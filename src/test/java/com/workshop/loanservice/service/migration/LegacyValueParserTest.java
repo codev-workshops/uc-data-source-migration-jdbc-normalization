@@ -65,6 +65,24 @@ class LegacyValueParserTest {
     }
 
     @Test
+    void amountsAreCheckedAgainstTargetPrecisionAndScale() {
+        assertThat(LegacyValueParser.requireAmount("99,999,999.99", "P-1", "AMT", 10, 2))
+                .isEqualByComparingTo("99999999.99");
+        assertThat(LegacyValueParser.requireAmount("5.250", "L-1", "RT", 5, 3)).isEqualByComparingTo("5.250");
+        assertThat(LegacyValueParser.optionalAmount(" ", "P-1", "AMT", 10, 2)).isNull();
+
+        assertThatThrownBy(() -> LegacyValueParser.requireAmount("123,456,789.00", "P-1", "AMT", 10, 2))
+                .isInstanceOf(MigrationException.class)
+                .hasMessageContaining("P-1").hasMessageContaining("AMT").hasMessageContaining("DECIMAL(10,2)");
+        assertThatThrownBy(() -> LegacyValueParser.requireAmount("1E+100", "P-1", "AMT", 10, 2))
+                .isInstanceOf(MigrationException.class)
+                .hasMessageContaining("DECIMAL(10,2)");
+        assertThatThrownBy(() -> LegacyValueParser.requireAmount("1.005", "P-1", "AMT", 10, 2))
+                .isInstanceOf(MigrationException.class)
+                .hasMessageContaining("decimal places");
+    }
+
+    @Test
     void parsesIntegers() {
         assertThat(LegacyValueParser.requireInteger("360", "P-1", "TERM")).isEqualTo(360);
         assertThat(LegacyValueParser.requireInteger(" 745 ", "B-1", "SCORE")).isEqualTo(745);

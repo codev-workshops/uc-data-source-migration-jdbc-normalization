@@ -72,6 +72,29 @@ public final class LegacyValueParser {
         return isBlank(value) ? null : requireAmount(value, recordId, field);
     }
 
+    /** Parses an amount and rejects values that do not fit the target {@code DECIMAL(precision, scale)}. */
+    public static BigDecimal requireAmount(String value, String recordId, String field, int precision, int scale) {
+        return checkPrecision(requireAmount(value, recordId, field), recordId, field, precision, scale);
+    }
+
+    public static BigDecimal optionalAmount(String value, String recordId, String field, int precision, int scale) {
+        return isBlank(value) ? null : requireAmount(value, recordId, field, precision, scale);
+    }
+
+    static BigDecimal checkPrecision(BigDecimal amount, String recordId, String field, int precision, int scale) {
+        BigDecimal normalized = amount.stripTrailingZeros();
+        if (normalized.scale() > scale) {
+            throw new MigrationException(recordId, field,
+                    "'" + amount.toPlainString() + "' has more than " + scale + " decimal places");
+        }
+        int integerDigits = normalized.precision() - normalized.scale();
+        if (integerDigits > precision - scale) {
+            throw new MigrationException(recordId, field,
+                    "'" + amount.toPlainString() + "' exceeds DECIMAL(" + precision + "," + scale + ")");
+        }
+        return amount;
+    }
+
     public static Integer requireInteger(String value, String recordId, String field) {
         String text = requireText(value, recordId, field).replace(",", "");
         try {
