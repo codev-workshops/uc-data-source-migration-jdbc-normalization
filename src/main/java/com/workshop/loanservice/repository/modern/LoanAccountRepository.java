@@ -15,6 +15,10 @@ public interface LoanAccountRepository extends JpaRepository<LoanAccount, Long> 
 
     List<LoanAccount> findByBorrowerExternalId(String externalId);
 
+    List<LoanAccount> findByBorrowerExternalIdOrderByIdAsc(String externalId);
+
+    List<LoanAccount> findAllByOrderByIdAsc();
+
     List<LoanAccount> findByStatus(String status);
 
     List<LoanAccount> findByProductCode(String code);

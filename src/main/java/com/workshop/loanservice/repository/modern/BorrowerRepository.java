@@ -11,6 +11,8 @@ public interface BorrowerRepository extends JpaRepository<Borrower, Long> {
 
     Optional<Borrower> findByExternalId(String externalId);
 
+    List<Borrower> findAllByOrderByIdAsc();
+
     List<Borrower> findByStatus(String status);
 
     List<Borrower> findByLastNameIgnoreCase(String lastName);

@@ -7,7 +7,12 @@ import jakarta.persistence.Table;
 
 /**
  * Maps to the legacy CDW_PMT_HIST table.
+ *
+ * @deprecated Legacy CDW-backed type. It is retained only as the source for
+ * {@code MigrationService}; the API reads from the modern schema
+ * ({@code entity.modern} / {@code repository.modern}). Do not add new usages.
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_PMT_HIST")
 public class LegacyPayment {
