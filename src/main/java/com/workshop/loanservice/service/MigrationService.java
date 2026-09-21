@@ -181,9 +181,7 @@ public class MigrationService {
                             "no modern loan_account with account_number '" + src.getLoanAccountNumber() + "'");
                 }
                 Payment candidate = toPayment(src, account.get());
-                String key = naturalKey(candidate);
-                if (!seenKeys.add(key) || payments.findByLoanAccountId(account.get().getId()).stream()
-                        .anyMatch(existing -> naturalKey(existing).equals(key))) {
+                if (alreadyMigrated(candidate, account.get(), seenKeys)) {
                     skipped++;
                     continue;
                 }
@@ -197,9 +195,20 @@ public class MigrationService {
     }
 
     /**
-     * The modern payments table has no legacy id column, so re-runs are detected by the
-     * natural key (loan account, payment date, amounts, type, status).
+     * Re-runs are detected by the legacy payment id ({@code PMT_SEQ_NBR}); payments without
+     * one fall back to the natural key (loan account, payment date, amounts, type, status).
      */
+    private boolean alreadyMigrated(Payment candidate, LoanAccount account, Set<String> seenKeys) {
+        String legacyId = candidate.getLegacyPaymentId();
+        if (legacyId != null) {
+            return !seenKeys.add("id|" + legacyId) || payments.existsByLegacyPaymentId(legacyId);
+        }
+        String key = naturalKey(candidate);
+        return !seenKeys.add(key) || payments.findByLoanAccountId(account.getId()).stream()
+                .filter(existing -> existing.getLegacyPaymentId() == null)
+                .anyMatch(existing -> naturalKey(existing).equals(key));
+    }
+
     private static String naturalKey(Payment p) {
         return String.join("|",
                 String.valueOf(p.getLoanAccount().getId()),

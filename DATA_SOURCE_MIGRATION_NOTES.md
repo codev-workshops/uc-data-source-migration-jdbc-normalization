@@ -69,9 +69,9 @@ canonicalised in the DB but are not part of any DTO, so no display mapping is ne
   borrower/product/loan account) throw `MigrationException`, the record is skipped
   and the reason is logged and reported in `MigrationSummary.quarantined`.
 * Re-runs are idempotent: borrowers/products/loan accounts are skipped when their
-  natural key already exists; payments are skipped when the natural key (loan
-  account, date, amounts, type, status, received date) already exists, and
-  `legacy_payment_id` is `UNIQUE` as an extra guard.
+  natural key already exists; payments are skipped when their `legacy_payment_id`
+  (`UNIQUE`) already exists, falling back to the value-based natural key (loan
+  account, date, amounts, type, status, received date) only for rows without one.
 
 ## Deprecation of legacy entities and repositories
 
