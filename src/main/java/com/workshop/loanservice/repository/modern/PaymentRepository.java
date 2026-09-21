@@ -13,4 +13,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByLoanAccountIdOrderByPaymentDateDesc(Long loanAccountId);
 
     List<Payment> findByLoanAccountAccountNumberOrderByPaymentDateDesc(String accountNumber);
+
+    List<Payment> findByLoanAccountAccountNumberOrderByPaymentDateDescIdAsc(String accountNumber);
 }

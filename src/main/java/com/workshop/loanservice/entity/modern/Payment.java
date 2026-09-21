@@ -27,6 +27,9 @@ public class Payment {
     @Column(name = "id")
     private Long id;
 
+    @Column(name = "legacy_payment_id", unique = true, length = 20)
+    private String legacyPaymentId;
+
     @Column(name = "payment_date", nullable = false)
     private LocalDate paymentDate;
 
@@ -85,6 +88,14 @@ public class Payment {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getLegacyPaymentId() {
+        return legacyPaymentId;
+    }
+
+    public void setLegacyPaymentId(String legacyPaymentId) {
+        this.legacyPaymentId = legacyPaymentId;
     }
 
     public LocalDate getPaymentDate() {

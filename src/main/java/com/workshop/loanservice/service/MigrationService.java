@@ -299,6 +299,7 @@ public class MigrationService {
         String id = src.getPaymentSequenceNumber();
         Payment p = new Payment();
         p.setLoanAccount(account);
+        p.setLegacyPaymentId(optionalText(id));
         p.setPaymentDate(requireDate(src.getPaymentDate(), id, "PMT_DT"));
         p.setTotalAmount(requireAmount(src.getTotalAmount(), id, "PMT_AMT"));
         p.setPrincipalAmount(optionalAmount(src.getPrincipalAmount(), id, "PMT_PRIN_AMT"));
