@@ -19,11 +19,11 @@ public class MigrationSummary {
     private final Map<String, TableCounts> tables = new LinkedHashMap<>();
     private final List<Quarantined> quarantined = new ArrayList<>();
 
-    void addTable(String table, int legacy, int inserted, int skipped) {
+    public void addTable(String table, int legacy, int inserted, int skipped) {
         tables.put(table, new TableCounts(legacy, inserted, skipped));
     }
 
-    void quarantine(String table, String recordId, String reason) {
+    public void quarantine(String table, String recordId, String reason) {
         quarantined.add(new Quarantined(table, recordId, reason));
     }
 
