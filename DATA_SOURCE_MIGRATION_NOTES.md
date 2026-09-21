@@ -73,6 +73,27 @@ canonicalised in the DB but are not part of any DTO, so no display mapping is ne
   (`UNIQUE`) already exists, falling back to the value-based natural key (loan
   account, date, amounts, type, status, received date) only for rows without one.
 
+## Validation harness
+
+* **Golden parity** (`GoldenFileParityTest`): every file in `src/test/resources/golden`
+  is replayed through MockMvc and compared as Jackson `JsonNode` trees; a second test
+  derives the endpoint set from the live `/api/loans` and `/api/borrowers` responses
+  and asserts the golden files cover exactly that set (2 list + 15 detail endpoints).
+  There are **no intentional differences** from the legacy baseline; any diff is a bug.
+* **SQL reconciliation** (`MigrationReconciliationTest`, JdbcTemplate): 5/5/5/10 row
+  counts equal to the CDW tables, natural keys one-to-one, amount totals (loan
+  amounts, balances, payments, income) equal to the legacy comma-stripped strings,
+  zero orphan FKs, same borrower/product/loan parent as legacy, and every payment has
+  a unique non-null `legacy_payment_id` matching exactly one `PMT_SEQ_NBR`.
+* **Transformer units** (`LegacyValueParserTest`, `LegacyCodeMapperTest`,
+  `MigrationServiceTransformTest`): strict `MM/DD/YYYY` parsing, comma-stripped
+  decimals keeping their scale, integers, and every code table (borrower status, loan
+  status, product status boolean, payment type/status, property type) including
+  cross-domain, blank and null inputs failing loud with record id and field.
+* **Quarantine end-to-end** (`MigrationServiceIntegrationTest`): malformed and orphaned
+  legacy rows are reported in `MigrationSummary.quarantined` and never inserted or
+  defaulted, while valid rows are unaffected.
+
 ## Deprecation of legacy entities and repositories
 
 `entity.Legacy*` and `repository.Legacy*Repository` are annotated `@Deprecated`

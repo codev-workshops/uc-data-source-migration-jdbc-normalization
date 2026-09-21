@@ -34,3 +34,13 @@ parity test pass.
 directory, maps the file name back to its endpoint, calls it through `MockMvc` and
 compares the response with the golden file as JSON trees (key order and number
 formatting such as `4.750` vs `4.75` are ignored; values and structure must match).
+`everyLiveEndpointHasAGoldenFile` additionally derives the endpoint set from the live
+`/api/loans` and `/api/borrowers` responses and asserts this directory covers exactly
+that set, so an uncaptured loan or borrower fails the build.
+
+## Intentional differences
+
+None. The modern-schema `LoanService` matches the legacy baseline byte-for-byte at the
+JSON-tree level (see `DATA_SOURCE_MIGRATION_NOTES.md` for how casing, amount scale and
+`paymentId` parity are preserved). If a future contract change makes a diff intentional,
+list it here with the affected endpoint/field and regenerate deliberately.

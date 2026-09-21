@@ -6,6 +6,8 @@ import com.workshop.loanservice.repository.modern.BorrowerRepository;
 import com.workshop.loanservice.repository.modern.LoanAccountRepository;
 import com.workshop.loanservice.repository.modern.PaymentRepository;
 import com.workshop.loanservice.service.migration.MigrationSummary;
+import com.workshop.loanservice.service.migration.MigrationSummary.Quarantined;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * Boots the full context (startup runner migrates once), then verifies modern counts match
@@ -38,6 +41,62 @@ class MigrationServiceIntegrationTest {
 
     @Autowired
     private PaymentRepository payments;
+
+    @AfterEach
+    void removeInjectedLegacyRows() {
+        jdbc.update("DELETE FROM CDW_PMT_HIST WHERE PMT_SEQ_NBR LIKE 'PMT-BAD-%'");
+        jdbc.update("DELETE FROM CDW_LN_ACCT WHERE LN_ACCT_NBR LIKE 'LN-BAD-%'");
+        jdbc.update("DELETE FROM CDW_BORR_MSTR WHERE BORR_ID LIKE 'B-BAD-%'");
+    }
+
+    @Test
+    void malformedLegacyRowsAreQuarantinedNotInsertedNorDefaulted() {
+        jdbc.update("INSERT INTO CDW_BORR_MSTR (BORR_ID, BORR_FST_NM, BORR_LST_NM, BORR_DOB_DT, BORR_ANN_INCM, BORR_STAT_CD)"
+                + " VALUES ('B-BAD-DOB', 'Bad', 'Date', '13/45/1978', '1,000', 'ACT')");
+        jdbc.update("INSERT INTO CDW_BORR_MSTR (BORR_ID, BORR_FST_NM, BORR_LST_NM, BORR_ANN_INCM, BORR_STAT_CD)"
+                + " VALUES ('B-BAD-STAT', 'Bad', 'Status', '1,000', 'ZZZ')");
+        jdbc.update("INSERT INTO CDW_LN_ACCT (LN_ACCT_NBR, BORR_ID, PROD_CD, LN_ORIG_AMT, LN_CURR_BAL, LN_INT_RT,"
+                + " LN_TERM_MOS, LN_PMT_AMT, LN_ORIG_DT, LN_MAT_DT, LN_STAT_CD, PROP_TYP_CD)"
+                + " VALUES ('LN-BAD-AMT', 'B-10001', 'FXD30', '1,0x0', '1', '1', '1', '1', '01/01/2020', '01/01/2021', 'ACT', 'SFR')");
+        jdbc.update("INSERT INTO CDW_LN_ACCT (LN_ACCT_NBR, BORR_ID, PROD_CD, LN_ORIG_AMT, LN_CURR_BAL, LN_INT_RT,"
+                + " LN_TERM_MOS, LN_PMT_AMT, LN_ORIG_DT, LN_MAT_DT, LN_STAT_CD, PROP_TYP_CD)"
+                + " VALUES ('LN-BAD-ORPHAN', 'B-NOPE', 'FXD30', '1', '1', '1', '1', '1', '01/01/2020', '01/01/2021', 'ACT', 'SFR')");
+        jdbc.update("INSERT INTO CDW_PMT_HIST (PMT_SEQ_NBR, LN_ACCT_NBR, PMT_DT, PMT_AMT, PMT_TYP_CD, PMT_STAT_CD)"
+                + " VALUES ('PMT-BAD-TYPE', 'LN-2019-00142', '01/01/2025', '1.00', 'XXX', 'PST')");
+        jdbc.update("INSERT INTO CDW_PMT_HIST (PMT_SEQ_NBR, LN_ACCT_NBR, PMT_DT, PMT_AMT, PMT_TYP_CD, PMT_STAT_CD)"
+                + " VALUES ('PMT-BAD-BLANK', 'LN-2019-00142', '01/01/2025', '', 'REG', 'PST')");
+        jdbc.update("INSERT INTO CDW_PMT_HIST (PMT_SEQ_NBR, LN_ACCT_NBR, PMT_DT, PMT_AMT, PMT_TYP_CD, PMT_STAT_CD)"
+                + " VALUES ('PMT-BAD-ORPHAN', 'LN-NOPE', '01/01/2025', '1.00', 'REG', 'PST')");
+
+        MigrationSummary summary = migrationService.migrate();
+
+        assertThat(summary.getQuarantined())
+                .extracting(Quarantined::table, Quarantined::recordId)
+                .containsExactlyInAnyOrder(
+                        tuple(MigrationService.TABLE_BORROWERS, "B-BAD-DOB"),
+                        tuple(MigrationService.TABLE_BORROWERS, "B-BAD-STAT"),
+                        tuple(MigrationService.TABLE_LOAN_ACCOUNTS, "LN-BAD-AMT"),
+                        tuple(MigrationService.TABLE_LOAN_ACCOUNTS, "LN-BAD-ORPHAN"),
+                        tuple(MigrationService.TABLE_PAYMENTS, "PMT-BAD-TYPE"),
+                        tuple(MigrationService.TABLE_PAYMENTS, "PMT-BAD-BLANK"),
+                        tuple(MigrationService.TABLE_PAYMENTS, "PMT-BAD-ORPHAN"));
+        assertThat(summary.getQuarantined()).extracting(Quarantined::reason)
+                .anySatisfy(r -> assertThat(r).contains("BORR_DOB_DT"))
+                .anySatisfy(r -> assertThat(r).contains("BORR_STAT_CD"))
+                .anySatisfy(r -> assertThat(r).contains("LN_ORIG_AMT"))
+                .anySatisfy(r -> assertThat(r).contains("PMT_TYP_CD"))
+                .anySatisfy(r -> assertThat(r).contains("PMT_AMT"));
+
+        assertThat(summary.getTables().get(MigrationService.TABLE_BORROWERS).inserted()).isZero();
+        assertThat(summary.getTables().get(MigrationService.TABLE_LOAN_ACCOUNTS).inserted()).isZero();
+        assertThat(summary.getTables().get(MigrationService.TABLE_PAYMENTS).inserted()).isZero();
+
+        assertThat(count("borrowers")).isEqualTo(5);
+        assertThat(count("loan_accounts")).isEqualTo(5);
+        assertThat(count("payments")).isEqualTo(10);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM borrowers WHERE external_id LIKE 'B-BAD-%'", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM payments WHERE legacy_payment_id LIKE 'PMT-BAD-%'", Integer.class)).isZero();
+    }
 
     @Test
     void startupMigrationPopulatesModernTablesWithLegacyCounts() {
