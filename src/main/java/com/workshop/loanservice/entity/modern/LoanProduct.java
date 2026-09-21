@@ -43,7 +43,7 @@ public class LoanProduct {
     private BigDecimal maxAmount;
 
     @Column(name = "is_active")
-    private Boolean isActive;
+    private Boolean isActive = Boolean.TRUE;
 
     @Column(name = "effective_date")
     private LocalDate effectiveDate;

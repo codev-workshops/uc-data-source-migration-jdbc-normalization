@@ -109,6 +109,26 @@ class ModernRepositoriesTest {
     }
 
     @Test
+    void appliesSchemaDefaultsOnPersist() {
+        Borrower minimal = new Borrower();
+        minimal.setExternalId("B-10002");
+        minimal.setFirstName("John");
+        minimal.setLastName("Smith");
+        Long id = em.persistAndGetId(minimal, Long.class);
+        em.flush();
+        em.clear();
+
+        Borrower saved = borrowerRepository.findById(id).orElseThrow();
+        assertThat(saved.getStatus()).isEqualTo("ACTIVE");
+        assertThat(saved.getCreatedAt()).isNotNull();
+        assertThat(saved.getUpdatedAt()).isNotNull();
+
+        Payment payment = paymentRepository.findByLoanAccountId(loan.getId()).get(0);
+        assertThat(payment.getLateFee()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(payment.getCreatedAt()).isNotNull();
+    }
+
+    @Test
     void findsProductByCode() {
         assertThat(loanProductRepository.findByCode("FXD30"))
                 .get().extracting(LoanProduct::getIsActive).isEqualTo(true);
