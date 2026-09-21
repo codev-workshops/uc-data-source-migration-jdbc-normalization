@@ -87,7 +87,7 @@ public final class LegacyValueParser {
             throw new MigrationException(recordId, field,
                     "'" + amount.toPlainString() + "' has more than " + scale + " decimal places");
         }
-        int integerDigits = normalized.precision() - Math.max(normalized.scale(), 0);
+        int integerDigits = normalized.precision() - normalized.scale();
         if (integerDigits > precision - scale) {
             throw new MigrationException(recordId, field,
                     "'" + amount.toPlainString() + "' exceeds DECIMAL(" + precision + "," + scale + ")");

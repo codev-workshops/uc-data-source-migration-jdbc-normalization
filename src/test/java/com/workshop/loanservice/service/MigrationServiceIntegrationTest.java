@@ -140,6 +140,28 @@ class MigrationServiceIntegrationTest {
     }
 
     @Test
+    void quarantinedPaymentDoesNotShadowValidRowWithSameNormalizedId() {
+        // padded id sorts first (space < 'P'), references a missing account, and must not reserve 'PMT-SHADOW'
+        jdbc.update("INSERT INTO CDW_PMT_HIST SELECT ' PMT-SHADOW', 'LN-MISSING', PMT_DT, PMT_AMT, PMT_PRIN_AMT, "
+                + "PMT_INT_AMT, PMT_ESCROW_AMT, PMT_LATE_FEE, PMT_TYP_CD, PMT_STAT_CD, PMT_RECV_DT, PMT_PROC_DT, "
+                + "PMT_CRET_DT, PMT_UPDT_DT FROM CDW_PMT_HIST WHERE PMT_SEQ_NBR = 'PMT-2025120001'");
+        jdbc.update("INSERT INTO CDW_PMT_HIST SELECT 'PMT-SHADOW', LN_ACCT_NBR, PMT_DT, PMT_AMT, PMT_PRIN_AMT, "
+                + "PMT_INT_AMT, PMT_ESCROW_AMT, PMT_LATE_FEE, PMT_TYP_CD, PMT_STAT_CD, PMT_RECV_DT, PMT_PROC_DT, "
+                + "PMT_CRET_DT, PMT_UPDT_DT FROM CDW_PMT_HIST WHERE PMT_SEQ_NBR = 'PMT-2025120001'");
+        try {
+            MigrationSummary summary = migrationService.migrate();
+
+            assertThat(summary.getQuarantined()).singleElement()
+                    .satisfies(q -> assertThat(q.recordId()).isEqualTo(" PMT-SHADOW"));
+            assertThat(summary.getTables().get(MigrationService.TABLE_PAYMENTS).inserted()).isEqualTo(1);
+            assertThat(payments.findByLegacyPaymentId("PMT-SHADOW")).isPresent();
+        } finally {
+            jdbc.update("DELETE FROM payments WHERE legacy_payment_id = 'PMT-SHADOW'");
+            jdbc.update("DELETE FROM CDW_PMT_HIST WHERE TRIM(PMT_SEQ_NBR) = 'PMT-SHADOW'");
+        }
+    }
+
+    @Test
     void amountExceedingColumnPrecisionIsQuarantinedWithoutAbortingRun() {
         jdbc.update("INSERT INTO CDW_PMT_HIST SELECT 'PMT-TOOBIG', LN_ACCT_NBR, PMT_DT, '123,456,789.00', PMT_PRIN_AMT, "
                 + "PMT_INT_AMT, PMT_ESCROW_AMT, PMT_LATE_FEE, PMT_TYP_CD, PMT_STAT_CD, PMT_RECV_DT, PMT_PROC_DT, "

@@ -197,7 +197,7 @@ public class MigrationService {
             String id = src.getPaymentSequenceNumber();
             try {
                 String legacyId = requireText(id, id, "PMT_SEQ_NBR");
-                if (!seenIds.add(legacyId) || payments.findByLegacyPaymentId(legacyId).isPresent()) {
+                if (seenIds.contains(legacyId) || payments.findByLegacyPaymentId(legacyId).isPresent()) {
                     skipped++;
                     continue;
                 }
@@ -208,6 +208,7 @@ public class MigrationService {
                             "no modern loan_account with account_number '" + src.getLoanAccountNumber() + "'");
                 }
                 payments.save(toPayment(src, account.get()));
+                seenIds.add(legacyId);
                 inserted++;
             } catch (MigrationException e) {
                 quarantine(summary, TABLE_PAYMENTS, id, e);

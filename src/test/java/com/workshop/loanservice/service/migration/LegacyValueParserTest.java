@@ -74,6 +74,9 @@ class LegacyValueParserTest {
         assertThatThrownBy(() -> LegacyValueParser.requireAmount("123,456,789.00", "P-1", "AMT", 10, 2))
                 .isInstanceOf(MigrationException.class)
                 .hasMessageContaining("P-1").hasMessageContaining("AMT").hasMessageContaining("DECIMAL(10,2)");
+        assertThatThrownBy(() -> LegacyValueParser.requireAmount("1E+100", "P-1", "AMT", 10, 2))
+                .isInstanceOf(MigrationException.class)
+                .hasMessageContaining("DECIMAL(10,2)");
         assertThatThrownBy(() -> LegacyValueParser.requireAmount("1.005", "P-1", "AMT", 10, 2))
                 .isInstanceOf(MigrationException.class)
                 .hasMessageContaining("decimal places");
