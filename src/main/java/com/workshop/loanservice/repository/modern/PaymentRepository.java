@@ -2,11 +2,14 @@ package com.workshop.loanservice.repository.modern;
 
 import com.workshop.loanservice.entity.modern.Payment;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+    Optional<Payment> findByLegacyPaymentId(String legacyPaymentId);
 
     List<Payment> findByLoanAccountId(Long loanAccountId);
 

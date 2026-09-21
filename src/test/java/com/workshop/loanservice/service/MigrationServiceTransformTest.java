@@ -170,6 +170,7 @@ class MigrationServiceTransformTest {
         Payment p = MigrationService.toPayment(src, account);
 
         assertThat(p.getLoanAccount()).isSameAs(account);
+        assertThat(p.getLegacyPaymentId()).isEqualTo("PMT-2025110003");
         assertThat(p.getPaymentDate()).isEqualTo(LocalDate.of(2025, 11, 1));
         assertThat(p.getTotalAmount()).isEqualByComparingTo("1077.05");
         assertThat(p.getLateFee()).isEqualByComparingTo("47.50");
