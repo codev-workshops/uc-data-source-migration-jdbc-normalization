@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "data-quality-report.schema.json",
+  "title": "DataQualityReportDto",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "generatedAt",
+    "summary",
+    "tables",
+    "rules",
+    "records",
+    "violations"
+  ],
+  "properties": {
+    "generatedAt": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recordCount",
+        "errorCount",
+        "warnCount",
+        "recordsWithErrors",
+        "recordsWithWarnings",
+        "averageScore"
+      ],
+      "properties": {
+        "recordCount": {
+          "type": "integer"
+        },
+        "errorCount": {
+          "type": "integer"
+        },
+        "warnCount": {
+          "type": "integer"
+        },
+        "recordsWithErrors": {
+          "type": "integer"
+        },
+        "recordsWithWarnings": {
+          "type": "integer"
+        },
+        "averageScore": {
+          "type": "number"
+        }
+      }
+    },
+    "tables": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "recordCount",
+          "errorCount",
+          "warnCount",
+          "averageScore",
+          "violationsByRule"
+        ],
+        "properties": {
+          "recordCount": {
+            "type": "integer"
+          },
+          "errorCount": {
+            "type": "integer"
+          },
+          "warnCount": {
+            "type": "integer"
+          },
+          "averageScore": {
+            "type": "number"
+          },
+          "violationsByRule": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "severity",
+          "count",
+          "affectedRecords"
+        ],
+        "properties": {
+          "severity": {
+            "enum": [
+              "ERROR",
+              "WARN"
+            ]
+          },
+          "count": {
+            "type": "integer"
+          },
+          "affectedRecords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entityType",
+          "recordKey",
+          "score",
+          "errorCount",
+          "warnCount"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string"
+          },
+          "recordKey": {
+            "type": "string"
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "errorCount": {
+            "type": "integer"
+          },
+          "warnCount": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "violations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entityType",
+          "recordKey",
+          "field",
+          "rawValue",
+          "ruleId",
+          "severity",
+          "message"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string"
+          },
+          "recordKey": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "rawValue": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "ERROR",
+              "WARN"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

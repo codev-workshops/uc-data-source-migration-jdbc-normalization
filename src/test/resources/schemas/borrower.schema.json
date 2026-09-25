@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "borrower.schema.json",
+  "title": "BorrowerDto",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "fullName",
+    "email",
+    "phone",
+    "city",
+    "state",
+    "creditScore",
+    "employmentStatus",
+    "loans",
+    "dataQualityViolations"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^B-\\d{5}$"
+    },
+    "fullName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 2
+    },
+    "creditScore": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 300,
+      "maximum": 850
+    },
+    "employmentStatus": {
+      "type": "string"
+    },
+    "loans": {
+      "type": "array",
+      "items": {
+        "$ref": "loan-summary.schema.json"
+      }
+    },
+    "dataQualityViolations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "rawValue",
+          "ruleId",
+          "severity",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "rawValue": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "ERROR",
+              "WARN"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
