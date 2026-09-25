@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "loan-summary.schema.json",
+  "title": "LoanSummaryDto",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "loanAccountNumber",
+    "borrowerName",
+    "productDescription",
+    "originalAmount",
+    "currentBalance",
+    "interestRate",
+    "monthlyPayment",
+    "status",
+    "originationDate",
+    "propertyAddress",
+    "propertyType",
+    "dataQualityViolations"
+  ],
+  "properties": {
+    "loanAccountNumber": {
+      "type": "string",
+      "pattern": "^LN-\\d{4}-\\d{5}$"
+    },
+    "borrowerName": {
+      "type": "string"
+    },
+    "productDescription": {
+      "type": "string"
+    },
+    "originalAmount": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "currentBalance": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "interestRate": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "monthlyPayment": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "status": {
+      "enum": [
+        "Active",
+        "Closed",
+        "Default",
+        "Forbearance",
+        "Unknown"
+      ]
+    },
+    "originationDate": {
+      "type": "string",
+      "pattern": "^\\d{2}/\\d{2}/\\d{4}$"
+    },
+    "propertyAddress": {
+      "type": "string"
+    },
+    "propertyType": {
+      "enum": [
+        "Single Family Residence",
+        "Condominium",
+        "Multi-Family Residence",
+        "Townhouse",
+        "Unknown"
+      ]
+    },
+    "dataQualityViolations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "rawValue",
+          "ruleId",
+          "severity",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "rawValue": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "ERROR",
+              "WARN"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

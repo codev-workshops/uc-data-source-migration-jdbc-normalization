@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "payment.schema.json",
+  "title": "PaymentDto",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "paymentId",
+    "loanAccountNumber",
+    "paymentDate",
+    "totalAmount",
+    "principalAmount",
+    "interestAmount",
+    "escrowAmount",
+    "lateFee",
+    "type",
+    "status",
+    "dataQualityViolations"
+  ],
+  "properties": {
+    "paymentId": {
+      "type": "string",
+      "pattern": "^PMT-\\d+$"
+    },
+    "loanAccountNumber": {
+      "type": "string"
+    },
+    "paymentDate": {
+      "type": "string",
+      "pattern": "^\\d{2}/\\d{2}/\\d{4}$"
+    },
+    "totalAmount": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "principalAmount": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "interestAmount": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "escrowAmount": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "lateFee": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "type": {
+      "enum": [
+        "Regular",
+        "Extra",
+        "Partial",
+        "Prepayment",
+        "Unknown"
+      ]
+    },
+    "status": {
+      "enum": [
+        "Posted",
+        "Reversed",
+        "Non-Sufficient Funds",
+        "Pending",
+        "Unknown"
+      ]
+    },
+    "dataQualityViolations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "rawValue",
+          "ruleId",
+          "severity",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "rawValue": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "ERROR",
+              "WARN"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

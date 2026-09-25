@@ -67,7 +67,7 @@
 | `PROP_CTY_NM` | VARCHAR(50) | `property_city` | VARCHAR(50) | Direct copy |
 | `PROP_ST_CD` | VARCHAR(2) | `property_state` | VARCHAR(2) | Direct copy |
 | `PROP_ZIP_CD` | VARCHAR(10) | `property_zip` | VARCHAR(10) | Direct copy |
-| `PROP_TYP_CD` | VARCHAR(10) | `property_type` | VARCHAR(30) | Expand: SFR→Single Family, CND→Condominium, etc. |
+| `PROP_TYP_CD` | VARCHAR(10) | `property_type` | VARCHAR(30) | Expand (exhaustive): SFR→Single Family Residence, CND→Condominium, MFR→Multi-Family Residence, TWN→Townhouse; any other code → violation `CODE_UNMAPPED` + "Unknown" (see rule 6) |
 | `PROP_APRS_VAL` | VARCHAR(15) | `appraised_value` | DECIMAL(12,2) | Remove commas, parse → decimal |
 | `LN_CRET_DT` | VARCHAR(10) | `created_at` | TIMESTAMP | Parse MM/DD/YYYY → timestamp |
 | `LN_UPDT_DT` | VARCHAR(10) | `updated_at` | TIMESTAMP | Parse MM/DD/YYYY → timestamp |
@@ -76,7 +76,7 @@
 
 | Legacy Column | Legacy Type | Modern Column | Modern Type | Transformation |
 |---------------|-------------|---------------|-------------|----------------|
-| `PMT_SEQ_NBR` | VARCHAR(20) | `id` | BIGINT | Auto-generated; legacy ID stored if needed |
+| `PMT_SEQ_NBR` | VARCHAR(20) | `legacy_payment_id` | VARCHAR(20) UNIQUE | **Must be retained.** `payments.id` is auto-generated; without this column the legacy key is lost and payments cannot be reconciled back to `CDW_PMT_HIST`. `DataQualityValidator` emits `PMT_SEQ_NBR_LOSS` (WARN) for every payment until `modern_tables.sql` adds this column. |
 | `LN_ACCT_NBR` | VARCHAR(20) | `loan_account_id` | BIGINT | Lookup loan_accounts.id by account_number |
 | `PMT_DT` | VARCHAR(10) | `payment_date` | DATE | Parse MM/DD/YYYY → DATE |
 | `PMT_AMT` | VARCHAR(15) | `total_amount` | DECIMAL(10,2) | Remove commas, parse → decimal |
@@ -93,8 +93,54 @@
 
 ## Common Transformation Patterns
 
-1. **Date conversion:** `MM/DD/YYYY` string → `DATE` or `TIMESTAMP` type
-2. **Amount conversion:** Remove commas from string, parse to `DECIMAL`
-3. **Status expansion:** Short codes → readable values (ACT→ACTIVE, etc.)
-4. **Denormalization removal:** Drop borrower fields from loan_accounts, use FK instead
-5. **ID resolution:** Legacy string IDs → modern auto-increment BIGINT with FK lookups
+All patterns are implemented by `com.workshop.loanservice.service.validation.*` and return a
+`TransformResult` (parsed value **or** `null` + one or more `ValidationViolation`s). No transformer
+ever substitutes a default value.
+
+1. **Date conversion** (`DateTransformer`): strict `MM/DD/YYYY` with real-calendar validation
+   (`02/30/1990` and `13/45/2020` are rejected with `DATE_CALENDAR`; any other shape is
+   `DATE_FORMAT`).
+2. **Amount conversion** (`AmountTransformer`): the raw string must match
+   `^\d{1,3}(,\d{3})*(\.\d{1,2})?$|^\d+(\.\d{1,2})?$` **before** commas are stripped. Malformed
+   grouping (`12,34,567`), European decimals (`1.487,02`), three decimals, signs, `%`, `N/A`, blank
+   and null all produce `AMT_FORMAT`/`AMT_MISSING`. The previous `BigDecimal.ZERO` fallback has been
+   removed: an unparseable amount becomes `null` in the DTO plus a violation, never `0`.
+3. **Rate / percent conversion** (`DecimalTransformer`): `^\d+(\.\d+)?$`, used for `LN_INT_RT`,
+   `LN_LTV_PCT`.
+4. **Integer conversion** (`IntegerTransformer`): digits only, with inclusive ranges —
+   `credit_score` 300–850, `term_months` 1–480, `delinquency_days` 0–9999 (`INT_RANGE`).
+5. **Denormalization removal:** `BORR_FST_NM`/`BORR_LST_NM`/`BORR_SSN_LST4` on `CDW_LN_ACCT` are
+   compared with `CDW_BORR_MSTR` (`REF_DENORM_MISMATCH`) before being dropped. `BORR_SSN_LST4`
+   cannot be verified while `BORR_SSN_ENCR` holds `ENC_XXX_*` placeholders
+   (`REF_DENORM_UNVERIFIABLE`).
+6. **Code expansion — fail on unmapped code** (`CodeExpansionTransformer`, `LegacyCodeSet`): the
+   dictionaries below are exhaustive. A code that is not in its dictionary is **never passed
+   through**; it is mapped to the literal `"Unknown"` and an `ERROR` violation `CODE_UNMAPPED`
+   (or `CODE_MISSING` for null/blank) is recorded against the record.
+
+   | Column | Dictionary |
+   |---|---|
+   | `BORR_STAT_CD` | ACT→Active, INA→Inactive |
+   | `PROD_STAT_CD` | ACT→Active, INA→Inactive |
+   | `LN_STAT_CD` | ACT→Active, CLO→Closed, DFT→Default, FRB→Forbearance |
+   | `PMT_TYP_CD` | REG→Regular, EXT→Extra, PRT→Partial, PRE→Prepayment |
+   | `PMT_STAT_CD` | PST→Posted, REV→Reversed, NSF→Non-Sufficient Funds, PND→Pending |
+   | `PROP_TYP_CD` | SFR→Single Family Residence, CND→Condominium, MFR→Multi-Family Residence, TWN→Townhouse |
+
+7. **ID resolution** (`ReferenceResolver`): `CDW_LN_ACCT.BORR_ID`, `CDW_LN_ACCT.PROD_CD` and
+   `CDW_PMT_HIST.LN_ACCT_NBR` must resolve to **exactly one** parent row. Zero matches →
+   `REF_ORPHAN`, more than one → `REF_AMBIGUOUS`, null/blank key → `REF_MISSING`.
+
+## Corrections to `modern_tables.sql`
+
+- **`payments.legacy_payment_id VARCHAR(20) UNIQUE`** must be added so `PMT_SEQ_NBR` is retained
+  (see the `CDW_PMT_HIST` table above). Until it exists the drop is *not* intentional and is
+  reported as `PMT_SEQ_NBR_LOSS`.
+- **Remove value defaults that mask bad source data.** `borrowers.status DEFAULT 'ACTIVE'`,
+  `loan_accounts.status DEFAULT 'ACTIVE'`, `loan_accounts.delinquency_days DEFAULT 0`,
+  `loan_accounts.escrow_balance DEFAULT 0`, `loan_products.is_active DEFAULT TRUE` and
+  `payments.late_fee DEFAULT 0` would silently turn a null/invalid legacy value into a
+  plausible-looking modern value. Loads must supply every column explicitly; a row that fails
+  transformation is rejected (or quarantined) rather than defaulted.
+- `NOT NULL` constraints stay, but they are enforced by the transformer layer producing a
+  violation before the load, not by the database substituting a value.
