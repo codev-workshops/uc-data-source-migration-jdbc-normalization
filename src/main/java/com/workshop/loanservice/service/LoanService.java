@@ -13,11 +13,15 @@ import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import com.workshop.loanservice.repository.LegacyLoanProductRepository;
 import com.workshop.loanservice.repository.LegacyPaymentRepository;
 import com.workshop.loanservice.service.validation.AmountTransformer;
+import com.workshop.loanservice.service.validation.ApiInputValidator;
 import com.workshop.loanservice.service.validation.CodeExpansionTransformer;
+import com.workshop.loanservice.service.validation.DataQualityValidator;
 import com.workshop.loanservice.service.validation.DecimalTransformer;
 import com.workshop.loanservice.service.validation.FieldTransformer;
 import com.workshop.loanservice.service.validation.IntegerTransformer;
+import com.workshop.loanservice.service.validation.InvalidInputException;
 import com.workshop.loanservice.service.validation.LegacyCodeSet;
+import com.workshop.loanservice.service.validation.RecordNotFoundException;
 import com.workshop.loanservice.service.validation.TransformResult;
 import com.workshop.loanservice.service.validation.ValidationViolation;
 import java.util.ArrayList;
@@ -32,6 +36,10 @@ import org.springframework.stereotype.Service;
  * <p>MIGRATION TASK: This service contains all the translation logic between legacy string-typed
  * fields and proper Java types. When switching data sources, this layer needs to be updated (or
  * replaced) to read from the modern schema.
+ *
+ * <p>In validation mode ({@link ApiValidationService#isEnabled()}) every method also validates its
+ * request inputs, runs the full rule set over the records it returns, and quarantines all
+ * violations in {@code DQ_INVALID_INPUT}.
  */
 @Service
 public class LoanService {
@@ -40,16 +48,19 @@ public class LoanService {
   private final LegacyLoanAccountRepository loanAccountRepository;
   private final LegacyLoanProductRepository loanProductRepository;
   private final LegacyPaymentRepository paymentRepository;
+  private final ApiValidationService apiValidation;
 
   public LoanService(
       LegacyBorrowerRepository borrowerRepository,
       LegacyLoanAccountRepository loanAccountRepository,
       LegacyLoanProductRepository loanProductRepository,
-      LegacyPaymentRepository paymentRepository) {
+      LegacyPaymentRepository paymentRepository,
+      ApiValidationService apiValidation) {
     this.borrowerRepository = borrowerRepository;
     this.loanAccountRepository = loanAccountRepository;
     this.loanProductRepository = loanProductRepository;
     this.paymentRepository = paymentRepository;
+    this.apiValidation = apiValidation;
   }
 
   public List<LoanSummaryDto> getAllLoans() {
@@ -57,39 +68,62 @@ public class LoanService {
         loanProductRepository.findAll().stream()
             .collect(Collectors.toMap(LegacyLoanProduct::getProductCode, p -> p));
 
-    return loanAccountRepository.findAll().stream()
+    List<LegacyLoanAccount> accounts = loanAccountRepository.findAll();
+    apiValidation.recordRecords(
+        null,
+        null,
+        DataQualityValidator.TABLE_LOAN,
+        accounts.stream().map(LegacyLoanAccount::getLoanAccountNumber).toList());
+    return accounts.stream()
         .map(acct -> toLoanSummary(acct, products.get(acct.getProductCode())))
         .collect(Collectors.toList());
   }
 
   public LoanSummaryDto getLoanById(String loanAccountNumber) {
+    checkInput(
+        "id", loanAccountNumber, ApiInputValidator.loanAccountNumber("id", loanAccountNumber));
     LegacyLoanAccount acct =
         loanAccountRepository
             .findById(loanAccountNumber)
-            .orElseThrow(() -> new RuntimeException("Loan not found: " + loanAccountNumber));
+            .orElseThrow(() -> notFound("id", loanAccountNumber, DataQualityValidator.TABLE_LOAN));
     LegacyLoanProduct product = loanProductRepository.findById(acct.getProductCode()).orElse(null);
+    apiValidation.recordRecords(
+        "id", loanAccountNumber, DataQualityValidator.TABLE_LOAN, List.of(loanAccountNumber));
     return toLoanSummary(acct, product);
   }
 
   public List<BorrowerDto> getAllBorrowers() {
-    return borrowerRepository.findAll().stream()
-        .map(this::toBorrowerDto)
-        .collect(Collectors.toList());
+    List<LegacyBorrower> borrowers = borrowerRepository.findAll();
+    apiValidation.recordRecords(
+        null,
+        null,
+        DataQualityValidator.TABLE_BORROWER,
+        borrowers.stream().map(LegacyBorrower::getBorrowerId).toList());
+    return borrowers.stream().map(this::toBorrowerDto).collect(Collectors.toList());
   }
 
   public BorrowerDto getBorrowerById(String borrowerId) {
+    checkInput("id", borrowerId, ApiInputValidator.borrowerId("id", borrowerId));
     LegacyBorrower borrower =
         borrowerRepository
             .findById(borrowerId)
-            .orElseThrow(() -> new RuntimeException("Borrower not found: " + borrowerId));
+            .orElseThrow(() -> notFound("id", borrowerId, DataQualityValidator.TABLE_BORROWER));
+    apiValidation.recordRecords(
+        "id", borrowerId, DataQualityValidator.TABLE_BORROWER, List.of(borrowerId));
     BorrowerDto dto = toBorrowerDto(borrower);
 
     // Attach loans for this borrower
     Map<String, LegacyLoanProduct> products =
         loanProductRepository.findAll().stream()
             .collect(Collectors.toMap(LegacyLoanProduct::getProductCode, p -> p));
+    List<LegacyLoanAccount> accounts = loanAccountRepository.findByBorrowerId(borrowerId);
+    apiValidation.recordRecords(
+        "id",
+        borrowerId,
+        DataQualityValidator.TABLE_LOAN,
+        accounts.stream().map(LegacyLoanAccount::getLoanAccountNumber).toList());
     List<LoanSummaryDto> loans =
-        loanAccountRepository.findByBorrowerId(borrowerId).stream()
+        accounts.stream()
             .map(acct -> toLoanSummary(acct, products.get(acct.getProductCode())))
             .collect(Collectors.toList());
     dto.setLoans(loans);
@@ -98,11 +132,36 @@ public class LoanService {
   }
 
   public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
-    return paymentRepository
-        .findByLoanAccountNumberOrderByPaymentDateDesc(loanAccountNumber)
-        .stream()
-        .map(this::toPaymentDto)
-        .collect(Collectors.toList());
+    checkInput(
+        "loanId",
+        loanAccountNumber,
+        ApiInputValidator.loanAccountNumber("loanId", loanAccountNumber));
+    if (apiValidation.isEnabled() && !loanAccountRepository.existsById(loanAccountNumber)) {
+      apiValidation.record(
+          "loanId",
+          loanAccountNumber,
+          ApiInputValidator.notFound("loanId", loanAccountNumber, DataQualityValidator.TABLE_LOAN));
+    }
+    List<LegacyPayment> payments =
+        paymentRepository.findByLoanAccountNumberOrderByPaymentDateDesc(loanAccountNumber);
+    apiValidation.recordRecords(
+        "loanId",
+        loanAccountNumber,
+        DataQualityValidator.TABLE_PAYMENT,
+        payments.stream().map(LegacyPayment::getPaymentSequenceNumber).toList());
+    return payments.stream().map(this::toPaymentDto).collect(Collectors.toList());
+  }
+
+  /** In validation mode, quarantines input violations and rejects the request on any ERROR. */
+  private void checkInput(String name, String value, List<ValidationViolation> found) {
+    if (apiValidation.recordInput(name, value, found)) {
+      throw new InvalidInputException(found);
+    }
+  }
+
+  private RecordNotFoundException notFound(String name, String value, String table) {
+    apiValidation.record(name, value, ApiInputValidator.notFound(name, value, table));
+    return new RecordNotFoundException(table, value);
   }
 
   // =========================================================================

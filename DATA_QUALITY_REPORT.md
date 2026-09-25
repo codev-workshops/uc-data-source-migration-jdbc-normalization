@@ -55,8 +55,25 @@ former `BigDecimal.ZERO` fallback and raw-code passthrough no longer exist.
 | `LN_ESCROW_NO_CONTRIBUTION` | WARN | `LN_ESCROW_BAL > 0` but every payment has `PMT_ESCROW_AMT = 0` |
 | `BORR_SSN_PLACEHOLDER` | WARN | `BORR_SSN_ENCR` matches `ENC_XXX_*` — not a real hash |
 | `PMT_SEQ_NBR_LOSS` | WARN | Modern `payments` has no `legacy_payment_id`; `PMT_SEQ_NBR` would be lost |
+| `INPUT_MISSING` / `INPUT_FORMAT` / `INPUT_UNSAFE` | ERROR | API path variable blank, not `LN-YYYY-NNNNN` / `B-NNNNN`, or >20 chars / disallowed characters → HTTP 400 |
+| `INPUT_NOT_FOUND` | ERROR | Well-formed API key resolves to no legacy row → HTTP 404 (payments: empty list) |
 
 Record score = 100 − 25 × ERRORs − 5 × WARNs, floored at 0.
+
+### API validation mode and the `DQ_INVALID_INPUT` quarantine
+
+Every endpoint can run in validation mode: globally via `loanservice.validation.mode=on`
+(default `off`) or per request via `?validate=true|false` (the query parameter wins). In this mode
+the request's inputs are checked with the `INPUT_*` rules above, the records the endpoint returns
+are run through the full rule set (including cross-table rules), and **every** violation is
+written to the separate `DQ_INVALID_INPUT` table (`schema-dq.sql`) with the endpoint, input
+name/value, entity type, record key, field, raw value, rule, severity, message and timestamp.
+The response itself is unchanged, except that malformed inputs are rejected with 400.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/data-quality/invalid-inputs` | Quarantined rows, newest first; filters `?ruleId=` or `?entityType=&recordKey=` |
+| `DELETE /api/data-quality/invalid-inputs` | Clears the quarantine table |
 
 ## 3. Known seed-data defects
 
