@@ -5,10 +5,7 @@ import com.workshop.loanservice.dto.LoanSummaryDto;
 import com.workshop.loanservice.dto.PaymentDto;
 import java.util.List;
 
-/**
- * Read model behind the REST layer. Exactly one implementation is wired at runtime, selected by the
- * {@code application.data-mode} property.
- */
+/** Read model behind the REST layer, implemented by {@link NormalizedLoanService}. */
 public interface LoanQueryService {
 
   List<LoanSummaryDto> getAllLoans();

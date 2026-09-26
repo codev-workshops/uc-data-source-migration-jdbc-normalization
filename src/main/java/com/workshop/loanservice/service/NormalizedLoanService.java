@@ -18,18 +18,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * Reads the normalized schema and produces the same DTOs as the legacy path: typed columns replace
- * the legacy string parsing, while code expansions and the formatting of names, addresses and dates
- * are unchanged.
- *
- * <p>Active when {@code application.data-mode} is {@code normalized}, which is also the default.
+ * Reads the normalized schema and produces the DTOs exposed by the REST layer: typed columns replace
+ * the string parsing of the retired legacy CDW_* path, while code expansions and the formatting of
+ * names, addresses and dates are unchanged.
  */
 @Service
-@ConditionalOnProperty(name = "application.data-mode", havingValue = "normalized", matchIfMissing = true)
 public class NormalizedLoanService implements LoanQueryService {
 
   private static final Logger log = LoggerFactory.getLogger(NormalizedLoanService.class);
