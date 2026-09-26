@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Structured key=value console logging on the default Spring Boot Logback backend.
+  A migration to log4j2 is planned for a later iteration; keep this file minimal until then.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <property name="STRUCTURED_PATTERN"
+              value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level thread=%thread logger=%logger{36} mdc=[%X] msg=%msg%n%ex"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${STRUCTURED_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <springProfile name="!e2e-test">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="e2e-test">
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="com.workshop.loanservice" level="INFO"/>
+    </springProfile>
+</configuration>
