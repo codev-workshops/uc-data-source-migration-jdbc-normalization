@@ -1,89 +1,96 @@
 -- =============================================================================
--- NORMALIZED SCHEMA
+-- NORMALIZED SCHEMA (modern target model, singular table names)
 -- =============================================================================
--- Target model for the migration:
---   - Descriptive column names
---   - Proper types (DATE, DECIMAL, INTEGER)
+-- Aligned with data/modern-schema/modern_tables.sql:
+--   - BIGINT surrogate primary keys, natural keys kept as UNIQUE columns
+--   - Proper types (DATE, TIMESTAMP, DECIMAL, INTEGER, BOOLEAN)
+--   - Status / type columns hold the expanded modern values (ACTIVE, POSTED, ...)
 --   - Borrower data no longer embedded in loan accounts
--- Cross-table constraints are added in V5, after the data migration has run.
+-- Foreign keys, check constraints and indexes are added in V5, after the data
+-- migration (V4) has resolved the legacy string identifiers to surrogate ids.
 -- =============================================================================
 
 CREATE TABLE borrower (
-    borrower_id       VARCHAR(20) PRIMARY KEY,
-    first_name        VARCHAR(50),
-    last_name         VARCHAR(50),
+    id                BIGINT PRIMARY KEY AUTO_INCREMENT,
+    external_id       VARCHAR(20) UNIQUE NOT NULL,
+    first_name        VARCHAR(50) NOT NULL,
+    last_name         VARCHAR(50) NOT NULL,
     middle_initial    VARCHAR(1),
-    ssn_encrypted     VARCHAR(100),
+    ssn_hash          VARCHAR(100),
     date_of_birth     DATE,
     address_line1     VARCHAR(100),
     address_line2     VARCHAR(100),
     city              VARCHAR(50),
-    state_code        VARCHAR(2),
+    state             VARCHAR(2),
     zip_code          VARCHAR(10),
-    phone_number      VARCHAR(15),
+    phone             VARCHAR(15),
     email             VARCHAR(100),
     credit_score      INTEGER,
     employment_status VARCHAR(20),
-    annual_income     DECIMAL(15,2),
-    created_date      DATE,
-    updated_date      DATE,
-    status_code       VARCHAR(5),
-    record_type       VARCHAR(10)
+    annual_income     DECIMAL(12,2),
+    status            VARCHAR(10) DEFAULT 'ACTIVE',
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE loan_product (
-    product_code    VARCHAR(10) PRIMARY KEY,
-    description     VARCHAR(200),
-    product_type    VARCHAR(5),
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    code            VARCHAR(10) UNIQUE NOT NULL,
+    name            VARCHAR(200) NOT NULL,
+    type            VARCHAR(5),
     term_months     INTEGER,
     rate_type       VARCHAR(10),
-    min_amount      DECIMAL(15,2),
-    max_amount      DECIMAL(15,2),
-    status_code     VARCHAR(5),
+    min_amount      DECIMAL(12,2),
+    max_amount      DECIMAL(12,2),
+    is_active       BOOLEAN DEFAULT TRUE,
     effective_date  DATE,
     expiration_date DATE
 );
 
 CREATE TABLE loan_account (
-    loan_account_number     VARCHAR(20) PRIMARY KEY,
-    borrower_id             VARCHAR(20),
-    product_code            VARCHAR(10),
-    original_amount         DECIMAL(15,2),
-    current_balance         DECIMAL(15,2),
-    interest_rate           DECIMAL(6,3),
-    term_months             INTEGER,
-    monthly_payment         DECIMAL(15,2),
-    origination_date        DATE,
-    maturity_date           DATE,
-    first_payment_date      DATE,
-    next_payment_date       DATE,
-    status_code             VARCHAR(5),
-    delinquent_days         INTEGER,
-    escrow_balance          DECIMAL(15,2),
-    ltv_percent             DECIMAL(6,2),
-    property_address_line1  VARCHAR(100),
-    property_city           VARCHAR(50),
-    property_state          VARCHAR(2),
-    property_zip            VARCHAR(10),
-    property_type           VARCHAR(10),
-    property_appraised_value DECIMAL(15,2),
-    created_date            DATE,
-    updated_date            DATE
+    id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
+    account_number      VARCHAR(20) UNIQUE NOT NULL,
+    borrower_id         BIGINT NOT NULL,
+    product_id          BIGINT NOT NULL,
+    original_amount     DECIMAL(12,2),
+    current_balance     DECIMAL(12,2),
+    interest_rate       DECIMAL(5,3),
+    term_months         INTEGER,
+    monthly_payment     DECIMAL(10,2),
+    origination_date    DATE,
+    maturity_date       DATE,
+    first_payment_date  DATE,
+    next_payment_date   DATE,
+    status              VARCHAR(15) DEFAULT 'ACTIVE',
+    delinquency_days    INTEGER DEFAULT 0,
+    escrow_balance      DECIMAL(10,2) DEFAULT 0,
+    ltv_percent         DECIMAL(5,2),
+    property_address    VARCHAR(100),
+    property_city       VARCHAR(50),
+    property_state      VARCHAR(2),
+    property_zip        VARCHAR(10),
+    property_type       VARCHAR(30),
+    appraised_value     DECIMAL(12,2),
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- external_id carries the legacy PMT_SEQ_NBR so the public API keeps exposing the
+-- historical payment identifier while id stays an internal surrogate.
 CREATE TABLE payment (
-    payment_id          VARCHAR(20) PRIMARY KEY,
-    loan_account_number VARCHAR(20),
-    payment_date        DATE,
-    total_amount        DECIMAL(15,2),
-    principal_amount    DECIMAL(15,2),
-    interest_amount     DECIMAL(15,2),
-    escrow_amount       DECIMAL(15,2),
-    late_fee            DECIMAL(15,2),
-    type_code           VARCHAR(5),
-    status_code         VARCHAR(5),
+    id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
+    external_id         VARCHAR(20) UNIQUE NOT NULL,
+    loan_account_id     BIGINT NOT NULL,
+    payment_date        DATE NOT NULL,
+    total_amount        DECIMAL(10,2) NOT NULL,
+    principal_amount    DECIMAL(10,2),
+    interest_amount     DECIMAL(10,2),
+    escrow_amount       DECIMAL(10,2),
+    late_fee            DECIMAL(10,2) DEFAULT 0,
+    type                VARCHAR(15) NOT NULL,
+    status              VARCHAR(15) NOT NULL,
     received_date       DATE,
     processed_date      DATE,
-    created_date        DATE,
-    updated_date        DATE
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

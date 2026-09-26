@@ -2,25 +2,34 @@ package com.workshop.loanservice.entity.normalized;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** Maps to the normalized {@code loan_product} table created by Flyway. */
+/**
+ * Maps to the normalized {@code loan_product} table created by Flyway. {@code code} is the natural
+ * key exposed by the API; {@code id} is an internal surrogate.
+ */
 @Entity
 @Table(name = "loan_product")
 public class LoanProduct {
 
   @Id
-  @Column(name = "product_code")
-  private String productCode;
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @Column(name = "id")
+  private Long id;
 
-  @Column(name = "description")
-  private String description;
+  @Column(name = "code", nullable = false, unique = true, length = 10)
+  private String code;
 
-  @Column(name = "product_type")
-  private String productType;
+  @Column(name = "name", nullable = false)
+  private String name;
+
+  @Column(name = "type")
+  private String type;
 
   @Column(name = "term_months")
   private Integer termMonths;
@@ -34,8 +43,8 @@ public class LoanProduct {
   @Column(name = "max_amount")
   private BigDecimal maxAmount;
 
-  @Column(name = "status_code")
-  private String statusCode;
+  @Column(name = "is_active")
+  private Boolean isActive;
 
   @Column(name = "effective_date")
   private LocalDate effectiveDate;
@@ -43,28 +52,36 @@ public class LoanProduct {
   @Column(name = "expiration_date")
   private LocalDate expirationDate;
 
-  public String getProductCode() {
-    return productCode;
+  public Long getId() {
+    return id;
   }
 
-  public void setProductCode(String productCode) {
-    this.productCode = productCode;
+  public void setId(Long id) {
+    this.id = id;
   }
 
-  public String getDescription() {
-    return description;
+  public String getCode() {
+    return code;
   }
 
-  public void setDescription(String description) {
-    this.description = description;
+  public void setCode(String code) {
+    this.code = code;
   }
 
-  public String getProductType() {
-    return productType;
+  public String getName() {
+    return name;
   }
 
-  public void setProductType(String productType) {
-    this.productType = productType;
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public String getType() {
+    return type;
+  }
+
+  public void setType(String type) {
+    this.type = type;
   }
 
   public Integer getTermMonths() {
@@ -99,12 +116,12 @@ public class LoanProduct {
     this.maxAmount = maxAmount;
   }
 
-  public String getStatusCode() {
-    return statusCode;
+  public Boolean getIsActive() {
+    return isActive;
   }
 
-  public void setStatusCode(String statusCode) {
-    this.statusCode = statusCode;
+  public void setIsActive(Boolean isActive) {
+    this.isActive = isActive;
   }
 
   public LocalDate getEffectiveDate() {

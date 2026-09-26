@@ -1,2 +1,3 @@
 -- Borrower without any matching loan_account rows. Credit score stays within the V5 check range.
-INSERT INTO borrower VALUES ('B-90001', 'Olivia', 'Grant', 'T', 'ENC_XXX_902', DATE '1991-09-09', '55 Birch Court', NULL, 'Madison', 'WI', '53703', '608-555-0177', 'o.grant@email.com', 705, 'EMPLOYED', 71000.00, DATE '2022-04-04', DATE '2025-10-10', 'ACT', 'PRI');
+INSERT INTO borrower (external_id, first_name, last_name, middle_initial, ssn_hash, date_of_birth, address_line1, address_line2, city, state, zip_code, phone, email, credit_score, employment_status, annual_income, status, created_at, updated_at)
+VALUES ('B-90001', 'Olivia', 'Grant', 'T', 'ENC_XXX_902', DATE '1991-09-09', '55 Birch Court', NULL, 'Madison', 'WI', '53703', '608-555-0177', 'o.grant@email.com', 705, 'EMPLOYED', 71000.00, 'ACTIVE', TIMESTAMP '2022-04-04 00:00:00', TIMESTAMP '2025-10-10 00:00:00');
