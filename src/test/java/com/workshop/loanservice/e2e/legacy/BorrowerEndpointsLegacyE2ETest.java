@@ -1,4 +1,4 @@
-package com.workshop.loanservice.e2e;
+package com.workshop.loanservice.e2e.legacy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.context.jdbc.Sql.ExecutionPhase.AFTER_TEST_METHOD;
@@ -15,7 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.jdbc.Sql;
 
 /** Baseline coverage of {@code /api/borrowers} and {@code /api/borrowers/{id}}. */
-class BorrowerEndpointsE2ETest extends BaseLegacyBaselineE2ETest {
+class BorrowerEndpointsLegacyE2ETest extends BaseLegacyE2ETest {
 
   private static final ParameterizedTypeReference<List<BorrowerDto>> BORROWER_LIST =
       new ParameterizedTypeReference<>() {};
@@ -65,10 +65,10 @@ class BorrowerEndpointsE2ETest extends BaseLegacyBaselineE2ETest {
 
   @Test
   @Sql(
-      scripts = "classpath:test-data/e2e/malformed-borrower.sql",
+      scripts = "classpath:test-data/e2e/legacy/malformed-borrower.sql",
       executionPhase = BEFORE_TEST_METHOD)
   @Sql(
-      scripts = "classpath:test-data/e2e/malformed-borrower-cleanup.sql",
+      scripts = "classpath:test-data/e2e/legacy/malformed-borrower-cleanup.sql",
       executionPhase = AFTER_TEST_METHOD)
   void listBorrowersReturnsServerErrorWhenCreditScoreIsNotNumeric() {
     ResponseEntity<String> response = restTemplate.getForEntity("/api/borrowers", String.class);
@@ -94,9 +94,9 @@ class BorrowerEndpointsE2ETest extends BaseLegacyBaselineE2ETest {
   }
 
   @Test
-  @Sql(scripts = "classpath:test-data/e2e/borrower-no-loans.sql", executionPhase = BEFORE_TEST_METHOD)
+  @Sql(scripts = "classpath:test-data/e2e/legacy/borrower-no-loans.sql", executionPhase = BEFORE_TEST_METHOD)
   @Sql(
-      scripts = "classpath:test-data/e2e/borrower-no-loans-cleanup.sql",
+      scripts = "classpath:test-data/e2e/legacy/borrower-no-loans-cleanup.sql",
       executionPhase = AFTER_TEST_METHOD)
   void getBorrowerByIdReturnsEmptyLoansWhenBorrowerHasNoLoans() {
     ResponseEntity<BorrowerDto> response =
@@ -118,9 +118,9 @@ class BorrowerEndpointsE2ETest extends BaseLegacyBaselineE2ETest {
   }
 
   @Test
-  @Sql(scripts = "classpath:test-data/e2e/malformed-loan.sql", executionPhase = BEFORE_TEST_METHOD)
+  @Sql(scripts = "classpath:test-data/e2e/legacy/malformed-loan.sql", executionPhase = BEFORE_TEST_METHOD)
   @Sql(
-      scripts = "classpath:test-data/e2e/malformed-loan-cleanup.sql",
+      scripts = "classpath:test-data/e2e/legacy/malformed-loan-cleanup.sql",
       executionPhase = AFTER_TEST_METHOD)
   void getBorrowerByIdReturnsServerErrorWhenOneOfTheirLoansHasANonNumericAmount() {
     ResponseEntity<String> response =

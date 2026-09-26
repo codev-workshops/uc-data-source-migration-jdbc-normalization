@@ -1,4 +1,4 @@
-package com.workshop.loanservice.e2e;
+package com.workshop.loanservice.e2e.legacy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.context.jdbc.Sql.ExecutionPhase.AFTER_TEST_METHOD;
@@ -15,7 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.jdbc.Sql;
 
 /** Baseline coverage of {@code /api/loans/{loanId}/payments}. */
-class PaymentEndpointsE2ETest extends BaseLegacyBaselineE2ETest {
+class PaymentEndpointsLegacyE2ETest extends BaseLegacyE2ETest {
 
   private static final ParameterizedTypeReference<List<PaymentDto>> PAYMENT_LIST =
       new ParameterizedTypeReference<>() {};
@@ -68,10 +68,10 @@ class PaymentEndpointsE2ETest extends BaseLegacyBaselineE2ETest {
 
   @Test
   @Sql(
-      scripts = "classpath:test-data/e2e/malformed-payment.sql",
+      scripts = "classpath:test-data/e2e/legacy/malformed-payment.sql",
       executionPhase = BEFORE_TEST_METHOD)
   @Sql(
-      scripts = "classpath:test-data/e2e/malformed-payment-cleanup.sql",
+      scripts = "classpath:test-data/e2e/legacy/malformed-payment-cleanup.sql",
       executionPhase = AFTER_TEST_METHOD)
   void listPaymentsReturnsServerErrorWhenAmountIsNotNumeric() {
     ResponseEntity<String> response =
