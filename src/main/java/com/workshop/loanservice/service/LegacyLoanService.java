@@ -12,9 +12,11 @@ import com.workshop.loanservice.repository.LegacyBorrowerRepository;
 import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import com.workshop.loanservice.repository.LegacyLoanProductRepository;
 import com.workshop.loanservice.repository.LegacyPaymentRepository;
+import com.workshop.loanservice.routing.LoanServiceRegistry;
+import com.workshop.loanservice.routing.ServiceImplementation;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -29,13 +31,13 @@ import java.util.stream.Collectors;
  * MIGRATION TASK: This service contains all the translation logic
  * between legacy string-typed fields and proper Java types.
  *
- * Active when {@code application.data-mode} is {@code legacy}.
+ * Registered as {@link ServiceImplementation#LEGACY}; selected per request via the
+ * {@code serviceImpl=legacy} query parameter.
  *
  * @deprecated Legacy CDW_* data path, superseded by {@link NormalizedLoanService}.
  */
 @Deprecated
 @Service
-@ConditionalOnProperty(name = "application.data-mode", havingValue = "legacy")
 public class LegacyLoanService implements LoanQueryService {
 
     private static final Logger log = LoggerFactory.getLogger(LegacyLoanService.class);
@@ -44,15 +46,23 @@ public class LegacyLoanService implements LoanQueryService {
     private final LegacyLoanAccountRepository loanAccountRepository;
     private final LegacyLoanProductRepository loanProductRepository;
     private final LegacyPaymentRepository paymentRepository;
+    private final LoanServiceRegistry registry;
 
     public LegacyLoanService(LegacyBorrowerRepository borrowerRepository,
                              LegacyLoanAccountRepository loanAccountRepository,
                              LegacyLoanProductRepository loanProductRepository,
-                             LegacyPaymentRepository paymentRepository) {
+                             LegacyPaymentRepository paymentRepository,
+                             LoanServiceRegistry registry) {
         this.borrowerRepository = borrowerRepository;
         this.loanAccountRepository = loanAccountRepository;
         this.loanProductRepository = loanProductRepository;
         this.paymentRepository = paymentRepository;
+        this.registry = registry;
+    }
+
+    @PostConstruct
+    void register() {
+        registry.register(ServiceImplementation.LEGACY, this);
     }
 
     @Override
