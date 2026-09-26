@@ -11,6 +11,8 @@ import com.workshop.loanservice.repository.LegacyBorrowerRepository;
 import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import com.workshop.loanservice.repository.LegacyLoanProductRepository;
 import com.workshop.loanservice.repository.LegacyPaymentRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +34,8 @@ import java.util.stream.Collectors;
 @ConditionalOnProperty(name = "application.data-mode", havingValue = "legacy", matchIfMissing = true)
 public class LegacyLoanService implements LoanQueryService {
 
+    private static final Logger log = LoggerFactory.getLogger(LegacyLoanService.class);
+
     private final LegacyBorrowerRepository borrowerRepository;
     private final LegacyLoanAccountRepository loanAccountRepository;
     private final LegacyLoanProductRepository loanProductRepository;
@@ -49,6 +53,7 @@ public class LegacyLoanService implements LoanQueryService {
 
     @Override
     public List<LoanSummaryDto> getAllLoans() {
+        log.info("fetching all loans (legacy)");
         Map<String, LegacyLoanProduct> products = loanProductRepository.findAll()
                 .stream()
                 .collect(Collectors.toMap(LegacyLoanProduct::getProductCode, p -> p));
@@ -60,15 +65,24 @@ public class LegacyLoanService implements LoanQueryService {
 
     @Override
     public LoanSummaryDto getLoanById(String loanAccountNumber) {
+        log.info("fetching loan id={} (legacy)", loanAccountNumber);
         LegacyLoanAccount acct = loanAccountRepository.findById(loanAccountNumber)
-                .orElseThrow(() -> new RuntimeException("Loan not found: " + loanAccountNumber));
+                .orElseThrow(() -> {
+                    log.warn("loan not found id={}", loanAccountNumber);
+                    return new RuntimeException("Loan not found: " + loanAccountNumber);
+                });
         LegacyLoanProduct product = loanProductRepository.findById(acct.getProductCode())
                 .orElse(null);
+        if (product == null) {
+            log.warn("product not found code={} for loan id={}, falling back to raw code",
+                    acct.getProductCode(), loanAccountNumber);
+        }
         return toLoanSummary(acct, product);
     }
 
     @Override
     public List<BorrowerDto> getAllBorrowers() {
+        log.info("fetching all borrowers (legacy)");
         return borrowerRepository.findAll().stream()
                 .map(this::toBorrowerDto)
                 .collect(Collectors.toList());
@@ -76,8 +90,12 @@ public class LegacyLoanService implements LoanQueryService {
 
     @Override
     public BorrowerDto getBorrowerById(String borrowerId) {
+        log.info("fetching borrower id={} (legacy)", borrowerId);
         LegacyBorrower borrower = borrowerRepository.findById(borrowerId)
-                .orElseThrow(() -> new RuntimeException("Borrower not found: " + borrowerId));
+                .orElseThrow(() -> {
+                    log.warn("borrower not found id={}", borrowerId);
+                    return new RuntimeException("Borrower not found: " + borrowerId);
+                });
         BorrowerDto dto = toBorrowerDto(borrower);
 
         // Attach loans for this borrower
@@ -95,6 +113,7 @@ public class LegacyLoanService implements LoanQueryService {
 
     @Override
     public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
+        log.info("fetching payments for loan id={} (legacy)", loanAccountNumber);
         return paymentRepository.findByLoanAccountNumberOrderByPaymentDateDesc(loanAccountNumber)
                 .stream()
                 .map(this::toPaymentDto)
@@ -158,17 +177,32 @@ public class LegacyLoanService implements LoanQueryService {
      */
     private BigDecimal parseLegacyAmount(String amount) {
         if (amount == null || amount.isBlank()) return BigDecimal.ZERO;
-        return new BigDecimal(amount.replace(",", ""));
+        try {
+            return new BigDecimal(amount.replace(",", ""));
+        } catch (NumberFormatException e) {
+            log.error("malformed legacy amount value='{}'", amount);
+            throw e;
+        }
     }
 
     private BigDecimal parseLegacyDecimal(String value) {
         if (value == null || value.isBlank()) return BigDecimal.ZERO;
-        return new BigDecimal(value.trim());
+        try {
+            return new BigDecimal(value.trim());
+        } catch (NumberFormatException e) {
+            log.error("malformed legacy decimal value='{}'", value);
+            throw e;
+        }
     }
 
     private Integer parseLegacyInteger(String value) {
         if (value == null || value.isBlank()) return null;
-        return Integer.parseInt(value.trim());
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            log.error("malformed legacy integer value='{}'", value);
+            throw e;
+        }
     }
 
     private String expandStatusCode(String code) {

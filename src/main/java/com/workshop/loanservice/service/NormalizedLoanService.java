@@ -15,6 +15,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +30,8 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(name = "application.data-mode", havingValue = "normalized")
 public class NormalizedLoanService implements LoanQueryService {
+
+  private static final Logger log = LoggerFactory.getLogger(NormalizedLoanService.class);
 
   private static final DateTimeFormatter LEGACY_DATE_FORMAT =
       DateTimeFormatter.ofPattern("MM/dd/yyyy");
@@ -47,6 +51,7 @@ public class NormalizedLoanService implements LoanQueryService {
 
   @Override
   public List<LoanSummaryDto> getAllLoans() {
+    log.info("fetching all loans (normalized)");
     return loanAccountRepository.findAll().stream()
         .map(this::toLoanSummary)
         .collect(Collectors.toList());
@@ -54,15 +59,21 @@ public class NormalizedLoanService implements LoanQueryService {
 
   @Override
   public LoanSummaryDto getLoanById(String loanAccountNumber) {
+    log.info("fetching loan id={} (normalized)", loanAccountNumber);
     LoanAccount account =
         loanAccountRepository
             .findById(loanAccountNumber)
-            .orElseThrow(() -> new RuntimeException("Loan not found: " + loanAccountNumber));
+            .orElseThrow(
+                () -> {
+                  log.warn("loan not found id={}", loanAccountNumber);
+                  return new RuntimeException("Loan not found: " + loanAccountNumber);
+                });
     return toLoanSummary(account);
   }
 
   @Override
   public List<BorrowerDto> getAllBorrowers() {
+    log.info("fetching all borrowers (normalized)");
     return borrowerRepository.findAll().stream()
         .map(this::toBorrowerDto)
         .collect(Collectors.toList());
@@ -70,10 +81,15 @@ public class NormalizedLoanService implements LoanQueryService {
 
   @Override
   public BorrowerDto getBorrowerById(String borrowerId) {
+    log.info("fetching borrower id={} (normalized)", borrowerId);
     Borrower borrower =
         borrowerRepository
             .findById(borrowerId)
-            .orElseThrow(() -> new RuntimeException("Borrower not found: " + borrowerId));
+            .orElseThrow(
+                () -> {
+                  log.warn("borrower not found id={}", borrowerId);
+                  return new RuntimeException("Borrower not found: " + borrowerId);
+                });
     BorrowerDto dto = toBorrowerDto(borrower);
     dto.setLoans(
         loanAccountRepository.findByBorrowerBorrowerId(borrowerId).stream()
@@ -84,6 +100,7 @@ public class NormalizedLoanService implements LoanQueryService {
 
   @Override
   public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
+    log.info("fetching payments for loan id={} (normalized)", loanAccountNumber);
     return paymentRepository
         .findByLoanAccountLoanAccountNumberOrderByPaymentDateDesc(loanAccountNumber)
         .stream()
@@ -94,6 +111,12 @@ public class NormalizedLoanService implements LoanQueryService {
   private LoanSummaryDto toLoanSummary(LoanAccount account) {
     LoanProduct product = account.getLoanProduct();
     Borrower borrower = account.getBorrower();
+    if (product == null) {
+      log.warn(
+          "product not found code={} for loan id={}, falling back to raw code",
+          account.getProductCode(),
+          account.getLoanAccountNumber());
+    }
 
     LoanSummaryDto dto = new LoanSummaryDto();
     dto.setLoanAccountNumber(account.getLoanAccountNumber());
