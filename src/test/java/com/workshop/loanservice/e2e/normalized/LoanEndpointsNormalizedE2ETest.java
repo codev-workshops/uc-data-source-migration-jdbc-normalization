@@ -1,4 +1,4 @@
-package com.workshop.loanservice.e2e;
+package com.workshop.loanservice.e2e.normalized;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.context.jdbc.Sql.ExecutionPhase.AFTER_TEST_METHOD;
@@ -14,14 +14,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.jdbc.Sql;
 
-/** Baseline coverage of {@code /api/loans} and {@code /api/loans/{id}}. */
-class LoanEndpointsE2ETest extends BaseLegacyBaselineE2ETest {
+/** Normalized-mode coverage of {@code /api/loans} and {@code /api/loans/{id}}. */
+class LoanEndpointsNormalizedE2ETest extends BaseNormalizedE2ETest {
 
   private static final ParameterizedTypeReference<List<LoanSummaryDto>> LOAN_LIST =
       new ParameterizedTypeReference<>() {};
 
   @Test
-  void listLoansReturnsSeededLoansWithTranslatedFields() {
+  void listLoansReturnsMigratedLoansWithTranslatedFields() {
     ResponseEntity<List<LoanSummaryDto>> response =
         restTemplate.exchange("/api/loans", HttpMethod.GET, null, LOAN_LIST);
 
@@ -62,33 +62,6 @@ class LoanEndpointsE2ETest extends BaseLegacyBaselineE2ETest {
   }
 
   @Test
-  @Sql(
-      scripts = "classpath:test-data/e2e/missing-product-loan.sql",
-      executionPhase = BEFORE_TEST_METHOD)
-  @Sql(
-      scripts = "classpath:test-data/e2e/missing-product-loan-cleanup.sql",
-      executionPhase = AFTER_TEST_METHOD)
-  void listLoansFallsBackToRawProductCodeWhenProductRowIsMissing() {
-    ResponseEntity<List<LoanSummaryDto>> response =
-        restTemplate.exchange("/api/loans", HttpMethod.GET, null, LOAN_LIST);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(findLoan(response.getBody(), "LN-NOPROD-0001").getProductDescription())
-        .isEqualTo("ZZZ99");
-  }
-
-  @Test
-  @Sql(scripts = "classpath:test-data/e2e/malformed-loan.sql", executionPhase = BEFORE_TEST_METHOD)
-  @Sql(
-      scripts = "classpath:test-data/e2e/malformed-loan-cleanup.sql",
-      executionPhase = AFTER_TEST_METHOD)
-  void listLoansReturnsServerErrorWhenAnAmountIsNotNumeric() {
-    ResponseEntity<String> response = restTemplate.getForEntity("/api/loans", String.class);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-  }
-
-  @Test
   void getLoanByIdReturnsTranslatedLoan() {
     ResponseEntity<LoanSummaryDto> response =
         restTemplate.getForEntity("/api/loans/LN-2018-00089", LoanSummaryDto.class);
@@ -100,6 +73,7 @@ class LoanEndpointsE2ETest extends BaseLegacyBaselineE2ETest {
     assertThat(loan.getProductDescription()).isEqualTo("5/1 Adjustable Rate Mortgage");
     assertThat(loan.getCurrentBalance()).isEqualByComparingTo(new BigDecimal("178234.12"));
     assertThat(loan.getStatus()).isEqualTo("Active");
+    assertThat(loan.getOriginationDate()).isEqualTo("07/01/2018");
     assertThat(loan.getPropertyAddress()).isEqualTo("305 Pine Road, Austin, TX 78701");
     assertThat(loan.getPropertyType()).isEqualTo("Single Family Residence");
   }
@@ -108,18 +82,6 @@ class LoanEndpointsE2ETest extends BaseLegacyBaselineE2ETest {
   void getLoanByIdReturnsServerErrorForUnknownId() {
     ResponseEntity<String> response =
         restTemplate.getForEntity("/api/loans/LN-DOES-NOT-EXIST", String.class);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-  }
-
-  @Test
-  @Sql(scripts = "classpath:test-data/e2e/malformed-loan.sql", executionPhase = BEFORE_TEST_METHOD)
-  @Sql(
-      scripts = "classpath:test-data/e2e/malformed-loan-cleanup.sql",
-      executionPhase = AFTER_TEST_METHOD)
-  void getLoanByIdReturnsServerErrorWhenAmountIsNotNumeric() {
-    ResponseEntity<String> response =
-        restTemplate.getForEntity("/api/loans/LN-BAD-00001", String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
   }

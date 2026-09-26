@@ -11,6 +11,7 @@ import com.workshop.loanservice.repository.LegacyBorrowerRepository;
 import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import com.workshop.loanservice.repository.LegacyLoanProductRepository;
 import com.workshop.loanservice.repository.LegacyPaymentRepository;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -24,27 +25,29 @@ import java.util.stream.Collectors;
  *
  * MIGRATION TASK: This service contains all the translation logic
  * between legacy string-typed fields and proper Java types.
- * When switching data sources, this layer needs to be updated
- * (or replaced) to read from the modern schema.
+ *
+ * Active when {@code application.data-mode} is {@code legacy}, which is also the default.
  */
 @Service
-public class LoanService {
+@ConditionalOnProperty(name = "application.data-mode", havingValue = "legacy", matchIfMissing = true)
+public class LegacyLoanService implements LoanQueryService {
 
     private final LegacyBorrowerRepository borrowerRepository;
     private final LegacyLoanAccountRepository loanAccountRepository;
     private final LegacyLoanProductRepository loanProductRepository;
     private final LegacyPaymentRepository paymentRepository;
 
-    public LoanService(LegacyBorrowerRepository borrowerRepository,
-                       LegacyLoanAccountRepository loanAccountRepository,
-                       LegacyLoanProductRepository loanProductRepository,
-                       LegacyPaymentRepository paymentRepository) {
+    public LegacyLoanService(LegacyBorrowerRepository borrowerRepository,
+                             LegacyLoanAccountRepository loanAccountRepository,
+                             LegacyLoanProductRepository loanProductRepository,
+                             LegacyPaymentRepository paymentRepository) {
         this.borrowerRepository = borrowerRepository;
         this.loanAccountRepository = loanAccountRepository;
         this.loanProductRepository = loanProductRepository;
         this.paymentRepository = paymentRepository;
     }
 
+    @Override
     public List<LoanSummaryDto> getAllLoans() {
         Map<String, LegacyLoanProduct> products = loanProductRepository.findAll()
                 .stream()
@@ -55,6 +58,7 @@ public class LoanService {
                 .collect(Collectors.toList());
     }
 
+    @Override
     public LoanSummaryDto getLoanById(String loanAccountNumber) {
         LegacyLoanAccount acct = loanAccountRepository.findById(loanAccountNumber)
                 .orElseThrow(() -> new RuntimeException("Loan not found: " + loanAccountNumber));
@@ -63,12 +67,14 @@ public class LoanService {
         return toLoanSummary(acct, product);
     }
 
+    @Override
     public List<BorrowerDto> getAllBorrowers() {
         return borrowerRepository.findAll().stream()
                 .map(this::toBorrowerDto)
                 .collect(Collectors.toList());
     }
 
+    @Override
     public BorrowerDto getBorrowerById(String borrowerId) {
         LegacyBorrower borrower = borrowerRepository.findById(borrowerId)
                 .orElseThrow(() -> new RuntimeException("Borrower not found: " + borrowerId));
@@ -87,6 +93,7 @@ public class LoanService {
         return dto;
     }
 
+    @Override
     public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
         return paymentRepository.findByLoanAccountNumberOrderByPaymentDateDesc(loanAccountNumber)
                 .stream()
