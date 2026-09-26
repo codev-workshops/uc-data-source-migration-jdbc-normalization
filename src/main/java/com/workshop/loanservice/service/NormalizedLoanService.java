@@ -7,6 +7,7 @@ import com.workshop.loanservice.entity.normalized.Borrower;
 import com.workshop.loanservice.entity.normalized.LoanAccount;
 import com.workshop.loanservice.entity.normalized.LoanProduct;
 import com.workshop.loanservice.entity.normalized.Payment;
+import com.workshop.loanservice.exception.ResourceNotFoundException;
 import com.workshop.loanservice.repository.normalized.BorrowerRepository;
 import com.workshop.loanservice.repository.normalized.LoanAccountRepository;
 import com.workshop.loanservice.repository.normalized.PaymentRepository;
@@ -25,10 +26,10 @@ import org.springframework.stereotype.Service;
  * the legacy string parsing, while code expansions and the formatting of names, addresses and dates
  * are unchanged.
  *
- * <p>Active when {@code application.data-mode} is {@code normalized}.
+ * <p>Active when {@code application.data-mode} is {@code normalized}, which is also the default.
  */
 @Service
-@ConditionalOnProperty(name = "application.data-mode", havingValue = "normalized")
+@ConditionalOnProperty(name = "application.data-mode", havingValue = "normalized", matchIfMissing = true)
 public class NormalizedLoanService implements LoanQueryService {
 
   private static final Logger log = LoggerFactory.getLogger(NormalizedLoanService.class);
@@ -66,7 +67,7 @@ public class NormalizedLoanService implements LoanQueryService {
             .orElseThrow(
                 () -> {
                   log.warn("loan not found id={}", loanAccountNumber);
-                  return new RuntimeException("Loan not found: " + loanAccountNumber);
+                  return new ResourceNotFoundException("Loan", loanAccountNumber);
                 });
     return toLoanSummary(account);
   }
@@ -88,7 +89,7 @@ public class NormalizedLoanService implements LoanQueryService {
             .orElseThrow(
                 () -> {
                   log.warn("borrower not found id={}", borrowerId);
-                  return new RuntimeException("Borrower not found: " + borrowerId);
+                  return new ResourceNotFoundException("Borrower", borrowerId);
                 });
     BorrowerDto dto = toBorrowerDto(borrower);
     dto.setLoans(

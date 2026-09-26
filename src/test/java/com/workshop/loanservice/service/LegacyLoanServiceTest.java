@@ -11,6 +11,7 @@ import com.workshop.loanservice.entity.LegacyBorrower;
 import com.workshop.loanservice.entity.LegacyLoanAccount;
 import com.workshop.loanservice.entity.LegacyLoanProduct;
 import com.workshop.loanservice.entity.LegacyPayment;
+import com.workshop.loanservice.exception.ResourceNotFoundException;
 import com.workshop.loanservice.repository.LegacyBorrowerRepository;
 import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import com.workshop.loanservice.repository.LegacyLoanProductRepository;
@@ -92,7 +93,7 @@ class LegacyLoanServiceTest {
     given(loanAccountRepository.findById("missing")).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.getLoanById("missing"))
-        .isExactlyInstanceOf(RuntimeException.class)
+        .isExactlyInstanceOf(ResourceNotFoundException.class)
         .hasMessage("Loan not found: missing");
   }
 
@@ -213,7 +214,7 @@ class LegacyLoanServiceTest {
     given(borrowerRepository.findById("missing")).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.getBorrowerById("missing"))
-        .isExactlyInstanceOf(RuntimeException.class)
+        .isExactlyInstanceOf(ResourceNotFoundException.class)
         .hasMessage("Borrower not found: missing");
   }
 

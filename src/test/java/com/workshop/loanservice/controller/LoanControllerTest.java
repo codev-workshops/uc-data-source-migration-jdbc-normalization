@@ -1,6 +1,5 @@
 package com.workshop.loanservice.controller;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -8,8 +7,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.workshop.loanservice.dto.LoanSummaryDto;
 import com.workshop.loanservice.dto.PaymentDto;
+import com.workshop.loanservice.exception.GlobalExceptionHandler;
+import com.workshop.loanservice.exception.ResourceNotFoundException;
 import com.workshop.loanservice.service.LoanQueryService;
-import jakarta.servlet.ServletException;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -19,12 +19,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Slice test for {@link LoanController}.
- *
- * <p>There is no {@code @ControllerAdvice}, so service exceptions escape the dispatcher unhandled.
- * In a real container this surfaces as HTTP 500 (covered by the e2e suites); under MockMvc, which
- * has no container error page, the same failure appears as a {@link ServletException} wrapping the
- * original cause. The failure tests below pin that behavior.
+ * Slice test for {@link LoanController}, with {@link GlobalExceptionHandler} imported so service
+ * exceptions are rendered as {@code ErrorResponse} bodies.
  */
 @WebMvcTest(LoanController.class)
 class LoanControllerTest {
@@ -60,14 +56,19 @@ class LoanControllerTest {
   }
 
   @Test
-  void getLoanPropagatesUnhandledRuntimeException() {
+  void getLoanReturnsNotFoundErrorResponse() throws Exception {
     given(loanService.getLoanById("missing"))
-        .willThrow(new RuntimeException("Loan not found: missing"));
+        .willThrow(new ResourceNotFoundException("Loan", "missing"));
 
-    assertThatThrownBy(() -> mockMvc.perform(get("/api/loans/missing")))
-        .isInstanceOf(ServletException.class)
-        .hasCauseExactlyInstanceOf(RuntimeException.class)
-        .hasRootCauseMessage("Loan not found: missing");
+    mockMvc
+        .perform(get("/api/loans/missing"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.error").value("Not Found"))
+        .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
+        .andExpect(jsonPath("$.message").value("Loan not found: missing"))
+        .andExpect(jsonPath("$.path").value("/api/loans/missing"))
+        .andExpect(jsonPath("$.timestamp").isNotEmpty());
   }
 
   @Test
@@ -83,16 +84,6 @@ class LoanControllerTest {
         .andExpect(jsonPath("$[0].totalAmount").value(1487.02))
         .andExpect(jsonPath("$[0].type").value("Regular"))
         .andExpect(jsonPath("$[0].status").value("Posted"));
-  }
-
-  @Test
-  void getPaymentsPropagatesUnhandledNumberFormatException() {
-    given(loanService.getPaymentsByLoan("LN-2019-00142"))
-        .willThrow(new NumberFormatException("For input string: \"abc\""));
-
-    assertThatThrownBy(() -> mockMvc.perform(get("/api/loans/LN-2019-00142/payments")))
-        .isInstanceOf(ServletException.class)
-        .hasCauseInstanceOf(NumberFormatException.class);
   }
 
   private static LoanSummaryDto loan() {

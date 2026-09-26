@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.context.jdbc.Sql.ExecutionPhase.AFTER_TEST_METHOD;
 import static org.springframework.test.context.jdbc.Sql.ExecutionPhase.BEFORE_TEST_METHOD;
 
+import com.workshop.loanservice.dto.ErrorResponse;
 import com.workshop.loanservice.dto.PaymentDto;
 import java.math.BigDecimal;
 import java.util.List;
@@ -93,9 +94,12 @@ class PaymentEndpointsLegacyE2ETest extends BaseLegacyE2ETest {
       scripts = "classpath:test-data/e2e/legacy/malformed-payment-cleanup.sql",
       executionPhase = AFTER_TEST_METHOD)
   void listPaymentsReturnsServerErrorWhenAmountIsNotNumeric() {
-    ResponseEntity<String> response =
-        restTemplate.getForEntity("/api/loans/LN-2019-00142/payments", String.class);
+    ResponseEntity<ErrorResponse> response =
+        restTemplate.getForEntity("/api/loans/LN-2019-00142/payments", ErrorResponse.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getCode()).isEqualTo("INTERNAL_ERROR");
+    assertThat(response.getBody().getPath()).isEqualTo("/api/loans/LN-2019-00142/payments");
   }
 }
