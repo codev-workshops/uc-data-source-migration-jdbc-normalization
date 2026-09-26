@@ -121,3 +121,31 @@ or passing any other value serves from the normalized schema. The `e2e/legacy` s
 parameter through a `RestTemplateBuilder` interceptor, and `e2e/routing/ServiceSelectionE2ETest`
 asserts the routing decision itself (legacy expands `ACT` to `Active`, normalized returns
 `ACTIVE`).
+
+## 12. Task 4 validation
+
+**Intent:** Prove, against a single running instance, that the legacy `CDW_*` path and the
+normalized path return the same business-meaningful result for every read endpoint.
+
+**Outcome:** `e2e/migration/MigrationValidationE2ETest` covers `GET /api/loans`,
+`/api/loans/{id}`, `/api/borrowers`, `/api/borrowers/{id}`, `/api/loans/{id}/payments` and the
+alias `/api/payments/loan/{id}` (seeded ids `LN-2019-00142`, `B-10001`). Each endpoint is requested
+with `serviceImpl=legacy` and `serviceImpl=normalized`; both must return 200 and both bodies are
+deserialized into the DTOs and compared with AssertJ `usingRecursiveComparison()` against each
+other and against a golden file under `src/test/resources/test-data/e2e/golden/` (one per
+endpoint, captured from the normalized path, which is the canonical/default source). The
+normalized response must match its golden file field for field; the legacy response is held to the
+same standard except for the two differences below.
+
+Intentional differences, tolerated by the comparison and otherwise unchanged in the services:
+
+| Field(s) | Legacy | Normalized | Handling |
+| --- | --- | --- | --- |
+| `originalAmount`, `interestRate`, other `BigDecimal`s | scale of the source string (`285000`, `4.75`) | column scale (`285000.00`, `4.750`) | compared with `BigDecimal.compareTo` (equal by value) |
+| `status`, `type` (loan status, payment type/status) | title case from `LegacyLoanService` (`Active`, `Regular`, `Posted`) | upper-case constants written by V4 (`ACTIVE`, `REGULAR`, `POSTED`) | compared case-insensitively |
+| `propertyType` | `Single Family Residence`, `Multi-Family Residence` | `Single Family`, `Multi-Family` | legacy wording mapped to the normalized constant before comparing |
+
+The code-style difference is deliberate: it is what lets `e2e/routing/ServiceSelectionE2ETest`
+observe which path served a request, and the `e2e/legacy` and `e2e/normalized` suites each pin
+their own wording. Identifiers, names, dates (`MM/dd/yyyy` on both paths), addresses, list sizes
+and ordering are identical.
