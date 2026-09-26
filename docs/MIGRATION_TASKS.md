@@ -58,8 +58,8 @@ The loan-service app currently reads from legacy CDW (Corporate Data Warehouse) 
 - Legacy entities and repositories can be removed (or kept for reference)
 
 > **Legacy removal:** deferred. The legacy service, entities, repositories and tests are kept,
-> annotated `@Deprecated`, and remain selectable via `application.data-mode=legacy` (the default is
-> `normalized`); see [MIGRATION_LOG.md](MIGRATION_LOG.md).
+> annotated `@Deprecated`, and remain selectable per request via the `serviceImpl=legacy` query
+> parameter (the default is `normalized`); see [MIGRATION_LOG.md](MIGRATION_LOG.md).
 
 ## Task 4: Add Validation Tests
 

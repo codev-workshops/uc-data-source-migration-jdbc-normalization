@@ -19,7 +19,8 @@ import org.springframework.test.context.TestPropertySource;
 /**
  * Hybrid test: real HTTP stack with a mocked repository, documenting that a persistence failure
  * surfaces as HTTP 500 with a {@code DATA_ACCESS_ERROR} body. It runs in legacy mode against its
- * own database so it cannot disturb the pure end-to-end classes.
+ * own database so it cannot disturb the pure end-to-end classes. The legacy path is selected per
+ * request with {@code serviceImpl=legacy}.
  *
  * <p>Mocking a concrete repository keeps this class separate from the interface-based e2e suites.
  *
@@ -31,7 +32,6 @@ import org.springframework.test.context.TestPropertySource;
 @ActiveProfiles("e2e-test")
 @TestPropertySource(
     properties = {
-      "application.data-mode=legacy",
       "spring.datasource.url="
           + "jdbc:h2:mem:legacyhybrid;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
     })
@@ -47,7 +47,7 @@ class LoanEndpointsDataAccessFailureLegacyHybridTest {
         .willThrow(new DataAccessResourceFailureException("legacy warehouse unavailable"));
 
     ResponseEntity<ErrorResponse> response =
-        restTemplate.getForEntity("/api/loans", ErrorResponse.class);
+        restTemplate.getForEntity("/api/loans?serviceImpl=legacy", ErrorResponse.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     ErrorResponse body = response.getBody();

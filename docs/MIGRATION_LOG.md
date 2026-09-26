@@ -94,3 +94,30 @@ repositories as the replacement. The `@ConditionalOnProperty` wiring and the
 `application.data-mode=normalized` property are back: `normalized` is the default
 (`matchIfMissing = true`) and `legacy` selects the deprecated path. `schema-legacy.sql` and
 `data-legacy.sql` stay deleted, since Flyway owns the schema.
+
+## 11. Per-request implementation selection
+
+**Intent:** Choose the legacy or normalized data path per HTTP request instead of once per
+deployment, so both paths can be compared side by side against the same running instance.
+
+**Outcome:** The static `@ConditionalOnProperty` wiring and the `application.data-mode` property
+were removed; `NormalizedLoanService` and `LegacyLoanService` are now always-on beans. A new
+`routing` package holds the selection machinery:
+
+- `ServiceImplementation` (`LEGACY`, `NORMALIZED`) with `fromParam(String)`, which parses
+  case-insensitively and defaults to `NORMALIZED` for null, blank or unknown values.
+- `LoanServiceRegistry`, a singleton `Map<ServiceImplementation, LoanQueryService>`. Each concrete
+  service self-registers in a `@PostConstruct` hook; `get` falls back to `NORMALIZED` and throws
+  `IllegalStateException` only if neither is registered.
+- `RoutingContext`, a `@RequestScope` bean holding the selection for the current request.
+- `ServiceSelectionInterceptor`, a `HandlerInterceptor` registered by `config/WebConfig` for
+  `/api/**`. It reads the `serviceImpl` query parameter, logs the raw and resolved values, and
+  stores the result on the `RoutingContext`.
+- `LoanServiceRouter`, the `@Primary` `LoanQueryService` facade injected into the controllers. Each
+  call reads the `RoutingContext` and delegates to the registered service.
+
+Usage: `GET /api/loans?serviceImpl=legacy` serves from the `CDW_*` tables; omitting the parameter
+or passing any other value serves from the normalized schema. The `e2e/legacy` suite appends the
+parameter through a `RestTemplateBuilder` interceptor, and `e2e/routing/ServiceSelectionE2ETest`
+asserts the routing decision itself (legacy expands `ACT` to `Active`, normalized returns
+`ACTIVE`).

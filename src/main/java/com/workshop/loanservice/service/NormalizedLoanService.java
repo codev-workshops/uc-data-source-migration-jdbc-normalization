@@ -11,6 +11,9 @@ import com.workshop.loanservice.exception.ResourceNotFoundException;
 import com.workshop.loanservice.repository.normalized.BorrowerRepository;
 import com.workshop.loanservice.repository.normalized.LoanAccountRepository;
 import com.workshop.loanservice.repository.normalized.PaymentRepository;
+import com.workshop.loanservice.routing.LoanServiceRegistry;
+import com.workshop.loanservice.routing.ServiceImplementation;
+import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -18,7 +21,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
@@ -27,13 +29,9 @@ import org.springframework.stereotype.Service;
  * BIGINT surrogate ids never leave the persistence layer. Status, type and property-type values are
  * already expanded in the database (by the V4 migration) and are passed through unchanged.
  *
- * <p>Active when {@code application.data-mode} is {@code normalized}, which is also the default.
+ * <p>Registered as {@link ServiceImplementation#NORMALIZED}, the default per-request selection.
  */
 @Service
-@ConditionalOnProperty(
-    name = "application.data-mode",
-    havingValue = "normalized",
-    matchIfMissing = true)
 public class NormalizedLoanService implements LoanQueryService {
 
   private static final Logger log = LoggerFactory.getLogger(NormalizedLoanService.class);
@@ -44,14 +42,22 @@ public class NormalizedLoanService implements LoanQueryService {
   private final BorrowerRepository borrowerRepository;
   private final LoanAccountRepository loanAccountRepository;
   private final PaymentRepository paymentRepository;
+  private final LoanServiceRegistry registry;
 
   public NormalizedLoanService(
       BorrowerRepository borrowerRepository,
       LoanAccountRepository loanAccountRepository,
-      PaymentRepository paymentRepository) {
+      PaymentRepository paymentRepository,
+      LoanServiceRegistry registry) {
     this.borrowerRepository = borrowerRepository;
     this.loanAccountRepository = loanAccountRepository;
     this.paymentRepository = paymentRepository;
+    this.registry = registry;
+  }
+
+  @PostConstruct
+  void register() {
+    registry.register(ServiceImplementation.NORMALIZED, this);
   }
 
   @Override

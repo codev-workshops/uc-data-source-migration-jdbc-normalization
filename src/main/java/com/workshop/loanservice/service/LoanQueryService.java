@@ -6,9 +6,10 @@ import com.workshop.loanservice.dto.PaymentDto;
 import java.util.List;
 
 /**
- * Read model behind the REST layer. Exactly one implementation is wired at runtime, selected by the
- * {@code application.data-mode} property: {@link NormalizedLoanService} (default) or the deprecated
- * {@link LegacyLoanService}.
+ * Read model behind the REST layer. Controllers inject the {@code @Primary}
+ * {@link com.workshop.loanservice.routing.LoanServiceRouter}, which delegates per request to
+ * {@link NormalizedLoanService} (default) or the deprecated {@link LegacyLoanService} based on the
+ * {@code serviceImpl} query parameter.
  */
 public interface LoanQueryService {
 

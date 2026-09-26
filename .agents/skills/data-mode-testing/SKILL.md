@@ -6,9 +6,11 @@ description: Run the loan API locally in selectable data modes and inspect the i
 # Local runtime testing
 
 Use the repository blueprint for Maven/Java dependency setup.
-Start `mvn spring-boot:run` on port 8080. To select another data mode,
-restart with `mvn spring-boot:run -Dspring-boot.run.arguments=--application.data-mode=legacy`.
-Terminate the prior Maven process tree first to release port 8080. Each
+Start `mvn spring-boot:run` on port 8080. Both data paths are active in
+the same process; select the legacy path per request with the
+`serviceImpl=legacy` query parameter (e.g. `/api/loans?serviceImpl=legacy`).
+Any other value or no parameter uses the normalized path. Terminate the
+prior Maven process tree before restarting to release port 8080. Each
 restart creates a fresh in-memory database; reconnect the console afterward.
 
 ## Devin Secrets Needed
@@ -34,8 +36,9 @@ Compare both payment aliases and all JSON values across modes, not only keys.
 Use unknown loan, borrower, and payment-owner IDs separately; they need
 not share the same not-found behavior.
 
-Service identity is logged on requests, not necessarily startup. Search
-logs for `NormalizedLoanService` or `LegacyLoanService`, and retain
+Service identity is logged on requests, not startup. `ServiceSelectionInterceptor`
+logs the raw `serviceImpl` value and the resolved implementation; the
+service log lines are tagged `(legacy)` or `(normalized)`. Retain
 startup logs to detect ambiguous or missing dependency injection.
 Browser requests for an absent favicon may add unrelated error logs.
 Java ErrorResponse timestamps may carry nanosecond precision; avoid
