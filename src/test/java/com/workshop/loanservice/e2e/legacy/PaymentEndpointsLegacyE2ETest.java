@@ -14,7 +14,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.jdbc.Sql;
 
-/** Baseline coverage of {@code /api/loans/{loanId}/payments}. */
+/**
+ * Baseline coverage of {@code /api/loans/{loanId}/payments} and its alias {@code
+ * /api/payments/loan/{loanId}}.
+ */
 class PaymentEndpointsLegacyE2ETest extends BaseLegacyE2ETest {
 
   private static final ParameterizedTypeReference<List<PaymentDto>> PAYMENT_LIST =
@@ -42,6 +45,22 @@ class PaymentEndpointsLegacyE2ETest extends BaseLegacyE2ETest {
     assertThat(latest.getLateFee()).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(latest.getType()).isEqualTo("Regular");
     assertThat(latest.getStatus()).isEqualTo("Posted");
+  }
+
+  @Test
+  void paymentHistoryEndpointReturnsSameContractAsLoanPaymentsEndpoint() {
+    ResponseEntity<List<PaymentDto>> response =
+        restTemplate.exchange(
+            "/api/payments/loan/LN-2019-00142", HttpMethod.GET, null, PAYMENT_LIST);
+    ResponseEntity<List<PaymentDto>> legacyPath =
+        restTemplate.exchange(
+            "/api/loans/LN-2019-00142/payments", HttpMethod.GET, null, PAYMENT_LIST);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody())
+        .extracting(PaymentDto::getPaymentId)
+        .containsExactly("PMT-2025120001", "PMT-2025110001");
+    assertThat(response.getBody()).usingRecursiveComparison().isEqualTo(legacyPath.getBody());
   }
 
   @Test

@@ -26,19 +26,19 @@ public class LoanController {
 
     @GetMapping
     public List<LoanSummaryDto> getAllLoans() {
-        log.info("GET /api/loans");
+        log.info("Query for all loans");
         return loanService.getAllLoans();
     }
 
     @GetMapping("/{id}")
     public LoanSummaryDto getLoan(@PathVariable String id) {
-        log.info("GET /api/loans/{}", id);
+        log.info("Query for loan id={}", id);
         return loanService.getLoanById(id);
     }
 
     @GetMapping("/{loanId}/payments")
     public List<PaymentDto> getPayments(@PathVariable String loanId) {
-        log.info("GET /api/loans/{}/payments", loanId);
+        log.info("Query for payment history of loan id={}", loanId);
         return loanService.getPaymentsByLoan(loanId);
     }
 }
