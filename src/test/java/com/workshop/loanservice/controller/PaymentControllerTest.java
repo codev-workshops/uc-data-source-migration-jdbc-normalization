@@ -1,14 +1,14 @@
 package com.workshop.loanservice.controller;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.workshop.loanservice.dto.PaymentDto;
+import com.workshop.loanservice.exception.GlobalExceptionHandler;
+import com.workshop.loanservice.exception.ResourceNotFoundException;
 import com.workshop.loanservice.service.LoanQueryService;
-import jakarta.servlet.ServletException;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -18,8 +18,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Slice test for {@link PaymentController}. See {@link LoanControllerTest} for why unhandled
- * service exceptions are asserted as a {@link ServletException} rather than an HTTP 500.
+ * Slice test for {@link PaymentController}, with {@link GlobalExceptionHandler} imported so
+ * service exceptions are rendered as {@code ErrorResponse} bodies.
  */
 @WebMvcTest(PaymentController.class)
 class PaymentControllerTest {
@@ -59,14 +59,32 @@ class PaymentControllerTest {
   }
 
   @Test
-  void getPaymentHistoryPropagatesUnhandledRuntimeException() {
+  void getPaymentHistoryReturnsNotFoundErrorResponse() throws Exception {
+    given(loanQueryService.getPaymentsByLoan("missing"))
+        .willThrow(new ResourceNotFoundException("Loan", "missing"));
+
+    mockMvc
+        .perform(get("/api/payments/loan/missing"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.error").value("Not Found"))
+        .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
+        .andExpect(jsonPath("$.message").value("Loan not found: missing"))
+        .andExpect(jsonPath("$.path").value("/api/payments/loan/missing"))
+        .andExpect(jsonPath("$.timestamp").isNotEmpty());
+  }
+
+  @Test
+  void getPaymentHistoryReturnsInternalErrorResponseForUnexpectedException() throws Exception {
     given(loanQueryService.getPaymentsByLoan("LN-2019-00142"))
         .willThrow(new RuntimeException("boom"));
 
-    assertThatThrownBy(() -> mockMvc.perform(get("/api/payments/loan/LN-2019-00142")))
-        .isInstanceOf(ServletException.class)
-        .hasCauseExactlyInstanceOf(RuntimeException.class)
-        .hasRootCauseMessage("boom");
+    mockMvc
+        .perform(get("/api/payments/loan/LN-2019-00142"))
+        .andExpect(status().isInternalServerError())
+        .andExpect(jsonPath("$.code").value("INTERNAL_ERROR"))
+        .andExpect(jsonPath("$.message").value("Unexpected internal error"))
+        .andExpect(jsonPath("$.path").value("/api/payments/loan/LN-2019-00142"));
   }
 
   private static PaymentDto payment() {

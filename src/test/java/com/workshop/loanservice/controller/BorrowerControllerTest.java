@@ -1,6 +1,5 @@
 package com.workshop.loanservice.controller;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -8,8 +7,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.workshop.loanservice.dto.BorrowerDto;
 import com.workshop.loanservice.dto.LoanSummaryDto;
+import com.workshop.loanservice.exception.GlobalExceptionHandler;
+import com.workshop.loanservice.exception.ResourceNotFoundException;
 import com.workshop.loanservice.service.LoanQueryService;
-import jakarta.servlet.ServletException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,8 +18,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Slice test for {@link BorrowerController}. See {@link LoanControllerTest} for why unhandled
- * service exceptions are asserted as a {@link ServletException} rather than an HTTP 500.
+ * Slice test for {@link BorrowerController}, with {@link GlobalExceptionHandler} imported so
+ * service exceptions are rendered as {@code ErrorResponse} bodies.
  */
 @WebMvcTest(BorrowerController.class)
 class BorrowerControllerTest {
@@ -59,24 +59,19 @@ class BorrowerControllerTest {
   }
 
   @Test
-  void getBorrowerPropagatesUnhandledRuntimeException() {
+  void getBorrowerReturnsNotFoundErrorResponse() throws Exception {
     given(loanService.getBorrowerById("missing"))
-        .willThrow(new RuntimeException("Borrower not found: missing"));
+        .willThrow(new ResourceNotFoundException("Borrower", "missing"));
 
-    assertThatThrownBy(() -> mockMvc.perform(get("/api/borrowers/missing")))
-        .isInstanceOf(ServletException.class)
-        .hasCauseExactlyInstanceOf(RuntimeException.class)
-        .hasRootCauseMessage("Borrower not found: missing");
-  }
-
-  @Test
-  void getAllBorrowersPropagatesUnhandledNumberFormatException() {
-    given(loanService.getAllBorrowers())
-        .willThrow(new NumberFormatException("For input string: \"abc\""));
-
-    assertThatThrownBy(() -> mockMvc.perform(get("/api/borrowers")))
-        .isInstanceOf(ServletException.class)
-        .hasCauseInstanceOf(NumberFormatException.class);
+    mockMvc
+        .perform(get("/api/borrowers/missing"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.error").value("Not Found"))
+        .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
+        .andExpect(jsonPath("$.message").value("Borrower not found: missing"))
+        .andExpect(jsonPath("$.path").value("/api/borrowers/missing"))
+        .andExpect(jsonPath("$.timestamp").isNotEmpty());
   }
 
   private static BorrowerDto borrower() {

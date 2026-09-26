@@ -5,6 +5,7 @@ import static org.springframework.test.context.jdbc.Sql.ExecutionPhase.AFTER_TES
 import static org.springframework.test.context.jdbc.Sql.ExecutionPhase.BEFORE_TEST_METHOD;
 
 import com.workshop.loanservice.dto.BorrowerDto;
+import com.workshop.loanservice.dto.ErrorResponse;
 import com.workshop.loanservice.dto.LoanSummaryDto;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -99,11 +100,19 @@ class BorrowerEndpointsNormalizedE2ETest extends BaseNormalizedE2ETest {
   }
 
   @Test
-  void getBorrowerByIdReturnsServerErrorForUnknownId() {
-    ResponseEntity<String> response =
-        restTemplate.getForEntity("/api/borrowers/B-DOES-NOT-EXIST", String.class);
+  void getBorrowerByIdReturnsNotFoundForUnknownId() {
+    ResponseEntity<ErrorResponse> response =
+        restTemplate.getForEntity("/api/borrowers/B-DOES-NOT-EXIST", ErrorResponse.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    ErrorResponse body = response.getBody();
+    assertThat(body).isNotNull();
+    assertThat(body.getStatus()).isEqualTo(404);
+    assertThat(body.getError()).isEqualTo("Not Found");
+    assertThat(body.getCode()).isEqualTo("RESOURCE_NOT_FOUND");
+    assertThat(body.getMessage()).isEqualTo("Borrower not found: B-DOES-NOT-EXIST");
+    assertThat(body.getPath()).isEqualTo("/api/borrowers/B-DOES-NOT-EXIST");
+    assertThat(body.getTimestamp()).isNotBlank();
   }
 
   private static BorrowerDto findBorrower(List<BorrowerDto> borrowers, String borrowerId) {

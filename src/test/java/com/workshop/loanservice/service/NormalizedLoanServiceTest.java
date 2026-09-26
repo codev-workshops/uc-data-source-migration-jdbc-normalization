@@ -11,6 +11,7 @@ import com.workshop.loanservice.entity.normalized.Borrower;
 import com.workshop.loanservice.entity.normalized.LoanAccount;
 import com.workshop.loanservice.entity.normalized.LoanProduct;
 import com.workshop.loanservice.entity.normalized.Payment;
+import com.workshop.loanservice.exception.ResourceNotFoundException;
 import com.workshop.loanservice.repository.normalized.BorrowerRepository;
 import com.workshop.loanservice.repository.normalized.LoanAccountRepository;
 import com.workshop.loanservice.repository.normalized.PaymentRepository;
@@ -106,7 +107,7 @@ class NormalizedLoanServiceTest {
     given(loanAccountRepository.findById("missing")).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.getLoanById("missing"))
-        .isExactlyInstanceOf(RuntimeException.class)
+        .isExactlyInstanceOf(ResourceNotFoundException.class)
         .hasMessage("Loan not found: missing");
   }
 
@@ -156,7 +157,7 @@ class NormalizedLoanServiceTest {
     given(borrowerRepository.findById("missing")).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.getBorrowerById("missing"))
-        .isExactlyInstanceOf(RuntimeException.class)
+        .isExactlyInstanceOf(ResourceNotFoundException.class)
         .hasMessage("Borrower not found: missing");
   }
 

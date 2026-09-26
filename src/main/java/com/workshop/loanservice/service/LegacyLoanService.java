@@ -7,6 +7,7 @@ import com.workshop.loanservice.entity.LegacyBorrower;
 import com.workshop.loanservice.entity.LegacyLoanAccount;
 import com.workshop.loanservice.entity.LegacyLoanProduct;
 import com.workshop.loanservice.entity.LegacyPayment;
+import com.workshop.loanservice.exception.ResourceNotFoundException;
 import com.workshop.loanservice.repository.LegacyBorrowerRepository;
 import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import com.workshop.loanservice.repository.LegacyLoanProductRepository;
@@ -28,10 +29,10 @@ import java.util.stream.Collectors;
  * MIGRATION TASK: This service contains all the translation logic
  * between legacy string-typed fields and proper Java types.
  *
- * Active when {@code application.data-mode} is {@code legacy}, which is also the default.
+ * Active when {@code application.data-mode} is {@code legacy}.
  */
 @Service
-@ConditionalOnProperty(name = "application.data-mode", havingValue = "legacy", matchIfMissing = true)
+@ConditionalOnProperty(name = "application.data-mode", havingValue = "legacy")
 public class LegacyLoanService implements LoanQueryService {
 
     private static final Logger log = LoggerFactory.getLogger(LegacyLoanService.class);
@@ -69,7 +70,7 @@ public class LegacyLoanService implements LoanQueryService {
         LegacyLoanAccount acct = loanAccountRepository.findById(loanAccountNumber)
                 .orElseThrow(() -> {
                     log.warn("loan not found id={}", loanAccountNumber);
-                    return new RuntimeException("Loan not found: " + loanAccountNumber);
+                    return new ResourceNotFoundException("Loan", loanAccountNumber);
                 });
         LegacyLoanProduct product = loanProductRepository.findById(acct.getProductCode())
                 .orElse(null);
@@ -94,7 +95,7 @@ public class LegacyLoanService implements LoanQueryService {
         LegacyBorrower borrower = borrowerRepository.findById(borrowerId)
                 .orElseThrow(() -> {
                     log.warn("borrower not found id={}", borrowerId);
-                    return new RuntimeException("Borrower not found: " + borrowerId);
+                    return new ResourceNotFoundException("Borrower", borrowerId);
                 });
         BorrowerDto dto = toBorrowerDto(borrower);
 
