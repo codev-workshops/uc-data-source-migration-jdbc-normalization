@@ -14,7 +14,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.jdbc.Sql;
 
-/** Normalized-mode coverage of {@code /api/loans/{loanId}/payments}. */
+/**
+ * Normalized-mode coverage of {@code /api/loans/{loanId}/payments} and its alias {@code
+ * /api/payments/loan/{loanId}}.
+ */
 class PaymentEndpointsNormalizedE2ETest extends BaseNormalizedE2ETest {
 
   private static final ParameterizedTypeReference<List<PaymentDto>> PAYMENT_LIST =
@@ -44,6 +47,45 @@ class PaymentEndpointsNormalizedE2ETest extends BaseNormalizedE2ETest {
     assertThat(latest.getStatus()).isEqualTo("Posted");
 
     assertThat(payments.get(1).getPaymentDate()).isEqualTo("11/15/2025");
+  }
+
+  @Test
+  void paymentHistoryEndpointReturnsSameContractAsLoanPaymentsEndpoint() {
+    ResponseEntity<List<PaymentDto>> response =
+        restTemplate.exchange(
+            "/api/payments/loan/LN-2019-00142", HttpMethod.GET, null, PAYMENT_LIST);
+    ResponseEntity<List<PaymentDto>> legacyPath =
+        restTemplate.exchange(
+            "/api/loans/LN-2019-00142/payments", HttpMethod.GET, null, PAYMENT_LIST);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    List<PaymentDto> payments = response.getBody();
+    assertThat(payments)
+        .extracting(PaymentDto::getPaymentId)
+        .containsExactly("PMT-2025120001", "PMT-2025110001");
+
+    PaymentDto latest = payments.get(0);
+    assertThat(latest.getLoanAccountNumber()).isEqualTo("LN-2019-00142");
+    assertThat(latest.getPaymentDate()).isEqualTo("12/15/2025");
+    assertThat(latest.getTotalAmount()).isEqualByComparingTo(new BigDecimal("1487.02"));
+    assertThat(latest.getPrincipalAmount()).isEqualByComparingTo(new BigDecimal("456.78"));
+    assertThat(latest.getInterestAmount()).isEqualByComparingTo(new BigDecimal("1074.69"));
+    assertThat(latest.getEscrowAmount()).isEqualByComparingTo(new BigDecimal("355.55"));
+    assertThat(latest.getLateFee()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(latest.getType()).isEqualTo("Regular");
+    assertThat(latest.getStatus()).isEqualTo("Posted");
+
+    assertThat(payments).usingRecursiveComparison().isEqualTo(legacyPath.getBody());
+  }
+
+  @Test
+  void paymentHistoryEndpointReturnsEmptyListForUnknownLoan() {
+    ResponseEntity<List<PaymentDto>> response =
+        restTemplate.exchange(
+            "/api/payments/loan/LN-DOES-NOT-EXIST", HttpMethod.GET, null, PAYMENT_LIST);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isEmpty();
   }
 
   @Test

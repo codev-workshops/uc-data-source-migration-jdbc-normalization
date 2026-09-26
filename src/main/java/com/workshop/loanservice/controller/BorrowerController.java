@@ -25,13 +25,13 @@ public class BorrowerController {
 
     @GetMapping
     public List<BorrowerDto> getAllBorrowers() {
-        log.info("GET /api/borrowers");
+        log.info("Query for all borrowers");
         return loanService.getAllBorrowers();
     }
 
     @GetMapping("/{id}")
     public BorrowerDto getBorrower(@PathVariable String id) {
-        log.info("GET /api/borrowers/{}", id);
+        log.info("Query for borrower id={}", id);
         return loanService.getBorrowerById(id);
     }
 }
