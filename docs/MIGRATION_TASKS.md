@@ -57,8 +57,9 @@ The loan-service app currently reads from legacy CDW (Corporate Data Warehouse) 
 - No more string-to-type parsing in the service layer
 - Legacy entities and repositories can be removed (or kept for reference)
 
-> **Legacy removal:** done. The legacy service, entities, repositories, tests and `CDW_*` tables
-> were retired in the final phase; see [MIGRATION_LOG.md](MIGRATION_LOG.md).
+> **Legacy removal:** deferred. The legacy service, entities, repositories and tests are kept,
+> annotated `@Deprecated`, and remain selectable via `application.data-mode=legacy` (the default is
+> `normalized`); see [MIGRATION_LOG.md](MIGRATION_LOG.md).
 
 ## Task 4: Add Validation Tests
 

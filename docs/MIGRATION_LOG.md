@@ -80,3 +80,17 @@ deleted. The `application.data-mode` property and the `@ConditionalOnProperty` w
 entirely, since a flag with a single value serves no purpose: `NormalizedLoanService` is now the
 sole unconditional `@Service` implementing `LoanQueryService`. REST paths, DTO fields and the
 Flyway-only schema ownership are unchanged.
+
+## 10. Legacy path restored as deprecated
+
+**Intent:** Keep the legacy path available behind the `application.data-mode` flag while it is
+phased out, instead of removing it outright.
+
+**Outcome:** `V6__drop_legacy_schema.sql` was removed, so the `CDW_*` tables (created by `V1`,
+seeded by `V3`) persist. `LegacyLoanService`, the four `Legacy*` entities and repositories, their
+unit tests, the `e2e/legacy` suite and the `test-data/e2e/legacy` fixtures were restored and are
+annotated `@Deprecated`, pointing to `NormalizedLoanService` and the normalized entities and
+repositories as the replacement. The `@ConditionalOnProperty` wiring and the
+`application.data-mode=normalized` property are back: `normalized` is the default
+(`matchIfMissing = true`) and `legacy` selects the deprecated path. `schema-legacy.sql` and
+`data-legacy.sql` stay deleted, since Flyway owns the schema.
