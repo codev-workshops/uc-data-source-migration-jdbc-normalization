@@ -76,6 +76,12 @@ The loan-service app currently reads from legacy CDW (Corporate Data Warehouse) 
 - Any differences are documented and justified
 - Both data sources produce the same business-meaningful results
 
+> **Status: complete.** `e2e/migration/MigrationValidationE2ETest` requests every read endpoint
+> twice against one running instance (`serviceImpl=legacy` and `serviceImpl=normalized`) and
+> asserts both responses against each other and against the golden files under
+> `src/test/resources/test-data/e2e/golden/`. The two intentional differences (numeric scale and
+> code-expansion style) are documented in [MIGRATION_LOG.md](MIGRATION_LOG.md#12-task-4-validation).
+
 ## Task 5: Document the Migration
 
 **Objective:** Create migration documentation.
