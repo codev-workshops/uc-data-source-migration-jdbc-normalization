@@ -27,10 +27,25 @@ public class ServiceSelectionInterceptor implements HandlerInterceptor {
   @Override
   public boolean preHandle(
       HttpServletRequest request, HttpServletResponse response, Object handler) {
-    String raw = request.getParameter(PARAM);
-    ServiceImplementation impl = ServiceImplementation.fromParam(raw);
-    log.info("{}={} resolved to {} for {}", PARAM, raw, impl, request.getRequestURI());
-    routingContext.setImplementation(impl);
+    String requestedImplementation = request.getParameter(PARAM);
+    ServiceImplementation selectedImplementation;
+    if (requestedImplementation == null) {
+      selectedImplementation = ServiceImplementation.DEFAULT;
+      log.info(
+          "{} not provided, using default {} for {}",
+          PARAM,
+          selectedImplementation,
+          request.getRequestURI());
+    } else {
+      selectedImplementation = ServiceImplementation.fromParam(requestedImplementation);
+      log.info(
+          "{}={} resolved to {} for {}",
+          PARAM,
+          requestedImplementation,
+          selectedImplementation,
+          request.getRequestURI());
+    }
+    routingContext.setImplementation(selectedImplementation);
     return true;
   }
 }
