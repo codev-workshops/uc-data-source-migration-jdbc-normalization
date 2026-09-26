@@ -1,2 +1,0 @@
--- Loan account whose amount columns are not numeric, triggering parseLegacyAmount failures.
-INSERT INTO CDW_LN_ACCT VALUES ('LN-BAD-00001', 'B-10001', 'James', 'Mitchell', '0142', 'FXD30', 'abc', 'abc', '4.750', '360', '1,487.02', '02/15/2019', '02/15/2049', '03/15/2019', '01/15/2026', 'ACT', '0', '3,245.80', '82.5', '742 Elm Street', 'Springfield', 'IL', '62701', 'SFR', '345,000', '02/01/2019', '12/01/2025');

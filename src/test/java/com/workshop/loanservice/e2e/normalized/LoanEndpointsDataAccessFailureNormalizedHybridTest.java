@@ -26,11 +26,9 @@ import org.springframework.test.context.TestPropertySource;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("e2e-test")
 @TestPropertySource(
-    properties = {
-      "application.data-mode=normalized",
-      "spring.datasource.url="
-          + "jdbc:h2:mem:normalizedhybrid;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
-    })
+    properties =
+        "spring.datasource.url="
+            + "jdbc:h2:mem:normalizedhybrid;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE")
 class LoanEndpointsDataAccessFailureNormalizedHybridTest {
 
   @Autowired private TestRestTemplate restTemplate;
