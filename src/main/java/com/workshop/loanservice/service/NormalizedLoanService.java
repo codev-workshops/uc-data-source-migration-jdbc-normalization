@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
@@ -25,8 +26,14 @@ import org.springframework.stereotype.Service;
  * loans and borrowers by their external identifiers (account number, borrower external id); the
  * BIGINT surrogate ids never leave the persistence layer. Status, type and property-type values are
  * already expanded in the database (by the V4 migration) and are passed through unchanged.
+ *
+ * <p>Active when {@code application.data-mode} is {@code normalized}, which is also the default.
  */
 @Service
+@ConditionalOnProperty(
+    name = "application.data-mode",
+    havingValue = "normalized",
+    matchIfMissing = true)
 public class NormalizedLoanService implements LoanQueryService {
 
   private static final Logger log = LoggerFactory.getLogger(NormalizedLoanService.class);
