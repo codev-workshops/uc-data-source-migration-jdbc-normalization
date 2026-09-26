@@ -3,37 +3,43 @@ package com.workshop.loanservice.entity.normalized;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Maps to the normalized {@code loan_account} table created by Flyway.
  *
- * <p>Borrower details are no longer embedded in the loan row; they are reached through the
- * {@code borrower_id} association.
+ * <p>{@code accountNumber} is the identifier exposed by the API; {@code id} is an internal
+ * surrogate. Borrower and product are reached through their {@code borrower_id} / {@code
+ * product_id} associations, and {@code status} / {@code propertyType} hold the expanded modern
+ * values (for example {@code ACTIVE}, {@code Single Family}).
  */
 @Entity
 @Table(name = "loan_account")
 public class LoanAccount {
 
   @Id
-  @Column(name = "loan_account_number")
-  private String loanAccountNumber;
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @Column(name = "id")
+  private Long id;
 
-  @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "borrower_id")
+  @Column(name = "account_number", nullable = false, unique = true, length = 20)
+  private String accountNumber;
+
+  @ManyToOne(fetch = FetchType.EAGER, optional = false)
+  @JoinColumn(name = "borrower_id", nullable = false)
   private Borrower borrower;
 
-  @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "product_code")
-  private LoanProduct loanProduct;
-
-  @Column(name = "product_code", insertable = false, updatable = false)
-  private String productCode;
+  @ManyToOne(fetch = FetchType.EAGER, optional = false)
+  @JoinColumn(name = "product_id", nullable = false)
+  private LoanProduct product;
 
   @Column(name = "original_amount")
   private BigDecimal originalAmount;
@@ -62,11 +68,11 @@ public class LoanAccount {
   @Column(name = "next_payment_date")
   private LocalDate nextPaymentDate;
 
-  @Column(name = "status_code")
-  private String statusCode;
+  @Column(name = "status")
+  private String status;
 
-  @Column(name = "delinquent_days")
-  private Integer delinquentDays;
+  @Column(name = "delinquency_days")
+  private Integer delinquencyDays;
 
   @Column(name = "escrow_balance")
   private BigDecimal escrowBalance;
@@ -74,8 +80,8 @@ public class LoanAccount {
   @Column(name = "ltv_percent")
   private BigDecimal ltvPercent;
 
-  @Column(name = "property_address_line1")
-  private String propertyAddressLine1;
+  @Column(name = "property_address")
+  private String propertyAddress;
 
   @Column(name = "property_city")
   private String propertyCity;
@@ -89,21 +95,29 @@ public class LoanAccount {
   @Column(name = "property_type")
   private String propertyType;
 
-  @Column(name = "property_appraised_value")
-  private BigDecimal propertyAppraisedValue;
+  @Column(name = "appraised_value")
+  private BigDecimal appraisedValue;
 
-  @Column(name = "created_date")
-  private LocalDate createdDate;
+  @Column(name = "created_at")
+  private LocalDateTime createdAt;
 
-  @Column(name = "updated_date")
-  private LocalDate updatedDate;
+  @Column(name = "updated_at")
+  private LocalDateTime updatedAt;
 
-  public String getLoanAccountNumber() {
-    return loanAccountNumber;
+  public Long getId() {
+    return id;
   }
 
-  public void setLoanAccountNumber(String loanAccountNumber) {
-    this.loanAccountNumber = loanAccountNumber;
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public String getAccountNumber() {
+    return accountNumber;
+  }
+
+  public void setAccountNumber(String accountNumber) {
+    this.accountNumber = accountNumber;
   }
 
   public Borrower getBorrower() {
@@ -114,16 +128,12 @@ public class LoanAccount {
     this.borrower = borrower;
   }
 
-  public LoanProduct getLoanProduct() {
-    return loanProduct;
+  public LoanProduct getProduct() {
+    return product;
   }
 
-  public void setLoanProduct(LoanProduct loanProduct) {
-    this.loanProduct = loanProduct;
-  }
-
-  public String getProductCode() {
-    return productCode;
+  public void setProduct(LoanProduct product) {
+    this.product = product;
   }
 
   public BigDecimal getOriginalAmount() {
@@ -198,20 +208,20 @@ public class LoanAccount {
     this.nextPaymentDate = nextPaymentDate;
   }
 
-  public String getStatusCode() {
-    return statusCode;
+  public String getStatus() {
+    return status;
   }
 
-  public void setStatusCode(String statusCode) {
-    this.statusCode = statusCode;
+  public void setStatus(String status) {
+    this.status = status;
   }
 
-  public Integer getDelinquentDays() {
-    return delinquentDays;
+  public Integer getDelinquencyDays() {
+    return delinquencyDays;
   }
 
-  public void setDelinquentDays(Integer delinquentDays) {
-    this.delinquentDays = delinquentDays;
+  public void setDelinquencyDays(Integer delinquencyDays) {
+    this.delinquencyDays = delinquencyDays;
   }
 
   public BigDecimal getEscrowBalance() {
@@ -230,12 +240,12 @@ public class LoanAccount {
     this.ltvPercent = ltvPercent;
   }
 
-  public String getPropertyAddressLine1() {
-    return propertyAddressLine1;
+  public String getPropertyAddress() {
+    return propertyAddress;
   }
 
-  public void setPropertyAddressLine1(String propertyAddressLine1) {
-    this.propertyAddressLine1 = propertyAddressLine1;
+  public void setPropertyAddress(String propertyAddress) {
+    this.propertyAddress = propertyAddress;
   }
 
   public String getPropertyCity() {
@@ -270,27 +280,27 @@ public class LoanAccount {
     this.propertyType = propertyType;
   }
 
-  public BigDecimal getPropertyAppraisedValue() {
-    return propertyAppraisedValue;
+  public BigDecimal getAppraisedValue() {
+    return appraisedValue;
   }
 
-  public void setPropertyAppraisedValue(BigDecimal propertyAppraisedValue) {
-    this.propertyAppraisedValue = propertyAppraisedValue;
+  public void setAppraisedValue(BigDecimal appraisedValue) {
+    this.appraisedValue = appraisedValue;
   }
 
-  public LocalDate getCreatedDate() {
-    return createdDate;
+  public LocalDateTime getCreatedAt() {
+    return createdAt;
   }
 
-  public void setCreatedDate(LocalDate createdDate) {
-    this.createdDate = createdDate;
+  public void setCreatedAt(LocalDateTime createdAt) {
+    this.createdAt = createdAt;
   }
 
-  public LocalDate getUpdatedDate() {
-    return updatedDate;
+  public LocalDateTime getUpdatedAt() {
+    return updatedAt;
   }
 
-  public void setUpdatedDate(LocalDate updatedDate) {
-    this.updatedDate = updatedDate;
+  public void setUpdatedAt(LocalDateTime updatedAt) {
+    this.updatedAt = updatedAt;
   }
 }

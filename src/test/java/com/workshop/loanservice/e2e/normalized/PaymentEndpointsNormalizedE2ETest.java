@@ -43,8 +43,8 @@ class PaymentEndpointsNormalizedE2ETest extends BaseNormalizedE2ETest {
     assertThat(latest.getInterestAmount()).isEqualByComparingTo(new BigDecimal("1074.69"));
     assertThat(latest.getEscrowAmount()).isEqualByComparingTo(new BigDecimal("355.55"));
     assertThat(latest.getLateFee()).isEqualByComparingTo(BigDecimal.ZERO);
-    assertThat(latest.getType()).isEqualTo("Regular");
-    assertThat(latest.getStatus()).isEqualTo("Posted");
+    assertThat(latest.getType()).isEqualTo("REGULAR");
+    assertThat(latest.getStatus()).isEqualTo("POSTED");
 
     assertThat(payments.get(1).getPaymentDate()).isEqualTo("11/15/2025");
   }
@@ -72,8 +72,8 @@ class PaymentEndpointsNormalizedE2ETest extends BaseNormalizedE2ETest {
     assertThat(latest.getInterestAmount()).isEqualByComparingTo(new BigDecimal("1074.69"));
     assertThat(latest.getEscrowAmount()).isEqualByComparingTo(new BigDecimal("355.55"));
     assertThat(latest.getLateFee()).isEqualByComparingTo(BigDecimal.ZERO);
-    assertThat(latest.getType()).isEqualTo("Regular");
-    assertThat(latest.getStatus()).isEqualTo("Posted");
+    assertThat(latest.getType()).isEqualTo("REGULAR");
+    assertThat(latest.getStatus()).isEqualTo("POSTED");
 
     assertThat(payments).usingRecursiveComparison().isEqualTo(legacyPath.getBody());
   }

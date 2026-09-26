@@ -3,30 +3,43 @@ package com.workshop.loanservice.entity.normalized;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-/** Maps to the normalized {@code payment} table created by Flyway. */
+/**
+ * Maps to the normalized {@code payment} table created by Flyway.
+ *
+ * <p>{@code externalId} carries the public payment identifier (the legacy sequence number) exposed
+ * through the API; {@code id} is an internal surrogate. {@code type} and {@code status} hold the
+ * expanded modern values (for example {@code REGULAR}, {@code POSTED}).
+ */
 @Entity
 @Table(name = "payment")
 public class Payment {
 
   @Id
-  @Column(name = "payment_id")
-  private String paymentId;
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @Column(name = "id")
+  private Long id;
 
-  @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "loan_account_number")
+  @Column(name = "external_id", nullable = false, unique = true, length = 20)
+  private String externalId;
+
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "loan_account_id", nullable = false)
   private LoanAccount loanAccount;
 
-  @Column(name = "payment_date")
+  @Column(name = "payment_date", nullable = false)
   private LocalDate paymentDate;
 
-  @Column(name = "total_amount")
+  @Column(name = "total_amount", nullable = false)
   private BigDecimal totalAmount;
 
   @Column(name = "principal_amount")
@@ -41,11 +54,11 @@ public class Payment {
   @Column(name = "late_fee")
   private BigDecimal lateFee;
 
-  @Column(name = "type_code")
-  private String typeCode;
+  @Column(name = "type", nullable = false)
+  private String type;
 
-  @Column(name = "status_code")
-  private String statusCode;
+  @Column(name = "status", nullable = false)
+  private String status;
 
   @Column(name = "received_date")
   private LocalDate receivedDate;
@@ -53,18 +66,26 @@ public class Payment {
   @Column(name = "processed_date")
   private LocalDate processedDate;
 
-  @Column(name = "created_date")
-  private LocalDate createdDate;
+  @Column(name = "created_at")
+  private LocalDateTime createdAt;
 
-  @Column(name = "updated_date")
-  private LocalDate updatedDate;
+  @Column(name = "updated_at")
+  private LocalDateTime updatedAt;
 
-  public String getPaymentId() {
-    return paymentId;
+  public Long getId() {
+    return id;
   }
 
-  public void setPaymentId(String paymentId) {
-    this.paymentId = paymentId;
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public String getExternalId() {
+    return externalId;
+  }
+
+  public void setExternalId(String externalId) {
+    this.externalId = externalId;
   }
 
   public LoanAccount getLoanAccount() {
@@ -123,20 +144,20 @@ public class Payment {
     this.lateFee = lateFee;
   }
 
-  public String getTypeCode() {
-    return typeCode;
+  public String getType() {
+    return type;
   }
 
-  public void setTypeCode(String typeCode) {
-    this.typeCode = typeCode;
+  public void setType(String type) {
+    this.type = type;
   }
 
-  public String getStatusCode() {
-    return statusCode;
+  public String getStatus() {
+    return status;
   }
 
-  public void setStatusCode(String statusCode) {
-    this.statusCode = statusCode;
+  public void setStatus(String status) {
+    this.status = status;
   }
 
   public LocalDate getReceivedDate() {
@@ -155,19 +176,19 @@ public class Payment {
     this.processedDate = processedDate;
   }
 
-  public LocalDate getCreatedDate() {
-    return createdDate;
+  public LocalDateTime getCreatedAt() {
+    return createdAt;
   }
 
-  public void setCreatedDate(LocalDate createdDate) {
-    this.createdDate = createdDate;
+  public void setCreatedAt(LocalDateTime createdAt) {
+    this.createdAt = createdAt;
   }
 
-  public LocalDate getUpdatedDate() {
-    return updatedDate;
+  public LocalDateTime getUpdatedAt() {
+    return updatedAt;
   }
 
-  public void setUpdatedDate(LocalDate updatedDate) {
-    this.updatedDate = updatedDate;
+  public void setUpdatedAt(LocalDateTime updatedAt) {
+    this.updatedAt = updatedAt;
   }
 }

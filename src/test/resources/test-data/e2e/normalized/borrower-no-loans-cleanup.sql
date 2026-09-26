@@ -1,1 +1,1 @@
-DELETE FROM borrower WHERE borrower_id = 'B-90001';
+DELETE FROM borrower WHERE external_id = 'B-90001';

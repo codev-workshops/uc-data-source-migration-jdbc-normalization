@@ -45,10 +45,10 @@ class LoanEndpointsNormalizedE2ETest extends BaseNormalizedE2ETest {
     assertThat(loan.getCurrentBalance()).isEqualByComparingTo(new BigDecimal("271432.56"));
     assertThat(loan.getInterestRate()).isEqualByComparingTo(new BigDecimal("4.750"));
     assertThat(loan.getMonthlyPayment()).isEqualByComparingTo(new BigDecimal("1487.02"));
-    assertThat(loan.getStatus()).isEqualTo("Active");
+    assertThat(loan.getStatus()).isEqualTo("ACTIVE");
     assertThat(loan.getOriginationDate()).isEqualTo("02/15/2019");
     assertThat(loan.getPropertyAddress()).isEqualTo("742 Elm Street, Springfield, IL 62701");
-    assertThat(loan.getPropertyType()).isEqualTo("Single Family Residence");
+    assertThat(loan.getPropertyType()).isEqualTo("Single Family");
   }
 
   @Test
@@ -73,10 +73,10 @@ class LoanEndpointsNormalizedE2ETest extends BaseNormalizedE2ETest {
     assertThat(loan.getBorrowerName()).isEqualTo("Michael Torres");
     assertThat(loan.getProductDescription()).isEqualTo("5/1 Adjustable Rate Mortgage");
     assertThat(loan.getCurrentBalance()).isEqualByComparingTo(new BigDecimal("178234.12"));
-    assertThat(loan.getStatus()).isEqualTo("Active");
+    assertThat(loan.getStatus()).isEqualTo("ACTIVE");
     assertThat(loan.getOriginationDate()).isEqualTo("07/01/2018");
     assertThat(loan.getPropertyAddress()).isEqualTo("305 Pine Road, Austin, TX 78701");
-    assertThat(loan.getPropertyType()).isEqualTo("Single Family Residence");
+    assertThat(loan.getPropertyType()).isEqualTo("Single Family");
   }
 
   @Test

@@ -2,31 +2,43 @@ package com.workshop.loanservice.entity.normalized;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-/** Maps to the normalized {@code borrower} table created by Flyway. */
+/**
+ * Maps to the normalized {@code borrower} table created by Flyway.
+ *
+ * <p>{@code id} is an internal surrogate; {@code externalId} is the identifier exposed by the REST
+ * API. {@code status} holds the expanded modern value (for example {@code ACTIVE}).
+ */
 @Entity
 @Table(name = "borrower")
 public class Borrower {
 
   @Id
-  @Column(name = "borrower_id")
-  private String borrowerId;
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @Column(name = "id")
+  private Long id;
 
-  @Column(name = "first_name")
+  @Column(name = "external_id", nullable = false, unique = true, length = 20)
+  private String externalId;
+
+  @Column(name = "first_name", nullable = false)
   private String firstName;
 
-  @Column(name = "last_name")
+  @Column(name = "last_name", nullable = false)
   private String lastName;
 
   @Column(name = "middle_initial")
   private String middleInitial;
 
-  @Column(name = "ssn_encrypted")
-  private String ssnEncrypted;
+  @Column(name = "ssn_hash")
+  private String ssnHash;
 
   @Column(name = "date_of_birth")
   private LocalDate dateOfBirth;
@@ -40,14 +52,14 @@ public class Borrower {
   @Column(name = "city")
   private String city;
 
-  @Column(name = "state_code")
-  private String stateCode;
+  @Column(name = "state")
+  private String state;
 
   @Column(name = "zip_code")
   private String zipCode;
 
-  @Column(name = "phone_number")
-  private String phoneNumber;
+  @Column(name = "phone")
+  private String phone;
 
   @Column(name = "email")
   private String email;
@@ -61,24 +73,29 @@ public class Borrower {
   @Column(name = "annual_income")
   private BigDecimal annualIncome;
 
-  @Column(name = "created_date")
-  private LocalDate createdDate;
+  @Column(name = "status")
+  private String status;
 
-  @Column(name = "updated_date")
-  private LocalDate updatedDate;
+  @Column(name = "created_at")
+  private LocalDateTime createdAt;
 
-  @Column(name = "status_code")
-  private String statusCode;
+  @Column(name = "updated_at")
+  private LocalDateTime updatedAt;
 
-  @Column(name = "record_type")
-  private String recordType;
-
-  public String getBorrowerId() {
-    return borrowerId;
+  public Long getId() {
+    return id;
   }
 
-  public void setBorrowerId(String borrowerId) {
-    this.borrowerId = borrowerId;
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public String getExternalId() {
+    return externalId;
+  }
+
+  public void setExternalId(String externalId) {
+    this.externalId = externalId;
   }
 
   public String getFirstName() {
@@ -105,12 +122,12 @@ public class Borrower {
     this.middleInitial = middleInitial;
   }
 
-  public String getSsnEncrypted() {
-    return ssnEncrypted;
+  public String getSsnHash() {
+    return ssnHash;
   }
 
-  public void setSsnEncrypted(String ssnEncrypted) {
-    this.ssnEncrypted = ssnEncrypted;
+  public void setSsnHash(String ssnHash) {
+    this.ssnHash = ssnHash;
   }
 
   public LocalDate getDateOfBirth() {
@@ -145,12 +162,12 @@ public class Borrower {
     this.city = city;
   }
 
-  public String getStateCode() {
-    return stateCode;
+  public String getState() {
+    return state;
   }
 
-  public void setStateCode(String stateCode) {
-    this.stateCode = stateCode;
+  public void setState(String state) {
+    this.state = state;
   }
 
   public String getZipCode() {
@@ -161,12 +178,12 @@ public class Borrower {
     this.zipCode = zipCode;
   }
 
-  public String getPhoneNumber() {
-    return phoneNumber;
+  public String getPhone() {
+    return phone;
   }
 
-  public void setPhoneNumber(String phoneNumber) {
-    this.phoneNumber = phoneNumber;
+  public void setPhone(String phone) {
+    this.phone = phone;
   }
 
   public String getEmail() {
@@ -201,35 +218,27 @@ public class Borrower {
     this.annualIncome = annualIncome;
   }
 
-  public LocalDate getCreatedDate() {
-    return createdDate;
+  public String getStatus() {
+    return status;
   }
 
-  public void setCreatedDate(LocalDate createdDate) {
-    this.createdDate = createdDate;
+  public void setStatus(String status) {
+    this.status = status;
   }
 
-  public LocalDate getUpdatedDate() {
-    return updatedDate;
+  public LocalDateTime getCreatedAt() {
+    return createdAt;
   }
 
-  public void setUpdatedDate(LocalDate updatedDate) {
-    this.updatedDate = updatedDate;
+  public void setCreatedAt(LocalDateTime createdAt) {
+    this.createdAt = createdAt;
   }
 
-  public String getStatusCode() {
-    return statusCode;
+  public LocalDateTime getUpdatedAt() {
+    return updatedAt;
   }
 
-  public void setStatusCode(String statusCode) {
-    this.statusCode = statusCode;
-  }
-
-  public String getRecordType() {
-    return recordType;
-  }
-
-  public void setRecordType(String recordType) {
-    this.recordType = recordType;
+  public void setUpdatedAt(LocalDateTime updatedAt) {
+    this.updatedAt = updatedAt;
   }
 }

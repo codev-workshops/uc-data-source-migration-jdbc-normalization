@@ -21,16 +21,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Reads the normalized schema and produces the DTOs exposed by the REST layer: typed columns replace
- * the string parsing of the retired legacy CDW_* path, while code expansions and the formatting of
- * names, addresses and dates are unchanged.
+ * Reads the normalized schema and produces the DTOs exposed by the REST layer. Callers address
+ * loans and borrowers by their external identifiers (account number, borrower external id); the
+ * BIGINT surrogate ids never leave the persistence layer. Status, type and property-type values are
+ * already expanded in the database (by the V4 migration) and are passed through unchanged.
  */
 @Service
 public class NormalizedLoanService implements LoanQueryService {
 
   private static final Logger log = LoggerFactory.getLogger(NormalizedLoanService.class);
 
-  private static final DateTimeFormatter LEGACY_DATE_FORMAT =
+  private static final DateTimeFormatter DTO_DATE_FORMAT =
       DateTimeFormatter.ofPattern("MM/dd/yyyy");
 
   private final BorrowerRepository borrowerRepository;
@@ -59,7 +60,7 @@ public class NormalizedLoanService implements LoanQueryService {
     log.info("fetching loan id={} (normalized)", loanAccountNumber);
     LoanAccount account =
         loanAccountRepository
-            .findById(loanAccountNumber)
+            .findByAccountNumber(loanAccountNumber)
             .orElseThrow(
                 () -> {
                   log.warn("loan not found id={}", loanAccountNumber);
@@ -81,7 +82,7 @@ public class NormalizedLoanService implements LoanQueryService {
     log.info("fetching borrower id={} (normalized)", borrowerId);
     Borrower borrower =
         borrowerRepository
-            .findById(borrowerId)
+            .findByExternalId(borrowerId)
             .orElseThrow(
                 () -> {
                   log.warn("borrower not found id={}", borrowerId);
@@ -89,7 +90,7 @@ public class NormalizedLoanService implements LoanQueryService {
                 });
     BorrowerDto dto = toBorrowerDto(borrower);
     dto.setLoans(
-        loanAccountRepository.findByBorrowerBorrowerId(borrowerId).stream()
+        loanAccountRepository.findByBorrowerExternalId(borrowerId).stream()
             .map(this::toLoanSummary)
             .collect(Collectors.toList()));
     return dto;
@@ -99,55 +100,60 @@ public class NormalizedLoanService implements LoanQueryService {
   public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
     log.info("fetching payments for loan id={} (normalized)", loanAccountNumber);
     return paymentRepository
-        .findByLoanAccountLoanAccountNumberOrderByPaymentDateDesc(loanAccountNumber)
+        .findByLoanAccountAccountNumberOrderByPaymentDateDesc(loanAccountNumber)
         .stream()
         .map(this::toPaymentDto)
         .collect(Collectors.toList());
   }
 
   private LoanSummaryDto toLoanSummary(LoanAccount account) {
-    LoanProduct product = account.getLoanProduct();
+    LoanProduct product = account.getProduct();
     Borrower borrower = account.getBorrower();
-    if (product == null) {
-      log.warn(
-          "product not found code={} for loan id={}, falling back to raw code",
-          account.getProductCode(),
-          account.getLoanAccountNumber());
-    }
 
     LoanSummaryDto dto = new LoanSummaryDto();
-    dto.setLoanAccountNumber(account.getLoanAccountNumber());
+    dto.setLoanAccountNumber(account.getAccountNumber());
     dto.setBorrowerName(borrower.getFirstName() + " " + borrower.getLastName());
-    dto.setProductDescription(
-        product != null ? product.getDescription() : account.getProductCode());
+    dto.setProductDescription(resolveProductDescription(product, account.getAccountNumber()));
     dto.setOriginalAmount(orZero(account.getOriginalAmount()));
     dto.setCurrentBalance(orZero(account.getCurrentBalance()));
     dto.setInterestRate(orZero(account.getInterestRate()));
     dto.setMonthlyPayment(orZero(account.getMonthlyPayment()));
-    dto.setStatus(expandStatusCode(account.getStatusCode()));
+    dto.setStatus(account.getStatus());
     dto.setOriginationDate(formatDate(account.getOriginationDate()));
     dto.setPropertyAddress(
-        account.getPropertyAddressLine1()
+        account.getPropertyAddress()
             + ", "
             + account.getPropertyCity()
             + ", "
             + account.getPropertyState()
             + " "
             + account.getPropertyZip());
-    dto.setPropertyType(expandPropertyType(account.getPropertyType()));
+    dto.setPropertyType(account.getPropertyType());
     return dto;
+  }
+
+  private String resolveProductDescription(LoanProduct product, String accountNumber) {
+    if (product == null) {
+      log.warn("product missing for loan id={}", accountNumber);
+      return null;
+    }
+    if (product.getName() == null) {
+      log.warn("product name missing code={}, falling back to code", product.getCode());
+      return product.getCode();
+    }
+    return product.getName();
   }
 
   private BorrowerDto toBorrowerDto(Borrower borrower) {
     BorrowerDto dto = new BorrowerDto();
-    dto.setId(borrower.getBorrowerId());
+    dto.setId(borrower.getExternalId());
     String middle =
         borrower.getMiddleInitial() != null ? " " + borrower.getMiddleInitial() + "." : "";
     dto.setFullName(borrower.getFirstName() + middle + " " + borrower.getLastName());
     dto.setEmail(borrower.getEmail());
-    dto.setPhone(borrower.getPhoneNumber());
+    dto.setPhone(borrower.getPhone());
     dto.setCity(borrower.getCity());
-    dto.setState(borrower.getStateCode());
+    dto.setState(borrower.getState());
     dto.setCreditScore(borrower.getCreditScore());
     dto.setEmploymentStatus(borrower.getEmploymentStatus());
     return dto;
@@ -155,77 +161,24 @@ public class NormalizedLoanService implements LoanQueryService {
 
   private PaymentDto toPaymentDto(Payment payment) {
     PaymentDto dto = new PaymentDto();
-    dto.setPaymentId(payment.getPaymentId());
-    dto.setLoanAccountNumber(payment.getLoanAccount().getLoanAccountNumber());
+    dto.setPaymentId(payment.getExternalId());
+    dto.setLoanAccountNumber(payment.getLoanAccount().getAccountNumber());
     dto.setPaymentDate(formatDate(payment.getPaymentDate()));
     dto.setTotalAmount(orZero(payment.getTotalAmount()));
     dto.setPrincipalAmount(orZero(payment.getPrincipalAmount()));
     dto.setInterestAmount(orZero(payment.getInterestAmount()));
     dto.setEscrowAmount(orZero(payment.getEscrowAmount()));
     dto.setLateFee(orZero(payment.getLateFee()));
-    dto.setType(expandPaymentType(payment.getTypeCode()));
-    dto.setStatus(expandPaymentStatus(payment.getStatusCode()));
+    dto.setType(payment.getType());
+    dto.setStatus(payment.getStatus());
     return dto;
   }
 
-  /** Renders dates the way the legacy path returned them verbatim from its string columns. */
   private String formatDate(LocalDate date) {
-    return date != null ? date.format(LEGACY_DATE_FORMAT) : null;
+    return date != null ? date.format(DTO_DATE_FORMAT) : null;
   }
 
   private BigDecimal orZero(BigDecimal amount) {
     return amount != null ? amount : BigDecimal.ZERO;
-  }
-
-  private String expandStatusCode(String code) {
-    if (code == null) {
-      return "Unknown";
-    }
-    return switch (code) {
-      case "ACT" -> "Active";
-      case "CLO" -> "Closed";
-      case "DFT" -> "Default";
-      case "FRB" -> "Forbearance";
-      default -> code;
-    };
-  }
-
-  private String expandPropertyType(String code) {
-    if (code == null) {
-      return "Unknown";
-    }
-    return switch (code) {
-      case "SFR" -> "Single Family Residence";
-      case "CND" -> "Condominium";
-      case "MFR" -> "Multi-Family Residence";
-      case "TWN" -> "Townhouse";
-      default -> code;
-    };
-  }
-
-  private String expandPaymentType(String code) {
-    if (code == null) {
-      return "Unknown";
-    }
-    return switch (code) {
-      case "REG" -> "Regular";
-      case "EXT" -> "Extra";
-      case "PRT" -> "Partial";
-      case "PRE" -> "Prepayment";
-      default -> code;
-    };
-  }
-
-  private String expandPaymentStatus(String code) {
-    if (code == null) {
-      return "Unknown";
-    }
-    return switch (code) {
-      case "PST" -> "Posted";
-      case "REV" -> "Reversed";
-      case "NSF" -> "Non-Sufficient Funds";
-      case "PND" -> "Pending";
-      default -> code;
-    };
   }
 }

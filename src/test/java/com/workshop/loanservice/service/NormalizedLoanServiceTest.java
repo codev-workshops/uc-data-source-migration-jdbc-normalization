@@ -24,7 +24,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class NormalizedLoanServiceTest {
@@ -39,7 +38,7 @@ class NormalizedLoanServiceTest {
   @InjectMocks private NormalizedLoanService service;
 
   @Test
-  void getAllLoansProducesSameDtoAsLegacyPath() {
+  void getAllLoansPassesExpandedModernValuesThrough() {
     given(loanAccountRepository.findAll()).willReturn(List.of(loanAccount()));
 
     List<LoanSummaryDto> loans = service.getAllLoans();
@@ -53,10 +52,10 @@ class NormalizedLoanServiceTest {
     assertThat(dto.getCurrentBalance()).isEqualByComparingTo("271432.56");
     assertThat(dto.getInterestRate()).isEqualByComparingTo("4.750");
     assertThat(dto.getMonthlyPayment()).isEqualByComparingTo("1487.02");
-    assertThat(dto.getStatus()).isEqualTo("Active");
+    assertThat(dto.getStatus()).isEqualTo("ACTIVE");
     assertThat(dto.getOriginationDate()).isEqualTo("02/15/2019");
     assertThat(dto.getPropertyAddress()).isEqualTo("742 Elm Street, Springfield, IL 62701");
-    assertThat(dto.getPropertyType()).isEqualTo("Single Family Residence");
+    assertThat(dto.getPropertyType()).isEqualTo("Single Family");
   }
 
   @Test
@@ -64,16 +63,16 @@ class NormalizedLoanServiceTest {
     LoanAccount account = loanAccount();
     account.getBorrower().setFirstName("Sarah");
     account.getBorrower().setLastName("Chen");
-    given(loanAccountRepository.findById(LOAN_ID)).willReturn(Optional.of(account));
+    given(loanAccountRepository.findByAccountNumber(LOAN_ID)).willReturn(Optional.of(account));
 
     assertThat(service.getLoanById(LOAN_ID).getBorrowerName()).isEqualTo("Sarah Chen");
   }
 
   @Test
-  void getLoanByIdFormatsDateAsLegacyString() {
+  void getLoanByIdFormatsDateAsMmDdYyyy() {
     LoanAccount account = loanAccount();
     account.setOriginationDate(LocalDate.of(2021, 10, 1));
-    given(loanAccountRepository.findById(LOAN_ID)).willReturn(Optional.of(account));
+    given(loanAccountRepository.findByAccountNumber(LOAN_ID)).willReturn(Optional.of(account));
 
     assertThat(service.getLoanById(LOAN_ID).getOriginationDate()).isEqualTo("10/01/2021");
   }
@@ -84,7 +83,7 @@ class NormalizedLoanServiceTest {
     account.setOriginationDate(null);
     account.setOriginalAmount(null);
     account.setInterestRate(null);
-    given(loanAccountRepository.findById(LOAN_ID)).willReturn(Optional.of(account));
+    given(loanAccountRepository.findByAccountNumber(LOAN_ID)).willReturn(Optional.of(account));
 
     LoanSummaryDto dto = service.getLoanById(LOAN_ID);
 
@@ -94,17 +93,37 @@ class NormalizedLoanServiceTest {
   }
 
   @Test
-  void getLoanByIdFallsBackToRawProductCodeWhenProductMissing() {
+  void getLoanByIdFallsBackToProductCodeWhenProductNameMissing() {
     LoanAccount account = loanAccount();
-    account.setLoanProduct(null);
-    given(loanAccountRepository.findById(LOAN_ID)).willReturn(Optional.of(account));
+    account.getProduct().setName(null);
+    given(loanAccountRepository.findByAccountNumber(LOAN_ID)).willReturn(Optional.of(account));
 
     assertThat(service.getLoanById(LOAN_ID).getProductDescription()).isEqualTo("FXD30");
   }
 
   @Test
+  void getLoanByIdReturnsNullProductDescriptionWhenProductMissing() {
+    LoanAccount account = loanAccount();
+    account.setProduct(null);
+    given(loanAccountRepository.findByAccountNumber(LOAN_ID)).willReturn(Optional.of(account));
+
+    assertThat(service.getLoanById(LOAN_ID).getProductDescription()).isNull();
+  }
+
+  @Test
+  void getLoanByIdNeverExposesSurrogateIds() {
+    given(loanAccountRepository.findByAccountNumber(LOAN_ID))
+        .willReturn(Optional.of(loanAccount()));
+
+    LoanSummaryDto dto = service.getLoanById(LOAN_ID);
+
+    assertThat(dto.getLoanAccountNumber()).isEqualTo(LOAN_ID);
+    assertThat(dto.getLoanAccountNumber()).isNotEqualTo("1");
+  }
+
+  @Test
   void getLoanByIdThrowsWhenNotFound() {
-    given(loanAccountRepository.findById("missing")).willReturn(Optional.empty());
+    given(loanAccountRepository.findByAccountNumber("missing")).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.getLoanById("missing"))
         .isExactlyInstanceOf(ResourceNotFoundException.class)
@@ -112,7 +131,7 @@ class NormalizedLoanServiceTest {
   }
 
   @Test
-  void getAllBorrowersProducesSameDtoAsLegacyPath() {
+  void getAllBorrowersUsesExternalIdAsPublicId() {
     given(borrowerRepository.findAll()).willReturn(List.of(borrower()));
 
     List<BorrowerDto> borrowers = service.getAllBorrowers();
@@ -141,8 +160,8 @@ class NormalizedLoanServiceTest {
 
   @Test
   void getBorrowerByIdAttachesLoans() {
-    given(borrowerRepository.findById(BORROWER_ID)).willReturn(Optional.of(borrower()));
-    given(loanAccountRepository.findByBorrowerBorrowerId(BORROWER_ID))
+    given(borrowerRepository.findByExternalId(BORROWER_ID)).willReturn(Optional.of(borrower()));
+    given(loanAccountRepository.findByBorrowerExternalId(BORROWER_ID))
         .willReturn(List.of(loanAccount()));
 
     BorrowerDto dto = service.getBorrowerById(BORROWER_ID);
@@ -154,7 +173,7 @@ class NormalizedLoanServiceTest {
 
   @Test
   void getBorrowerByIdThrowsWhenNotFound() {
-    given(borrowerRepository.findById("missing")).willReturn(Optional.empty());
+    given(borrowerRepository.findByExternalId("missing")).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.getBorrowerById("missing"))
         .isExactlyInstanceOf(ResourceNotFoundException.class)
@@ -162,8 +181,8 @@ class NormalizedLoanServiceTest {
   }
 
   @Test
-  void getPaymentsByLoanProducesSameDtoAsLegacyPath() {
-    given(paymentRepository.findByLoanAccountLoanAccountNumberOrderByPaymentDateDesc(LOAN_ID))
+  void getPaymentsByLoanPassesExpandedModernValuesThrough() {
+    given(paymentRepository.findByLoanAccountAccountNumberOrderByPaymentDateDesc(LOAN_ID))
         .willReturn(List.of(payment()));
 
     List<PaymentDto> payments = service.getPaymentsByLoan(LOAN_ID);
@@ -178,73 +197,78 @@ class NormalizedLoanServiceTest {
     assertThat(dto.getInterestAmount()).isEqualByComparingTo("1074.69");
     assertThat(dto.getEscrowAmount()).isEqualByComparingTo("355.55");
     assertThat(dto.getLateFee()).isEqualByComparingTo("0.00");
-    assertThat(dto.getType()).isEqualTo("Regular");
-    assertThat(dto.getStatus()).isEqualTo("Posted");
+    assertThat(dto.getType()).isEqualTo("REGULAR");
+    assertThat(dto.getStatus()).isEqualTo("POSTED");
   }
 
   @Test
-  void paymentWithNullAmountsAndUnknownCodes() {
+  void paymentWithNullAmountsAndUnmappedValuesPassesThrough() {
     Payment payment = payment();
     payment.setLateFee(null);
     payment.setPaymentDate(null);
-    payment.setTypeCode(null);
-    payment.setStatusCode("ZZZ");
-    given(paymentRepository.findByLoanAccountLoanAccountNumberOrderByPaymentDateDesc(LOAN_ID))
+    payment.setType(null);
+    payment.setStatus("ZZZ");
+    given(paymentRepository.findByLoanAccountAccountNumberOrderByPaymentDateDesc(LOAN_ID))
         .willReturn(List.of(payment));
 
     PaymentDto dto = service.getPaymentsByLoan(LOAN_ID).get(0);
 
     assertThat(dto.getLateFee()).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(dto.getPaymentDate()).isNull();
-    assertThat(dto.getType()).isEqualTo("Unknown");
+    assertThat(dto.getType()).isNull();
     assertThat(dto.getStatus()).isEqualTo("ZZZ");
   }
 
   private static LoanProduct product() {
     LoanProduct product = new LoanProduct();
-    product.setProductCode("FXD30");
-    product.setDescription("30-Year Fixed Rate Mortgage");
+    product.setId(1L);
+    product.setCode("FXD30");
+    product.setName("30-Year Fixed Rate Mortgage");
+    product.setIsActive(true);
     return product;
   }
 
   private static Borrower borrower() {
     Borrower borrower = new Borrower();
-    borrower.setBorrowerId(BORROWER_ID);
+    borrower.setId(1L);
+    borrower.setExternalId(BORROWER_ID);
     borrower.setFirstName("James");
     borrower.setLastName("Mitchell");
     borrower.setMiddleInitial("R");
     borrower.setEmail("j.mitchell@email.com");
-    borrower.setPhoneNumber("217-555-0142");
+    borrower.setPhone("217-555-0142");
     borrower.setCity("Springfield");
-    borrower.setStateCode("IL");
+    borrower.setState("IL");
     borrower.setCreditScore(745);
     borrower.setEmploymentStatus("EMPLOYED");
+    borrower.setStatus("ACTIVE");
     return borrower;
   }
 
   private static LoanAccount loanAccount() {
     LoanAccount acct = new LoanAccount();
-    acct.setLoanAccountNumber(LOAN_ID);
+    acct.setId(1L);
+    acct.setAccountNumber(LOAN_ID);
     acct.setBorrower(borrower());
-    acct.setLoanProduct(product());
-    ReflectionTestUtils.setField(acct, "productCode", "FXD30");
+    acct.setProduct(product());
     acct.setOriginalAmount(new BigDecimal("285000.00"));
     acct.setCurrentBalance(new BigDecimal("271432.56"));
     acct.setInterestRate(new BigDecimal("4.750"));
     acct.setMonthlyPayment(new BigDecimal("1487.02"));
     acct.setOriginationDate(LocalDate.of(2019, 2, 15));
-    acct.setStatusCode("ACT");
-    acct.setPropertyAddressLine1("742 Elm Street");
+    acct.setStatus("ACTIVE");
+    acct.setPropertyAddress("742 Elm Street");
     acct.setPropertyCity("Springfield");
     acct.setPropertyState("IL");
     acct.setPropertyZip("62701");
-    acct.setPropertyType("SFR");
+    acct.setPropertyType("Single Family");
     return acct;
   }
 
   private static Payment payment() {
     Payment pmt = new Payment();
-    pmt.setPaymentId("PMT-2025120001");
+    pmt.setId(1L);
+    pmt.setExternalId("PMT-2025120001");
     pmt.setLoanAccount(loanAccount());
     pmt.setPaymentDate(LocalDate.of(2025, 12, 15));
     pmt.setTotalAmount(new BigDecimal("1487.02"));
@@ -252,8 +276,8 @@ class NormalizedLoanServiceTest {
     pmt.setInterestAmount(new BigDecimal("1074.69"));
     pmt.setEscrowAmount(new BigDecimal("355.55"));
     pmt.setLateFee(new BigDecimal("0.00"));
-    pmt.setTypeCode("REG");
-    pmt.setStatusCode("PST");
+    pmt.setType("REGULAR");
+    pmt.setStatus("POSTED");
     return pmt;
   }
 }

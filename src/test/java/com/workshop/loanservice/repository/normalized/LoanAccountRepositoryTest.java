@@ -24,58 +24,70 @@ import org.springframework.test.context.ActiveProfiles;
 class LoanAccountRepositoryTest {
 
   @Autowired private LoanAccountRepository repository;
+  @Autowired private BorrowerRepository borrowerRepository;
+  @Autowired private LoanProductRepository productRepository;
   @Autowired private TestEntityManager entityManager;
 
   @Test
-  void findByBorrowerBorrowerIdResolvesThroughAssociation() {
-    Borrower borrower = entityManager.find(Borrower.class, "B-10001");
-    LoanProduct product = entityManager.find(LoanProduct.class, "FXD15");
-    entityManager.persistAndFlush(seedLoan("LN-TEST-00001", borrower, product, "CLO"));
+  void findByBorrowerExternalIdResolvesThroughAssociation() {
+    Borrower borrower = borrowerRepository.findByExternalId("B-10001").orElseThrow();
+    LoanProduct product = productRepository.findByCode("FXD15").orElseThrow();
+    entityManager.persistAndFlush(seedLoan("LN-TEST-00001", borrower, product, "CLOSED"));
 
-    assertThat(repository.findByBorrowerBorrowerId("B-10001"))
-        .extracting(LoanAccount::getLoanAccountNumber)
+    assertThat(repository.findByBorrowerExternalId("B-10001"))
+        .extracting(LoanAccount::getAccountNumber)
         .containsExactlyInAnyOrder("LN-2019-00142", "LN-TEST-00001");
-    assertThat(repository.findByBorrowerBorrowerId("B-99999")).isEmpty();
+    assertThat(repository.findByBorrowerId(borrower.getId())).hasSize(2);
+    assertThat(repository.findByBorrowerExternalId("B-99999")).isEmpty();
   }
 
   @Test
-  void findByStatusCodeMatchesMigratedCodes() {
-    assertThat(repository.findByStatusCode("ACT")).hasSize(5);
-    assertThat(repository.findByStatusCode("CLO")).isEmpty();
+  void findByStatusMatchesExpandedValues() {
+    assertThat(repository.findByStatus("ACTIVE")).hasSize(5);
+    assertThat(repository.findByStatus("ACT")).isEmpty();
   }
 
   @Test
-  void findByLoanProductProductCodeResolvesThroughAssociation() {
-    assertThat(repository.findByLoanProductProductCode("FXD30"))
-        .extracting(LoanAccount::getLoanAccountNumber)
+  void findByProductCodeResolvesThroughAssociation() {
+    assertThat(repository.findByProductCode("FXD30"))
+        .extracting(LoanAccount::getAccountNumber)
         .containsExactlyInAnyOrder("LN-2019-00142", "LN-2021-00567");
-    assertThat(repository.findByLoanProductProductCode("NOPE")).isEmpty();
+    assertThat(repository.findByProductCode("NOPE")).isEmpty();
   }
 
   @Test
-  void migratedRowsCarryTypedColumnsAndEagerAssociations() {
-    LoanAccount loan = repository.findById("LN-2019-00142").orElseThrow();
+  void findByAccountNumberCarriesTypedColumnsAndAssociations() {
+    LoanAccount loan = repository.findByAccountNumber("LN-2019-00142").orElseThrow();
 
+    assertThat(loan.getId()).isNotNull();
     assertThat(loan.getOriginalAmount()).isEqualByComparingTo("285000.00");
+    assertThat(loan.getInterestRate()).isEqualByComparingTo("4.750");
     assertThat(loan.getOriginationDate()).isEqualTo(LocalDate.of(2019, 2, 15));
+    assertThat(loan.getStatus()).isEqualTo("ACTIVE");
+    assertThat(loan.getPropertyType()).isEqualTo("Single Family");
+    assertThat(loan.getDelinquencyDays()).isZero();
+    assertThat(loan.getBorrower().getExternalId()).isEqualTo("B-10001");
     assertThat(loan.getBorrower().getLastName()).isEqualTo("Mitchell");
-    assertThat(loan.getLoanProduct().getDescription()).isEqualTo("30-Year Fixed Rate Mortgage");
-    assertThat(loan.getProductCode()).isEqualTo("FXD30");
+    assertThat(loan.getProduct().getCode()).isEqualTo("FXD30");
+    assertThat(loan.getProduct().getName()).isEqualTo("30-Year Fixed Rate Mortgage");
+    assertThat(loan.getProduct().getIsActive()).isTrue();
+    assertThat(repository.findByAccountNumber("LN-NOPE")).isEmpty();
   }
 
   private static LoanAccount seedLoan(
       String number, Borrower borrower, LoanProduct product, String status) {
     LoanAccount acct = new LoanAccount();
-    acct.setLoanAccountNumber(number);
+    acct.setAccountNumber(number);
     acct.setBorrower(borrower);
-    acct.setLoanProduct(product);
+    acct.setProduct(product);
     acct.setOriginalAmount(new BigDecimal("100000.00"));
     acct.setCurrentBalance(new BigDecimal("90000.00"));
     acct.setInterestRate(new BigDecimal("5.000"));
     acct.setMonthlyPayment(new BigDecimal("500.00"));
     acct.setOriginationDate(LocalDate.of(2024, 1, 1));
-    acct.setStatusCode(status);
-    acct.setPropertyType("SFR");
+    acct.setStatus(status);
+    acct.setDelinquencyDays(0);
+    acct.setPropertyType("Single Family");
     return acct;
   }
 }
