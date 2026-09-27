@@ -33,7 +33,7 @@ import org.springframework.test.context.ActiveProfiles;
  * serviceImpl} query parameter. Both responses must match each other and the golden file under
  * {@code test-data/e2e/golden/}, which was captured from the normalized (canonical) path.
  *
- * <p>Documented, intentional differences (see docs/MIGRATION_LOG.md, "Task 4 validation"):
+ * <p>Documented, intentional differences (see docs/DATA_SOURCE_MIGRATION_NOTES.md, "Task 4 validation"):
  *
  * <ul>
  *   <li>Numeric scale: legacy strings yield {@code 285000} / {@code 4.75}, the typed normalized

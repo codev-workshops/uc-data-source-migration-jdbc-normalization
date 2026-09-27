@@ -96,7 +96,7 @@ Checks (per request):
 - `body is non-empty`
 - `routed to requested impl` — for the loan endpoints the response `status` must be `Active`
   for legacy and `ACTIVE` for normalized. This is the observable difference between the two
-  services (see `docs/MIGRATION_LOG.md`, "Task 4 validation"). If the legacy path is missing or
+  services (see `docs/DATA_SOURCE_MIGRATION_NOTES.md`, "Task 4 validation"). If the legacy path is missing or
   the routing parameter is ignored, both requests would be served by the normalized service and
   this check fails, so a misroute cannot produce a false "identical performance" result.
 

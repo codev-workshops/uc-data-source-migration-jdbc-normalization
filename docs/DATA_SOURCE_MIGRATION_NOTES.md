@@ -1,7 +1,9 @@
-# Migration Log
+# Data Source Migration Notes
 
-Chronological record of the legacy-to-normalized data source migration for `loan-service`.
-Each phase lists its intent and outcome; see `MIGRATION_TASKS.md` for the original task spec.
+Decisions made and patterns used during the legacy-to-normalized data source migration for
+`loan-service`, recorded as chronological phases. Each phase lists its intent and outcome as they
+stood at the time; later phases record where an earlier decision was revised rather than rewriting
+it. See `MIGRATION_TASKS.md` for the original task spec.
 
 ## 1. Baseline end-to-end tests
 
@@ -68,7 +70,7 @@ report under `target/site/jacoco/`.
 to 404, `DataAccessException` to 500 and any other exception to 500, all with an `ErrorResponse`
 body. The `application.data-mode` flag was pinned to `normalized` in `application.properties`.
 
-## 9. Legacy retirement
+## 9. Legacy retirement (later reverted)
 
 **Intent:** Remove the legacy path now that the normalized schema is the sole source of truth.
 
@@ -81,38 +83,37 @@ entirely, since a flag with a single value serves no purpose: `NormalizedLoanSer
 sole unconditional `@Service` implementing `LoanQueryService`. REST paths, DTO fields and the
 Flyway-only schema ownership are unchanged.
 
-## 10. Legacy path restored as deprecated
+**Reverted:** This phase was undone shortly afterwards to keep the legacy path available while
+it is phased out. `V6__drop_legacy_schema.sql` was removed, so the `CDW_*` tables (created by
+`V1`, seeded by `V3`) persist. `LegacyLoanService`, the four `Legacy*` entities and repositories,
+their unit tests, the `e2e/legacy` suite and the `test-data/e2e/legacy` fixtures were restored
+and annotated `@Deprecated`, pointing to `NormalizedLoanService` and the normalized entities and
+repositories as the replacement. `schema-legacy.sql` and `data-legacy.sql` stay deleted, since
+Flyway owns the schema. The `@ConditionalOnProperty` / `application.data-mode` wiring was **not**
+left removed as this phase originally claimed: the revert brought it back (`normalized` as the
+`matchIfMissing` default, `legacy` selecting the deprecated path), and it was then superseded by
+the dynamic per-request router described in the next phase.
 
-**Intent:** Keep the legacy path available behind the `application.data-mode` flag while it is
-phased out, instead of removing it outright.
-
-**Outcome:** `V6__drop_legacy_schema.sql` was removed, so the `CDW_*` tables (created by `V1`,
-seeded by `V3`) persist. `LegacyLoanService`, the four `Legacy*` entities and repositories, their
-unit tests, the `e2e/legacy` suite and the `test-data/e2e/legacy` fixtures were restored and are
-annotated `@Deprecated`, pointing to `NormalizedLoanService` and the normalized entities and
-repositories as the replacement. The `@ConditionalOnProperty` wiring and the
-`application.data-mode=normalized` property are back: `normalized` is the default
-(`matchIfMissing = true`) and `legacy` selects the deprecated path. `schema-legacy.sql` and
-`data-legacy.sql` stay deleted, since Flyway owns the schema.
-
-## 11. Per-request implementation selection
+## 10. Dynamic per-request service routing
 
 **Intent:** Choose the legacy or normalized data path per HTTP request instead of once per
 deployment, so both paths can be compared side by side against the same running instance.
 
-**Outcome:** The static `@ConditionalOnProperty` wiring and the `application.data-mode` property
-were removed; `NormalizedLoanService` and `LegacyLoanService` are now always-on beans. A new
-`routing` package holds the selection machinery:
+**Outcome:** The static `@ConditionalOnProperty` / `application.data-mode` selection introduced
+in phase 3 was replaced by dynamic per-request selection. The `application.data-mode` property is
+no longer the selection mechanism and was removed; `NormalizedLoanService` and `LegacyLoanService`
+are now always-on beans. A new `routing` package holds the selection machinery:
 
-- `ServiceImplementation` (`LEGACY`, `NORMALIZED`) with `fromParam(String)`, which parses
-  case-insensitively and defaults to `NORMALIZED` for null, blank or unknown values.
-- `LoanServiceRegistry`, a singleton `Map<ServiceImplementation, LoanQueryService>`. Each concrete
-  service self-registers in a `@PostConstruct` hook; `get` falls back to `NORMALIZED` and throws
+- `ServiceImplementation` enum (`LEGACY`, `NORMALIZED`; default `NORMALIZED`) with
+  `fromParam(String)`, which parses case-insensitively and defaults to `NORMALIZED` for null,
+  blank or unknown values.
+- `LoanServiceRegistry`, a singleton `Map<ServiceImplementation, LoanQueryService>` mapping the
+  enum to an implementation. Each concrete service self-registers in a `@PostConstruct` hook; `get` falls back to `NORMALIZED` and throws
   `IllegalStateException` only if neither is registered.
 - `RoutingContext`, a `@RequestScope` bean holding the selection for the current request.
 - `ServiceSelectionInterceptor`, a `HandlerInterceptor` registered by `config/WebConfig` for
   `/api/**`. It reads the `serviceImpl` query parameter, logs the raw and resolved values, and
-  stores the result on the `RoutingContext`.
+  populates the `RoutingContext`.
 - `LoanServiceRouter`, the `@Primary` `LoanQueryService` facade injected into the controllers. Each
   call reads the `RoutingContext` and delegates to the registered service.
 
@@ -122,7 +123,7 @@ parameter through a `RestTemplateBuilder` interceptor, and `e2e/routing/ServiceS
 asserts the routing decision itself (legacy expands `ACT` to `Active`, normalized returns
 `ACTIVE`).
 
-## 12. Task 4 validation
+## 11. Task 4 validation
 
 **Intent:** Prove, against a single running instance, that the legacy `CDW_*` path and the
 normalized path return the same business-meaningful result for every read endpoint.
@@ -150,7 +151,7 @@ observe which path served a request, and the `e2e/legacy` and `e2e/normalized` s
 their own wording. Identifiers, names, dates (`MM/dd/yyyy` on both paths), addresses, list sizes
 and ordering are identical.
 
-## 13. Performance comparison (bonus)
+## 12. Performance comparison (bonus)
 
 **Intent:** Benchmark the legacy `CDW_*` VARCHAR-everything path against the normalized
 properly-typed path under identical load.

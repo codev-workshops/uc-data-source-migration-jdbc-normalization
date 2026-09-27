@@ -57,9 +57,12 @@ The loan-service app currently reads from legacy CDW (Corporate Data Warehouse) 
 - No more string-to-type parsing in the service layer
 - Legacy entities and repositories can be removed (or kept for reference)
 
-> **Legacy removal:** deferred. The legacy service, entities, repositories and tests are kept,
-> annotated `@Deprecated`, and remain selectable per request via the `serviceImpl=legacy` query
-> parameter (the default is `normalized`); see [MIGRATION_LOG.md](MIGRATION_LOG.md).
+> **Legacy removal:** not done. A retirement (`V6__drop_legacy_schema.sql` plus deletion of the
+> legacy code) was attempted and then reverted: `V6` was removed so the `CDW_*` tables persist, and
+> the legacy service, entities, repositories and tests were restored and annotated `@Deprecated`.
+> The legacy path remains selectable per request via the `serviceImpl=legacy` query parameter (the
+> default is `normalized`); see
+> [DATA_SOURCE_MIGRATION_NOTES.md](DATA_SOURCE_MIGRATION_NOTES.md#9-legacy-retirement-later-reverted).
 
 ## Task 4: Add Validation Tests
 
@@ -80,7 +83,7 @@ The loan-service app currently reads from legacy CDW (Corporate Data Warehouse) 
 > twice against one running instance (`serviceImpl=legacy` and `serviceImpl=normalized`) and
 > asserts both responses against each other and against the golden files under
 > `src/test/resources/test-data/e2e/golden/`. The two intentional differences (numeric scale and
-> code-expansion style) are documented in [MIGRATION_LOG.md](MIGRATION_LOG.md#12-task-4-validation).
+> code-expansion style) are documented in [DATA_SOURCE_MIGRATION_NOTES.md](DATA_SOURCE_MIGRATION_NOTES.md#11-task-4-validation).
 
 ## Task 5: Document the Migration
 

@@ -24,6 +24,6 @@ the PR. Do not report completion without it.
    - the full contents of every golden file in `src/test/resources/test-data/e2e/golden/`;
    - a `diff` of the legacy vs normalized response per endpoint (`(identical)` when equal);
    - the list of files changed by the task.
-4. Any new legacy/normalized difference not already listed in `docs/MIGRATION_LOG.md`
+4. Any new legacy/normalized difference not already listed in `docs/DATA_SOURCE_MIGRATION_NOTES.md`
    ("Task 4 validation") must be added there with a justification, or the code fixed, before
    the report is considered passing.
