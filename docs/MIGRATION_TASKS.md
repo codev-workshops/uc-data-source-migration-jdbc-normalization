@@ -96,3 +96,8 @@ The loan-service app currently reads from legacy CDW (Corporate Data Warehouse) 
 - **Dual-read mode:** Implement a feature flag that can switch between legacy and modern data sources at runtime
 - **Data validation queries:** Write SQL queries that compare legacy vs. modern data for reconciliation
 - **Performance comparison:** Benchmark query performance between legacy VARCHAR-everything schema and properly-typed modern schema
+
+  > **Status: implemented** in [`perf-module/`](../perf-module/README.md). `perf-module/launch.sh`
+  > starts the app, waits for it to be ready, then runs a K6 test that hits every read endpoint
+  > with `?serviceImpl=legacy` and `?serviceImpl=normalized` under a ramp-up / steady-state /
+  > ramp-down profile and writes per-implementation latency comparisons to `perf-module/results/`.

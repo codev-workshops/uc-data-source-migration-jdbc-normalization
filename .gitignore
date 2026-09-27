@@ -6,3 +6,7 @@ target/
 *.iml
 .DS_Store
 .mvn/wrapper/maven-wrapper.jar
+
+# perf-module output
+perf-module/results/*
+!perf-module/results/.gitkeep

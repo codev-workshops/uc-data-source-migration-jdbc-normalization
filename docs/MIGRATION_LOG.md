@@ -149,3 +149,19 @@ The code-style difference is deliberate: it is what lets `e2e/routing/ServiceSel
 observe which path served a request, and the `e2e/legacy` and `e2e/normalized` suites each pin
 their own wording. Identifiers, names, dates (`MM/dd/yyyy` on both paths), addresses, list sizes
 and ordering are identical.
+
+## 13. Performance comparison (bonus)
+
+**Intent:** Benchmark the legacy `CDW_*` VARCHAR-everything path against the normalized
+properly-typed path under identical load.
+
+**Outcome:** `perf-module/` holds a K6 script (`scripts/loan-endpoints.js`) that requests all six
+read endpoints twice per iteration, with `serviceImpl=legacy` and `serviceImpl=normalized`,
+tagging each request with `impl` and `endpoint` and recording separate `latency_legacy` /
+`latency_normalized` trends (plus per-endpoint trends). The load profile is ramp-up, steady state,
+ramp-down, driven by `VUS`, `RAMP_UP`, `STEADY_DURATION` and `RAMP_DOWN` (all with defaults). A
+`routed to requested impl` check (legacy `Active` vs normalized `ACTIVE`) fails the run if the
+legacy path is missing or the parameter is ignored. `perf-module/launch.sh` starts the app, polls
+`GET /api/loans` until 200, runs K6 and stops the app; K6's exit code is propagated. Summaries and
+a legacy-vs-normalized comparison table are written to `perf-module/results/`. See
+`perf-module/README.md` and `perf-module/AGENTS.md`.
