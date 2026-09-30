@@ -258,7 +258,7 @@ Do NOT modify LoanService, controllers, DTOs, legacy entities/repositories, or a
   - `MigrationRunner` — `ApplicationRunner` gated by property `migration.run-on-startup=false` (default off) so the app is unaffected.
 - Tests:
   - `LegacyValueParserTest` — every rule with good, blank, malformed inputs; asserts blank amount → `null` (not zero).
-  - `LegacyToModernMigratorTest` — runs the migrator against the real legacy seed → modern schema in one H2 instance with two schemas (or two datasources): asserts 5/5/5/5/10 rows loaded, 0 quarantined, 0 name divergences, exactly 5 `address` rows (property = mailing address for all seed loans), all FKs resolved, `PROD_EXP_DT '12/31/2099'` → `NULL`; then a second scenario with injected bad rows (orphan loan, `'abc'` balance, unknown status code, `13/40/2025` date) asserting each lands in quarantine with the right `reason_code` and the good rows still load.
+  - `LegacyToModernMigratorTest` — runs the migrator against the real legacy seed → modern schema in one H2 instance with two schemas (or two datasources): asserts 5 borrowers / 5 products / 5 loans and 8 of 10 payments loaded with the two non-reconciling `LN-2019-00142` payments quarantined as `PAYMENT_SPLIT_MISMATCH`, 0 name divergences, 7 `address` rows (the property address equals the mailing address except where the mailing address has a `line2`, which `CDW_LN_ACCT` cannot carry), all FKs resolved, `PROD_EXP_DT '12/31/2099'` → `NULL`; then a second scenario with injected bad rows (orphan loan, `'abc'` balance, unknown status code, `13/40/2025` date) asserting each lands in quarantine with the right `reason_code` and the good rows still load.
 
 **Verification command**
 ```bash
@@ -267,11 +267,11 @@ Do NOT modify LoanService, controllers, DTOs, legacy entities/repositories, or a
 ```
 
 **Exit criteria**
-- [ ] Every rule ID in `docs/proposed-column-mappings.md` has a corresponding method in `LegacyValueParser` and at least one test (reviewer cross-checks the rule table).
-- [ ] Seed-data load reports 5 borrowers, 5 products, 5 properties, 5 loans, 10 payments, 5 addresses, 0 quarantined.
-- [ ] Malformed-row scenario proves row-level quarantine (not fail-fast, not coercion).
-- [ ] `migration.run-on-startup` defaults to `false`; `application.properties` behaviour for the API is unchanged; Phase 0 goldens pass.
-- [ ] `LoanService`, controllers and DTOs untouched.
+- [x] Every rule ID in `docs/proposed-column-mappings.md` has a corresponding method in `LegacyValueParser` and at least one test (reviewer cross-checks the rule table).
+- [x] Seed-data load reports 5 borrowers, 5 products, 5 properties, 5 loans, 8 of 10 payments, 7 addresses, 2 quarantined (both `PAYMENT_SPLIT_MISMATCH`).
+- [x] Malformed-row scenario proves row-level quarantine (not fail-fast, not coercion).
+- [x] `migration.run-on-startup` defaults to `false`; `application.properties` behaviour for the API is unchanged; Phase 0 goldens pass.
+- [x] `LoanService`, controllers and DTOs untouched.
 
 **Ready-to-paste Devin prompt**
 ```
@@ -281,7 +281,7 @@ Do NOT modify LoanService, controllers, DTOs, or the legacy entities/repositorie
 
 1. Add a migration_quarantine table to src/main/resources/schema-modern.sql.
 2. In package com.workshop.loanservice.migration implement LegacyValueParser (one method per rule ID: T-DATE strict MM/dd/yyyy, T-TS, T-AMT strip commas/$ scale 2 HALF_UP with blank -> null, T-DEC, T-INT, T-CODE incl. SELF-EMP -> SELF_EMPLOYED, T-SENTINEL 12/31/2099 -> null), LegacyToModernMigrator (FK load order, address dedup, ID resolution, SSN last-4 relocation, name-divergence report, quarantine-and-continue, MigrationReport), and MigrationRunner gated by migration.run-on-startup=false.
-3. Tests: LegacyValueParserTest for every rule with good/blank/malformed inputs; LegacyToModernMigratorTest loading the real legacy seed (expect 5/5/5/5/10 rows, 5 addresses, 0 quarantined) and a scenario with injected bad rows (orphan loan, 'abc' balance, unknown code, 13/40/2025) asserting quarantine reason codes.
+3. Tests: LegacyValueParserTest for every rule with good/blank/malformed inputs; LegacyToModernMigratorTest loading the real legacy seed (expect 5/5/5 rows, 8 of 10 payments, 7 addresses, 2 quarantined) and a scenario with injected bad rows (orphan loan, 'abc' balance, unknown code, 13/40/2025) asserting quarantine reason codes.
 4. Run ./mvnw -B test. Open a PR into develop titled "Phase 4: legacy-to-modern migration loader with quarantine" with the plan's exit-criteria checklist ticked and the MigrationReport output pasted.
 ```
 
