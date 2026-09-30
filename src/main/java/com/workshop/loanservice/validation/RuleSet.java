@@ -100,7 +100,8 @@ public final class RuleSet<T> {
     }
 
     public RuleSet<T> oneOf(String column, Function<T, String> getter, Set<String> allowed) {
-        return check(Severity.ERROR, column, r -> !allowed.contains(getter.apply(r)),
+        return check(Severity.ERROR, column,
+                r -> getter.apply(r) == null || !allowed.contains(getter.apply(r)),
                 r -> quote(getter.apply(r)) + " is not one of " + allowed.stream().sorted().toList());
     }
 

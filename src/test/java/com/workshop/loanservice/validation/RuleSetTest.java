@@ -64,6 +64,7 @@ class RuleSetTest {
                 .singleElement()
                 .extracting(ValidationFinding::message)
                 .isEqualTo("'XYZ' is not one of [ACT, INA]");
+        assertThat(run(rules().oneOf("C", Row::value, Set.of("ACT")), null)).hasSize(1);
     }
 
     @Test
