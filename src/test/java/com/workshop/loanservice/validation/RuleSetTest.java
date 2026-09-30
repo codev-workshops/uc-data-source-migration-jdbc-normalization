@@ -29,6 +29,9 @@ class RuleSetTest {
         assertThat(LegacyValues.parseDate("1990-02-28")).isEmpty();
         assertThat(LegacyValues.parseAmount("1,487.02")).contains(new BigDecimal("1487.02"));
         assertThat(LegacyValues.parseAmount("12a")).isEmpty();
+        assertThat(LegacyValues.parseAmount("1,,487.02")).isEmpty();
+        assertThat(LegacyValues.parseAmount("14,87.02")).isEmpty();
+        assertThat(LegacyValues.parseAmount("285000")).contains(new BigDecimal("285000"));
         assertThat(LegacyValues.parseDecimal("1,487.02")).isEmpty();
         assertThat(LegacyValues.parseInteger(" 360 ")).contains(360);
         assertThat(LegacyValues.parseInteger("99999999999")).isEmpty();

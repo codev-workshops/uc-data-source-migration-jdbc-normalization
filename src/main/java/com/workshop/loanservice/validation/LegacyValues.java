@@ -19,6 +19,8 @@ public final class LegacyValues {
             DateTimeFormatter.ofPattern("MM/dd/uuuu").withResolverStyle(ResolverStyle.STRICT);
     private static final Pattern DECIMAL_PATTERN = Pattern.compile("-?\\d+(\\.\\d+)?");
     private static final Pattern INTEGER_PATTERN = Pattern.compile("-?\\d+");
+    private static final Pattern AMOUNT_PATTERN =
+            Pattern.compile("-?(\\d{1,3}(,\\d{3})+|\\d+)(\\.\\d+)?");
 
     private LegacyValues() {
     }
@@ -35,9 +37,12 @@ public final class LegacyValues {
         }
     }
 
-    /** Parses a comma-formatted amount such as {@code "1,487.02"}. */
+    /** Parses an amount with optional thousands grouping such as {@code "1,487.02"}. */
     public static Optional<BigDecimal> parseAmount(String value) {
-        return value == null ? Optional.empty() : parseDecimal(value.replace(",", ""));
+        if (value == null || !AMOUNT_PATTERN.matcher(value.trim()).matches()) {
+            return Optional.empty();
+        }
+        return parseDecimal(value.replace(",", ""));
     }
 
     /** Parses a plain decimal such as {@code "4.750"}; commas are not accepted. */
