@@ -153,6 +153,8 @@ public class LegacyDataValidator {
                 .date("LN_MAT_DT", LegacyLoanAccount::getMaturityDate)
                 .date("LN_1ST_PMT_DT", LegacyLoanAccount::getFirstPaymentDate)
                 .date("LN_NXT_PMT_DT", LegacyLoanAccount::getNextPaymentDate)
+                .date("LN_CRET_DT", LegacyLoanAccount::getCreatedDate)
+                .date("LN_UPDT_DT", LegacyLoanAccount::getUpdatedDate)
                 .amount("LN_ORIG_AMT", LegacyLoanAccount::getOriginalAmount)
                 .amount("LN_CURR_BAL", LegacyLoanAccount::getCurrentBalance)
                 .amount("LN_PMT_AMT", LegacyLoanAccount::getMonthlyPayment)
