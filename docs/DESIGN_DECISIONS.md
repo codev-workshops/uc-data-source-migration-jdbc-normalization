@@ -24,7 +24,7 @@ Rationale for the choices in `docs/proposed-target-schema.sql` and `docs/propose
 
 **Chosen:** 1, with a quarantine table for rejected rows.
 
-**Why:** The analysis's top risk is that the legacy schema permits orphans. Auto-creating placeholders (2) would launder bad data into the new schema; keeping a dual column (3) perpetuates the manual-join pattern the migration is meant to remove. Load order is dictated by FKs: reference tables → `address` → `borrower` → `loan_product` → `property` → `loan_account` → `payment`. Orphans are written to a quarantine table with the source row and a reason code so a human can decide. With the current seed data, zero rows are expected to quarantine.
+**Why:** The analysis's top risk is that the legacy schema permits orphans. Auto-creating placeholders (2) would launder bad data into the new schema; keeping a dual column (3) perpetuates the manual-join pattern the migration is meant to remove. Load order is dictated by FKs: reference tables → `address` → `borrower` → `loan_product` → `property` → `loan_account` → `payment`. Orphans are written to a quarantine table with the source row and a reason code so a human can decide. With the current seed data, the only quarantined rows are the two `LN-2019-00142` payments whose split does not reconcile to their total (see D9); no orphans or malformed values are present.
 
 ## D3. Expanding cryptic status codes
 
@@ -106,7 +106,7 @@ The legacy schema permits any string in any column; the current service either t
 
 `LN_LTV_PCT` is derivable (`original_amount / appraised_value`), and `payment.total_amount` is derivable from its split. Both are kept as stored columns.
 
-**Why:** The DTOs expose them today; recomputing could change values by rounding and break golden-file parity tests. `ck_payment_split` enforces that the stored split reconciles to the total; LTV is cross-checked on load but not constrained, because legacy LTV may have been computed from a different appraisal than the one stored.
+**Why:** The DTOs expose them today; recomputing could change values by rounding and break golden-file parity tests. `ck_payment_split` enforces that the stored split reconciles to the total, and the loader quarantines rows that fail it (two in the current seed data) rather than relaxing the constraint; LTV is cross-checked on load but not constrained, because legacy LTV may have been computed from a different appraisal than the one stored.
 
 ## D10. Sensitive data
 
