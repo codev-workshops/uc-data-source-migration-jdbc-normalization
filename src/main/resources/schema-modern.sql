@@ -201,3 +201,20 @@ CREATE INDEX ix_payment_loan_date       ON payment (loan_account_id, payment_dat
 CREATE INDEX ix_borrower_last_first     ON borrower (last_name, first_name);
 
 
+
+-- -----------------------------------------------------------------------------
+-- Migration quarantine (DESIGN_DECISIONS D6): legacy rows rejected by the loader
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE migration_quarantine (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source_table    VARCHAR(30)   NOT NULL,                -- e.g. CDW_PMT_HIST
+    source_key      VARCHAR(40)   NOT NULL,                -- legacy primary key of the rejected row
+    source_row      VARCHAR(4000) NOT NULL,                -- raw legacy row as JSON
+    reason_code     VARCHAR(30)   NOT NULL,                -- QuarantineReason enum name
+    field           VARCHAR(30),                           -- legacy column that failed, if known
+    detail          VARCHAR(500),
+    created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX ix_quarantine_source ON migration_quarantine (source_table, source_key);
