@@ -50,7 +50,7 @@ explicit required/warn-if-null rules so a missing value yields exactly one findi
 | `LN_ACCT_NBR`, `BORR_ID`, `PROD_CD` | not null/blank | ERROR | `account_number`; FK lookups |
 | `BORR_ID` | exists in CDW_BORR_MSTR | ERROR | "Lookup borrowers.id by external_id" — legacy schema has **no FK**, so orphans would fail the modern FK |
 | `PROD_CD` | exists in CDW_LN_PROD | ERROR | "Lookup loan_products.id by code" — same reason |
-| `LN_ORIG_DT`, `LN_MAT_DT`, `LN_1ST_PMT_DT`, `LN_NXT_PMT_DT` | `MM/DD/YYYY` | ERROR | "Parse MM/DD/YYYY → DATE" |
+| `LN_ORIG_DT`, `LN_MAT_DT`, `LN_1ST_PMT_DT`, `LN_NXT_PMT_DT`, `LN_CRET_DT`, `LN_UPDT_DT` | `MM/DD/YYYY` | ERROR | "Parse MM/DD/YYYY → DATE" |
 | `LN_ORIG_AMT`, `LN_CURR_BAL`, `LN_PMT_AMT`, `LN_ESCROW_BAL`, `PROP_APRS_VAL` | parseable amounts | ERROR | "Remove commas, parse → decimal" |
 | `LN_INT_RT` | plain decimal 0–30 that fits `DECIMAL(5,3)` | ERROR | "Parse string → decimal" (`interest_rate DECIMAL(5,3)`); `LoanService.parseLegacyDecimal` does not strip commas |
 | `LN_TERM_MOS` / `LN_DLQ_DAYS` | integer >= 1 / integer >= 0 | ERROR | "Parse string → integer" |
