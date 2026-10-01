@@ -1,0 +1,62 @@
+[
+  {
+    "code": "FXD30",
+    "name": "30-Year Fixed Rate Mortgage",
+    "type": "FXD",
+    "term_months": 360,
+    "rate_type": "FIXED",
+    "min_amount": 50000.00,
+    "max_amount": 1500000.00,
+    "is_active": true,
+    "effective_date": "2020-01-01",
+    "expiration_date": "2099-12-31"
+  },
+  {
+    "code": "FXD15",
+    "name": "15-Year Fixed Rate Mortgage",
+    "type": "FXD",
+    "term_months": 180,
+    "rate_type": "FIXED",
+    "min_amount": 50000.00,
+    "max_amount": 1000000.00,
+    "is_active": true,
+    "effective_date": "2020-01-01",
+    "expiration_date": "2099-12-31"
+  },
+  {
+    "code": "ARM51",
+    "name": "5/1 Adjustable Rate Mortgage",
+    "type": "ARM",
+    "term_months": 360,
+    "rate_type": "VARIABLE",
+    "min_amount": 75000.00,
+    "max_amount": 1200000.00,
+    "is_active": true,
+    "effective_date": "2020-01-01",
+    "expiration_date": "2099-12-31"
+  },
+  {
+    "code": "FHA30",
+    "name": "FHA 30-Year Fixed",
+    "type": "FHA",
+    "term_months": 360,
+    "rate_type": "FIXED",
+    "min_amount": 25000.00,
+    "max_amount": 472030.00,
+    "is_active": true,
+    "effective_date": "2020-01-01",
+    "expiration_date": "2099-12-31"
+  },
+  {
+    "code": "VA30",
+    "name": "VA 30-Year Fixed",
+    "type": "VA",
+    "term_months": 360,
+    "rate_type": "FIXED",
+    "min_amount": 0.00,
+    "max_amount": 750000.00,
+    "is_active": true,
+    "effective_date": "2020-01-01",
+    "expiration_date": "2099-12-31"
+  }
+]

@@ -1,0 +1,446 @@
+{
+  "GET /api/loans": [
+    {
+      "loanAccountNumber": "LN-2019-00142",
+      "borrowerName": "James Mitchell",
+      "productDescription": "30-Year Fixed Rate Mortgage",
+      "originalAmount": 285000,
+      "currentBalance": 271432.56,
+      "interestRate": 4.75,
+      "monthlyPayment": 1487.02,
+      "status": "ACTIVE",
+      "originationDate": "2019-02-15",
+      "propertyAddress": "742 Elm Street, Springfield, IL 62701",
+      "propertyType": "Single Family"
+    },
+    {
+      "loanAccountNumber": "LN-2020-00398",
+      "borrowerName": "Sarah Chen",
+      "productDescription": "15-Year Fixed Rate Mortgage",
+      "originalAmount": 420000,
+      "currentBalance": 312876.43,
+      "interestRate": 3.125,
+      "monthlyPayment": 2924.18,
+      "status": "ACTIVE",
+      "originationDate": "2020-04-01",
+      "propertyAddress": "1100 Oak Avenue, Portland, OR 97201",
+      "propertyType": "Condominium"
+    },
+    {
+      "loanAccountNumber": "LN-2018-00089",
+      "borrowerName": "Michael Torres",
+      "productDescription": "5/1 Adjustable Rate Mortgage",
+      "originalAmount": 195000,
+      "currentBalance": 178234.12,
+      "interestRate": 5.25,
+      "monthlyPayment": 1077.05,
+      "status": "ACTIVE",
+      "originationDate": "2018-07-01",
+      "propertyAddress": "305 Pine Road, Austin, TX 78701",
+      "propertyType": "Single Family"
+    },
+    {
+      "loanAccountNumber": "LN-2021-00567",
+      "borrowerName": "Emily Johnson",
+      "productDescription": "30-Year Fixed Rate Mortgage",
+      "originalAmount": 525000,
+      "currentBalance": 498123.78,
+      "interestRate": 3.875,
+      "monthlyPayment": 2468.35,
+      "status": "ACTIVE",
+      "originationDate": "2021-10-01",
+      "propertyAddress": "89 Maple Drive, Denver, CO 80202",
+      "propertyType": "Townhouse"
+    },
+    {
+      "loanAccountNumber": "LN-2017-00034",
+      "borrowerName": "Robert Williams",
+      "productDescription": "FHA 30-Year Fixed",
+      "originalAmount": 165000,
+      "currentBalance": 142567.9,
+      "interestRate": 4.25,
+      "monthlyPayment": 811.61,
+      "status": "ACTIVE",
+      "originationDate": "2017-03-01",
+      "propertyAddress": "2200 Cedar Lane, Phoenix, AZ 85001",
+      "propertyType": "Single Family"
+    }
+  ],
+  "GET /api/loans/LN-2019-00142": {
+    "loanAccountNumber": "LN-2019-00142",
+    "borrowerName": "James Mitchell",
+    "productDescription": "30-Year Fixed Rate Mortgage",
+    "originalAmount": 285000,
+    "currentBalance": 271432.56,
+    "interestRate": 4.75,
+    "monthlyPayment": 1487.02,
+    "status": "ACTIVE",
+    "originationDate": "2019-02-15",
+    "propertyAddress": "742 Elm Street, Springfield, IL 62701",
+    "propertyType": "Single Family"
+  },
+  "GET /api/loans/LN-2020-00398": {
+    "loanAccountNumber": "LN-2020-00398",
+    "borrowerName": "Sarah Chen",
+    "productDescription": "15-Year Fixed Rate Mortgage",
+    "originalAmount": 420000,
+    "currentBalance": 312876.43,
+    "interestRate": 3.125,
+    "monthlyPayment": 2924.18,
+    "status": "ACTIVE",
+    "originationDate": "2020-04-01",
+    "propertyAddress": "1100 Oak Avenue, Portland, OR 97201",
+    "propertyType": "Condominium"
+  },
+  "GET /api/loans/LN-2018-00089": {
+    "loanAccountNumber": "LN-2018-00089",
+    "borrowerName": "Michael Torres",
+    "productDescription": "5/1 Adjustable Rate Mortgage",
+    "originalAmount": 195000,
+    "currentBalance": 178234.12,
+    "interestRate": 5.25,
+    "monthlyPayment": 1077.05,
+    "status": "ACTIVE",
+    "originationDate": "2018-07-01",
+    "propertyAddress": "305 Pine Road, Austin, TX 78701",
+    "propertyType": "Single Family"
+  },
+  "GET /api/loans/LN-2021-00567": {
+    "loanAccountNumber": "LN-2021-00567",
+    "borrowerName": "Emily Johnson",
+    "productDescription": "30-Year Fixed Rate Mortgage",
+    "originalAmount": 525000,
+    "currentBalance": 498123.78,
+    "interestRate": 3.875,
+    "monthlyPayment": 2468.35,
+    "status": "ACTIVE",
+    "originationDate": "2021-10-01",
+    "propertyAddress": "89 Maple Drive, Denver, CO 80202",
+    "propertyType": "Townhouse"
+  },
+  "GET /api/loans/LN-2017-00034": {
+    "loanAccountNumber": "LN-2017-00034",
+    "borrowerName": "Robert Williams",
+    "productDescription": "FHA 30-Year Fixed",
+    "originalAmount": 165000,
+    "currentBalance": 142567.9,
+    "interestRate": 4.25,
+    "monthlyPayment": 811.61,
+    "status": "ACTIVE",
+    "originationDate": "2017-03-01",
+    "propertyAddress": "2200 Cedar Lane, Phoenix, AZ 85001",
+    "propertyType": "Single Family"
+  },
+  "GET /api/loans/LN-2019-00142/payments": [
+    {
+      "paymentId": "PMT-2025120001",
+      "loanAccountNumber": "LN-2019-00142",
+      "paymentDate": "2025-12-15",
+      "totalAmount": 1487.02,
+      "principalAmount": 456.78,
+      "interestAmount": 1074.69,
+      "escrowAmount": 355.55,
+      "lateFee": 0.0,
+      "type": "REGULAR",
+      "status": "POSTED"
+    },
+    {
+      "paymentId": "PMT-2025110001",
+      "loanAccountNumber": "LN-2019-00142",
+      "paymentDate": "2025-11-15",
+      "totalAmount": 1487.02,
+      "principalAmount": 454.97,
+      "interestAmount": 1076.5,
+      "escrowAmount": 355.55,
+      "lateFee": 0.0,
+      "type": "REGULAR",
+      "status": "POSTED"
+    }
+  ],
+  "GET /api/loans/LN-2020-00398/payments": [
+    {
+      "paymentId": "PMT-2025120002",
+      "loanAccountNumber": "LN-2020-00398",
+      "paymentDate": "2025-12-01",
+      "totalAmount": 2924.18,
+      "principalAmount": 1842.56,
+      "interestAmount": 815.5,
+      "escrowAmount": 266.12,
+      "lateFee": 0.0,
+      "type": "REGULAR",
+      "status": "POSTED"
+    },
+    {
+      "paymentId": "PMT-2025110002",
+      "loanAccountNumber": "LN-2020-00398",
+      "paymentDate": "2025-11-01",
+      "totalAmount": 2924.18,
+      "principalAmount": 1837.76,
+      "interestAmount": 820.3,
+      "escrowAmount": 266.12,
+      "lateFee": 0.0,
+      "type": "REGULAR",
+      "status": "POSTED"
+    }
+  ],
+  "GET /api/loans/LN-2018-00089/payments": [
+    {
+      "paymentId": "PMT-2025120003",
+      "loanAccountNumber": "LN-2018-00089",
+      "paymentDate": "2025-12-01",
+      "totalAmount": 1077.05,
+      "principalAmount": 297.12,
+      "interestAmount": 779.93,
+      "escrowAmount": 0.0,
+      "lateFee": 0.0,
+      "type": "REGULAR",
+      "status": "POSTED"
+    },
+    {
+      "paymentId": "PMT-2025110003",
+      "loanAccountNumber": "LN-2018-00089",
+      "paymentDate": "2025-11-01",
+      "totalAmount": 1077.05,
+      "principalAmount": 295.82,
+      "interestAmount": 781.23,
+      "escrowAmount": 0.0,
+      "lateFee": 47.5,
+      "type": "REGULAR",
+      "status": "POSTED"
+    }
+  ],
+  "GET /api/loans/LN-2021-00567/payments": [
+    {
+      "paymentId": "PMT-2025120004",
+      "loanAccountNumber": "LN-2021-00567",
+      "paymentDate": "2025-12-01",
+      "totalAmount": 2468.35,
+      "principalAmount": 857.23,
+      "interestAmount": 1611.12,
+      "escrowAmount": 0.0,
+      "lateFee": 0.0,
+      "type": "REGULAR",
+      "status": "POSTED"
+    },
+    {
+      "paymentId": "PMT-2025110004",
+      "loanAccountNumber": "LN-2021-00567",
+      "paymentDate": "2025-11-01",
+      "totalAmount": 2468.35,
+      "principalAmount": 854.46,
+      "interestAmount": 1613.89,
+      "escrowAmount": 0.0,
+      "lateFee": 0.0,
+      "type": "REGULAR",
+      "status": "POSTED"
+    }
+  ],
+  "GET /api/loans/LN-2017-00034/payments": [
+    {
+      "paymentId": "PMT-2025120005",
+      "loanAccountNumber": "LN-2017-00034",
+      "paymentDate": "2025-12-01",
+      "totalAmount": 811.61,
+      "principalAmount": 306.45,
+      "interestAmount": 505.16,
+      "escrowAmount": 0.0,
+      "lateFee": 0.0,
+      "type": "REGULAR",
+      "status": "POSTED"
+    },
+    {
+      "paymentId": "PMT-2025110005",
+      "loanAccountNumber": "LN-2017-00034",
+      "paymentDate": "2025-11-01",
+      "totalAmount": 811.61,
+      "principalAmount": 305.37,
+      "interestAmount": 506.24,
+      "escrowAmount": 0.0,
+      "lateFee": 0.0,
+      "type": "REGULAR",
+      "status": "POSTED"
+    }
+  ],
+  "GET /api/borrowers": [
+    {
+      "id": "B-10001",
+      "fullName": "James R. Mitchell",
+      "email": "j.mitchell@email.com",
+      "phone": "217-555-0142",
+      "city": "Springfield",
+      "state": "IL",
+      "creditScore": 745,
+      "employmentStatus": "EMPLOYED",
+      "loans": null
+    },
+    {
+      "id": "B-10002",
+      "fullName": "Sarah L. Chen",
+      "email": "s.chen@email.com",
+      "phone": "503-555-0198",
+      "city": "Portland",
+      "state": "OR",
+      "creditScore": 780,
+      "employmentStatus": "EMPLOYED",
+      "loans": null
+    },
+    {
+      "id": "B-10003",
+      "fullName": "Michael A. Torres",
+      "email": "m.torres@email.com",
+      "phone": "512-555-0167",
+      "city": "Austin",
+      "state": "TX",
+      "creditScore": 692,
+      "employmentStatus": "SELF-EMP",
+      "loans": null
+    },
+    {
+      "id": "B-10004",
+      "fullName": "Emily M. Johnson",
+      "email": "e.johnson@email.com",
+      "phone": "303-555-0134",
+      "city": "Denver",
+      "state": "CO",
+      "creditScore": 810,
+      "employmentStatus": "EMPLOYED",
+      "loans": null
+    },
+    {
+      "id": "B-10005",
+      "fullName": "Robert Williams",
+      "email": "r.williams@email.com",
+      "phone": "602-555-0156",
+      "city": "Phoenix",
+      "state": "AZ",
+      "creditScore": 658,
+      "employmentStatus": "RETIRED",
+      "loans": null
+    }
+  ],
+  "GET /api/borrowers/B-10001": {
+    "id": "B-10001",
+    "fullName": "James R. Mitchell",
+    "email": "j.mitchell@email.com",
+    "phone": "217-555-0142",
+    "city": "Springfield",
+    "state": "IL",
+    "creditScore": 745,
+    "employmentStatus": "EMPLOYED",
+    "loans": [
+      {
+        "loanAccountNumber": "LN-2019-00142",
+        "borrowerName": "James Mitchell",
+        "productDescription": "30-Year Fixed Rate Mortgage",
+        "originalAmount": 285000,
+        "currentBalance": 271432.56,
+        "interestRate": 4.75,
+        "monthlyPayment": 1487.02,
+        "status": "ACTIVE",
+        "originationDate": "2019-02-15",
+        "propertyAddress": "742 Elm Street, Springfield, IL 62701",
+        "propertyType": "Single Family"
+      }
+    ]
+  },
+  "GET /api/borrowers/B-10002": {
+    "id": "B-10002",
+    "fullName": "Sarah L. Chen",
+    "email": "s.chen@email.com",
+    "phone": "503-555-0198",
+    "city": "Portland",
+    "state": "OR",
+    "creditScore": 780,
+    "employmentStatus": "EMPLOYED",
+    "loans": [
+      {
+        "loanAccountNumber": "LN-2020-00398",
+        "borrowerName": "Sarah Chen",
+        "productDescription": "15-Year Fixed Rate Mortgage",
+        "originalAmount": 420000,
+        "currentBalance": 312876.43,
+        "interestRate": 3.125,
+        "monthlyPayment": 2924.18,
+        "status": "ACTIVE",
+        "originationDate": "2020-04-01",
+        "propertyAddress": "1100 Oak Avenue, Portland, OR 97201",
+        "propertyType": "Condominium"
+      }
+    ]
+  },
+  "GET /api/borrowers/B-10003": {
+    "id": "B-10003",
+    "fullName": "Michael A. Torres",
+    "email": "m.torres@email.com",
+    "phone": "512-555-0167",
+    "city": "Austin",
+    "state": "TX",
+    "creditScore": 692,
+    "employmentStatus": "SELF-EMP",
+    "loans": [
+      {
+        "loanAccountNumber": "LN-2018-00089",
+        "borrowerName": "Michael Torres",
+        "productDescription": "5/1 Adjustable Rate Mortgage",
+        "originalAmount": 195000,
+        "currentBalance": 178234.12,
+        "interestRate": 5.25,
+        "monthlyPayment": 1077.05,
+        "status": "ACTIVE",
+        "originationDate": "2018-07-01",
+        "propertyAddress": "305 Pine Road, Austin, TX 78701",
+        "propertyType": "Single Family"
+      }
+    ]
+  },
+  "GET /api/borrowers/B-10004": {
+    "id": "B-10004",
+    "fullName": "Emily M. Johnson",
+    "email": "e.johnson@email.com",
+    "phone": "303-555-0134",
+    "city": "Denver",
+    "state": "CO",
+    "creditScore": 810,
+    "employmentStatus": "EMPLOYED",
+    "loans": [
+      {
+        "loanAccountNumber": "LN-2021-00567",
+        "borrowerName": "Emily Johnson",
+        "productDescription": "30-Year Fixed Rate Mortgage",
+        "originalAmount": 525000,
+        "currentBalance": 498123.78,
+        "interestRate": 3.875,
+        "monthlyPayment": 2468.35,
+        "status": "ACTIVE",
+        "originationDate": "2021-10-01",
+        "propertyAddress": "89 Maple Drive, Denver, CO 80202",
+        "propertyType": "Townhouse"
+      }
+    ]
+  },
+  "GET /api/borrowers/B-10005": {
+    "id": "B-10005",
+    "fullName": "Robert Williams",
+    "email": "r.williams@email.com",
+    "phone": "602-555-0156",
+    "city": "Phoenix",
+    "state": "AZ",
+    "creditScore": 658,
+    "employmentStatus": "RETIRED",
+    "loans": [
+      {
+        "loanAccountNumber": "LN-2017-00034",
+        "borrowerName": "Robert Williams",
+        "productDescription": "FHA 30-Year Fixed",
+        "originalAmount": 165000,
+        "currentBalance": 142567.9,
+        "interestRate": 4.25,
+        "monthlyPayment": 811.61,
+        "status": "ACTIVE",
+        "originationDate": "2017-03-01",
+        "propertyAddress": "2200 Cedar Lane, Phoenix, AZ 85001",
+        "propertyType": "Single Family"
+      }
+    ]
+  }
+}
