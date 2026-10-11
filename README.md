@@ -44,6 +44,11 @@ Migrate to normalized tables:
 
 See `data/modern-schema/` for target DDL.
 
+## Migration Status
+
+The service now reads from the modern schema. At startup the legacy tables are loaded,
+migrated into the modern tables and reconciled; see `DATA_SOURCE_MIGRATION_NOTES.md`.
+
 ## Quick Start
 
 ```bash
@@ -55,7 +60,7 @@ The app runs on `http://localhost:8080` with endpoints:
 - `GET /api/loans/{id}` — Get loan details
 - `GET /api/borrowers` — List borrowers
 - `GET /api/borrowers/{id}` — Get borrower with loans
-- `GET /api/payments/loan/{loanId}` — Payment history for a loan
+- `GET /api/loans/{loanId}/payments` — Payment history for a loan
 
 ## Tech Stack
 

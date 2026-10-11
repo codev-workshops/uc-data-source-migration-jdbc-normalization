@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -19,7 +20,14 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Compares every REST endpoint response against the golden JSON captured from the
- * legacy-backed service. Run with {@code -Dgolden.update=true} to (re)capture the baseline.
+ * legacy-backed service (before LoanService was rewired). Responses must be byte-for-byte
+ * identical apart from the documented differences below.
+ *
+ * <p>Intentional difference: {@code loan_accounts.original_amount} is DECIMAL(12,2), so
+ * whole-dollar amounts the legacy string stored as {@code "285,000"} now serialize as
+ * {@code 285000.00} instead of {@code 285000}. The values are numerically identical.
+ *
+ * <p>Run with {@code -Dgolden.update=true} only to re-capture the baseline from a legacy build.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -32,6 +40,10 @@ class ApiGoldenFileTest {
       "LN-2019-00142", "LN-2020-00398", "LN-2018-00089", "LN-2021-00567", "LN-2017-00034");
   private static final List<String> BORROWER_IDS = List.of(
       "B-10001", "B-10002", "B-10003", "B-10004", "B-10005");
+
+  /** Whole-dollar originalAmount gained a two-decimal scale (see class comment). */
+  private static final Pattern ORIGINAL_AMOUNT_SCALE =
+      Pattern.compile("(\"originalAmount\":-?\\d+)\\.00(?=[,}])");
 
   @Autowired
   private MockMvc mockMvc;
@@ -65,7 +77,12 @@ class ApiGoldenFileTest {
       return;
     }
 
-    assertEquals(Files.readString(golden, StandardCharsets.UTF_8), actual,
+    assertEquals(Files.readString(golden, StandardCharsets.UTF_8),
+        withoutDocumentedDifferences(actual),
         () -> uri + " differs from golden file " + golden);
+  }
+
+  static String withoutDocumentedDifferences(String json) {
+    return ORIGINAL_AMOUNT_SCALE.matcher(json).replaceAll("$1");
   }
 }
