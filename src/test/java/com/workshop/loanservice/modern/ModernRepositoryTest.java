@@ -15,7 +15,6 @@ import com.workshop.loanservice.modern.repository.BorrowerRepository;
 import com.workshop.loanservice.modern.repository.LoanAccountRepository;
 import com.workshop.loanservice.modern.repository.LoanProductRepository;
 import com.workshop.loanservice.modern.repository.PaymentRepository;
-import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.PersistenceException;
@@ -23,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -30,27 +30,25 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(
-        properties = {
-            "spring.datasource.url=jdbc:h2:mem:modern-repository-test-legacy;DB_CLOSE_DELAY=-1",
-            "app.datasource.modern.url=jdbc:h2:mem:modern-repository-test;DB_CLOSE_DELAY=-1",
-            "app.migration.run-on-startup=false"
-        })
-@Transactional("modernTransactionManager")
+        properties = "spring.datasource.url=jdbc:h2:mem:modern-repository-test;DB_CLOSE_DELAY=-1")
+@Transactional
 class ModernRepositoryTest {
 
     @Autowired private BorrowerRepository borrowers;
     @Autowired private LoanProductRepository products;
     @Autowired private LoanAccountRepository loans;
     @Autowired private PaymentRepository payments;
-    @Autowired private LegacyLoanAccountRepository legacyLoans;
 
-    @PersistenceContext(unitName = "modern")
+    @PersistenceContext
     private EntityManager modernEntityManager;
 
-    @Test
-    void modernSchemaStartsEmptyWhileLegacyKeepsItsData() {
+    @BeforeEach
+    void emptyTables() {
+        payments.deleteAllInBatch();
+        loans.deleteAllInBatch();
+        borrowers.deleteAllInBatch();
+        products.deleteAllInBatch();
         assertThat(borrowers.count()).isZero();
-        assertThat(legacyLoans.count()).isEqualTo(5);
     }
 
     @Test

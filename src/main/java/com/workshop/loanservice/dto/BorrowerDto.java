@@ -4,7 +4,6 @@ import java.util.List;
 
 /**
  * Clean DTO for API responses.
- * The service layer translates legacy string fields into proper types.
  */
 public class BorrowerDto {
 

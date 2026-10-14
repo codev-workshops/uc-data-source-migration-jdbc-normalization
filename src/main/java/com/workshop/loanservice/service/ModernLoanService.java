@@ -17,11 +17,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Builds the API DTOs from the modern schema. Values are already typed and codes already
- * resolved by the migration, so this only formats them into the existing response shapes.
+ * Builds the API DTOs from the normalized schema. Values are already typed, so this only
+ * formats them into the existing response shapes.
  */
 @Service
-@Transactional(value = "modernTransactionManager", readOnly = true)
+@Transactional(readOnly = true)
 public class ModernLoanService {
 
     private static final DateTimeFormatter API_DATE = DateTimeFormatter.ofPattern("MM/dd/yyyy");
