@@ -1,7 +1,7 @@
 package com.workshop.loanservice.modern.entity;
 
 /** Payment status stored in {@code payments.status}. The label is the text the API returns. */
-public enum PaymentStatus {
+public enum PaymentStatus implements LegacyCoded {
     POSTED("PST", "Posted"),
     REVERSED("REV", "Reversed"),
     NSF("NSF", "Non-Sufficient Funds"),
@@ -15,6 +15,7 @@ public enum PaymentStatus {
         this.label = label;
     }
 
+    @Override
     public String getLegacyCode() {
         return legacyCode;
     }

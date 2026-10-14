@@ -29,7 +29,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
+@SpringBootTest(
+        properties = {
+            "spring.datasource.url=jdbc:h2:mem:modern-repository-test-legacy;DB_CLOSE_DELAY=-1",
+            "app.datasource.modern.url=jdbc:h2:mem:modern-repository-test;DB_CLOSE_DELAY=-1",
+            "app.migration.run-on-startup=false"
+        })
 @Transactional("modernTransactionManager")
 class ModernRepositoryTest {
 
