@@ -1,6 +1,9 @@
 package com.workshop.loanservice.modern.entity;
 
-/** Loan account status stored in {@code loan_accounts.status}. The label is the text the API returns. */
+/**
+ * Loan account status stored in {@code loan_accounts.status}. The label is the text the API
+ * returns.
+ */
 public enum LoanStatus {
     ACTIVE("ACT", "Active"),
     CLOSED("CLO", "Closed"),

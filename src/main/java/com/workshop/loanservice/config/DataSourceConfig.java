@@ -101,8 +101,8 @@ public class DataSourceConfig {
 
         @Bean
         PlatformTransactionManager modernTransactionManager(
-                @Qualifier("modernEntityManagerFactory") EntityManagerFactory entityManagerFactory) {
-            return new JpaTransactionManager(entityManagerFactory);
+                @Qualifier("modernEntityManagerFactory") EntityManagerFactory factory) {
+            return new JpaTransactionManager(factory);
         }
     }
 }
