@@ -21,13 +21,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Each test runs in a modern transaction that is rolled back, so it starts from empty tables. */
+/** Every test empties the modern tables first, so each migration starts from scratch. */
 @SpringBootTest(
         properties = {
             "spring.datasource.url=jdbc:h2:mem:migrator-test-legacy;DB_CLOSE_DELAY=-1",
@@ -43,6 +44,19 @@ class LegacyDataMigratorTest {
     @Autowired private LoanAccountRepository loans;
     @Autowired private PaymentRepository payments;
     @Autowired private JdbcTemplate legacyJdbc;
+
+    @BeforeEach
+    void emptyModernTables() {
+        payments.deleteAllInBatch();
+        loans.deleteAllInBatch();
+        borrowers.deleteAllInBatch();
+        products.deleteAllInBatch();
+
+        assertThat(payments.count()).isZero();
+        assertThat(loans.count()).isZero();
+        assertThat(borrowers.count()).isZero();
+        assertThat(products.count()).isZero();
+    }
 
     @Test
     void migratesEveryLegacyRowAndPassesValidation() {
