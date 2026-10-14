@@ -1,0 +1,13 @@
+{
+  "loanAccountNumber": "LN-2020-00398",
+  "borrowerName": "Sarah Chen",
+  "productDescription": "15-Year Fixed Rate Mortgage",
+  "originalAmount": 420000,
+  "currentBalance": 312876.43,
+  "interestRate": 3.125,
+  "monthlyPayment": 2924.18,
+  "status": "Active",
+  "originationDate": "04/01/2020",
+  "propertyAddress": "1100 Oak Avenue, Portland, OR 97201",
+  "propertyType": "Condominium"
+}
