@@ -47,7 +47,8 @@ See `data/modern-schema/` for target DDL.
 ## Quick Start
 
 ```bash
-./mvnw spring-boot:run
+./mvnw spring-boot:run   # run the app
+./mvnw test              # run the tests
 ```
 
 The app runs on `http://localhost:8080` with endpoints:
@@ -55,7 +56,7 @@ The app runs on `http://localhost:8080` with endpoints:
 - `GET /api/loans/{id}` — Get loan details
 - `GET /api/borrowers` — List borrowers
 - `GET /api/borrowers/{id}` — Get borrower with loans
-- `GET /api/payments/loan/{loanId}` — Payment history for a loan
+- `GET /api/loans/{id}/payments` — Payment history for a loan
 
 ## Tech Stack
 
