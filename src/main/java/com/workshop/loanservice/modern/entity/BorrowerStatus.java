@@ -1,7 +1,7 @@
 package com.workshop.loanservice.modern.entity;
 
 /** Borrower status stored in {@code borrowers.status}. */
-public enum BorrowerStatus {
+public enum BorrowerStatus implements LegacyCoded {
     ACTIVE("ACT"),
     INACTIVE("INA");
 
@@ -11,6 +11,7 @@ public enum BorrowerStatus {
         this.legacyCode = legacyCode;
     }
 
+    @Override
     public String getLegacyCode() {
         return legacyCode;
     }

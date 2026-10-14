@@ -66,6 +66,10 @@ public class Borrower {
         return id;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public String getExternalId() {
         return externalId;
     }
