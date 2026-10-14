@@ -59,10 +59,6 @@ public class Payment {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
     public String getLegacyPaymentId() {
         return legacyPaymentId;
     }
