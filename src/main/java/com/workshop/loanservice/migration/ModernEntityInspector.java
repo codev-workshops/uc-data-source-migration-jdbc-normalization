@@ -20,6 +20,9 @@ final class ModernEntityInspector {
     /** Audit columns are set at migration time and legitimately differ between runs. */
     private static final Set<String> IGNORED_FIELDS = Set.of("createdAt", "updatedAt");
 
+    /** Values never echoed into reports/logs; free text is also omitted since it may hold PII. */
+    private static final Set<String> SENSITIVE_FIELDS = Set.of("ssnHash", "dateOfBirth");
+
     private ModernEntityInspector() {
     }
 
@@ -36,7 +39,7 @@ final class ModernEntityInspector {
             Object value = read(field, entity);
             if (value instanceof String text && text.length() > column.length()) {
                 throw new LegacyDataException(column.name() + " exceeds " + column.length()
-                        + " characters: '" + text + "'");
+                        + " characters (length " + text.length() + ")");
             }
             if (value instanceof BigDecimal amount && column.precision() > 0) {
                 int maxIntegerDigits = column.precision() - column.scale();
@@ -64,10 +67,18 @@ final class ModernEntityInspector {
             Object left = comparable(field, read(field, expected));
             Object right = comparable(field, read(field, actual));
             if (!valuesEqual(left, right)) {
-                differences.add(field.getName() + " (legacy=" + left + ", modern=" + right + ")");
+                differences.add(describeDifference(field, left, right));
             }
         }
         return differences;
+    }
+
+    private static String describeDifference(Field field, Object legacy, Object modern) {
+        boolean redact = SENSITIVE_FIELDS.contains(field.getName())
+                || legacy instanceof String || modern instanceof String;
+        return redact
+                ? field.getName()
+                : field.getName() + " (legacy=" + legacy + ", modern=" + modern + ")";
     }
 
     private static boolean valuesEqual(Object left, Object right) {
