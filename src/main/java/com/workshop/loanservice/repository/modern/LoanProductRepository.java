@@ -10,6 +10,4 @@ import java.util.Optional;
 public interface LoanProductRepository extends JpaRepository<LoanProduct, Long> {
 
     Optional<LoanProduct> findByCode(String code);
-
-    boolean existsByCode(String code);
 }

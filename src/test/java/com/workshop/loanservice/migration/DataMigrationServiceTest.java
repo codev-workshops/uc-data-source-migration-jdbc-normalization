@@ -1,6 +1,7 @@
 package com.workshop.loanservice.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import javax.sql.DataSource;
@@ -9,7 +10,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.test.annotation.DirtiesContext;
 
 /**
@@ -83,7 +86,7 @@ class DataMigrationServiceTest {
 
     @Test
     void rerunIsIdempotent() {
-        MigrationReport report = migrationService.migrate();
+        MigrationReport report = migrationService.migrate(true);
 
         assertThat(report.isSuccessful()).as(report.summary()).isTrue();
         assertThat(report.getTables().values()).allSatisfy(stats -> {
@@ -94,22 +97,58 @@ class DataMigrationServiceTest {
     }
 
     @Test
-    @DirtiesContext
-    void malformedAndOrphanRowsAreRejectedAndFailReconciliation() {
-        legacy.update("""
-                INSERT INTO CDW_PMT_HIST (PMT_SEQ_NBR, LN_ACCT_NBR, PMT_DT, PMT_AMT, PMT_TYP_CD, PMT_STAT_CD)
-                VALUES ('PMT-BAD', 'LN-2019-00142', '13/45/2025', '1,O00.00', 'REG', 'PST')""");
-        legacy.update("""
-                INSERT INTO CDW_PMT_HIST (PMT_SEQ_NBR, LN_ACCT_NBR, PMT_DT, PMT_AMT, PMT_TYP_CD, PMT_STAT_CD)
-                VALUES ('PMT-ORPHAN', 'LN-MISSING', '01/15/2026', '100.00', 'REG', 'PST')""");
+    void modernSchemaScriptIsRerunnableAgainstAnInitializedDatabase() {
+        new ResourceDatabasePopulator(new ClassPathResource("schema-modern.sql")).execute(modernDataSource);
 
-        MigrationReport report = migrationService.migrate();
+        assertThat(count(modern, "borrowers")).isEqualTo(5);
+    }
+
+    @Test
+    @DirtiesContext
+    void badRowsAreRejectedIndividuallyWhenNotFailingOnError() {
+        insertLegacyPayment("PMT-BAD", "LN-2019-00142", "13/45/2025", "1,O00.00");
+        insertLegacyPayment("PMT-ORPHAN", "LN-MISSING", "01/15/2026", "100.00");
+        insertLegacyPayment("PMT-BIG", "LN-2019-00142", "01/15/2026", "999999999999999");
+
+        MigrationReport report = migrationService.migrate(false);
 
         assertThat(report.isSuccessful()).isFalse();
-        assertThat(report.getTable("payments").getRejected()).isEqualTo(2);
-        assertThat(report.getErrors()).anyMatch(e -> e.contains("PMT-BAD"))
-                .anyMatch(e -> e.contains("PMT-ORPHAN"));
+        assertThat(report.getTable("payments").getRejected()).isEqualTo(3);
+        assertThat(report.getErrors())
+                .anyMatch(e -> e.contains("PMT-BAD"))
+                .anyMatch(e -> e.contains("PMT-ORPHAN"))
+                .anyMatch(e -> e.contains("PMT-BIG") && e.contains("DECIMAL(10,2)"));
         assertThat(count(modern, "payments")).isEqualTo(10);
+    }
+
+    @Test
+    @DirtiesContext
+    void failOnErrorRollsBackTheWholeRun() {
+        legacy.update("INSERT INTO CDW_BORR_MSTR (BORR_ID, BORR_FST_NM, BORR_LST_NM) VALUES ('B-99999', 'Ada', 'Lane')");
+        insertLegacyPayment("PMT-BAD", "LN-2019-00142", "13/45/2025", "100.00");
+
+        assertThatThrownBy(() -> migrationService.migrate(true))
+                .isInstanceOf(MigrationFailedException.class)
+                .satisfies(e -> assertThat(((MigrationFailedException) e).getReport().getErrors())
+                        .anyMatch(error -> error.contains("PMT-BAD")));
+        assertThat(count(modern, "borrowers")).isEqualTo(5);
+    }
+
+    @Test
+    @DirtiesContext
+    void existingModernRowThatDiffersFromLegacyFailsValidation() {
+        modern.update("UPDATE borrowers SET first_name = 'Jon' WHERE external_id = 'B-10001'");
+
+        MigrationReport report = migrationService.migrate(false);
+
+        assertThat(report.isSuccessful()).isFalse();
+        assertThat(report.getErrors()).anyMatch(e -> e.contains("B-10001") && e.contains("firstName"));
+    }
+
+    private void insertLegacyPayment(String id, String loan, String date, String amount) {
+        legacy.update("""
+                INSERT INTO CDW_PMT_HIST (PMT_SEQ_NBR, LN_ACCT_NBR, PMT_DT, PMT_AMT, PMT_TYP_CD, PMT_STAT_CD)
+                VALUES (?, ?, ?, ?, 'REG', 'PST')""", id, loan, date, amount);
     }
 
     private static int count(JdbcTemplate jdbc, String table) {

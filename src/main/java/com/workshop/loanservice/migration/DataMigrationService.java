@@ -32,10 +32,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -43,7 +43,8 @@ import java.util.stream.Collectors;
  * {@code data/mappings/column_mappings.md}, then reconciles row counts and amount totals.
  *
  * <p>The run is idempotent: rows whose business key (borrower external id, product code,
- * account number, payment sequence number) already exists in the modern schema are skipped.
+ * account number, payment sequence number) already exists in the modern schema are not inserted
+ * again, but are compared field by field with the transformed legacy row; any difference is an error.
  * Rows with missing required values, malformed values, unknown codes or unresolvable foreign
  * keys are rejected and listed in the {@link MigrationReport} rather than aborting the run.
  */
@@ -83,8 +84,13 @@ public class DataMigrationService {
         this.paymentRepository = paymentRepository;
     }
 
+    /**
+     * Runs the migration in a single transaction. With {@code failOnError}, a failed validation throws
+     * {@link MigrationFailedException} before commit so nothing is persisted; otherwise successfully
+     * transformed rows are committed and failures are only reported.
+     */
     @Transactional
-    public MigrationReport migrate() {
+    public MigrationReport migrate(boolean failOnError) {
         MigrationReport report = new MigrationReport();
         List<LegacyBorrower> legacyBorrowers = legacyBorrowerRepository.findAll();
         List<LegacyLoanProduct> legacyProducts = legacyLoanProductRepository.findAll();
@@ -92,34 +98,37 @@ public class DataMigrationService {
         List<LegacyPayment> legacyPayments = legacyPaymentRepository.findAll();
 
         migrateRows(report, BORROWERS, legacyBorrowers, LegacyBorrower::getBorrowerId,
-                borrowerRepository::existsByExternalId, this::toBorrower, borrowerRepository::save);
+                borrowerRepository::findByExternalId, this::toBorrower, borrowerRepository::save);
         migrateRows(report, LOAN_PRODUCTS, legacyProducts, LegacyLoanProduct::getProductCode,
-                loanProductRepository::existsByCode, this::toLoanProduct, loanProductRepository::save);
+                loanProductRepository::findByCode, this::toLoanProduct, loanProductRepository::save);
 
         Map<String, Borrower> borrowersByExternalId = borrowerRepository.findAll().stream()
                 .collect(Collectors.toMap(Borrower::getExternalId, Function.identity()));
         Map<String, LoanProduct> productsByCode = loanProductRepository.findAll().stream()
                 .collect(Collectors.toMap(LoanProduct::getCode, Function.identity()));
         migrateRows(report, LOAN_ACCOUNTS, legacyLoans, LegacyLoanAccount::getLoanAccountNumber,
-                loanAccountRepository::existsByAccountNumber,
+                loanAccountRepository::findByAccountNumber,
                 legacy -> toLoanAccount(legacy, borrowersByExternalId, productsByCode, report),
                 loanAccountRepository::save);
 
         Map<String, LoanAccount> loansByAccountNumber = loanAccountRepository.findAll().stream()
                 .collect(Collectors.toMap(LoanAccount::getAccountNumber, Function.identity()));
         migrateRows(report, PAYMENTS, legacyPayments, LegacyPayment::getPaymentSequenceNumber,
-                paymentRepository::existsByExternalId,
+                paymentRepository::findByExternalId,
                 legacy -> toPayment(legacy, loansByAccountNumber), paymentRepository::save);
 
         reconcile(report, legacyBorrowers, legacyProducts, legacyLoans, legacyPayments);
+        if (failOnError && !report.isSuccessful()) {
+            throw new MigrationFailedException(report);
+        }
         return report;
     }
 
     private <L, M> void migrateRows(MigrationReport report, String table, List<L> legacyRows,
-                                    Function<L, String> businessKey, Predicate<String> existsInModern,
+                                    Function<L, String> businessKey, Function<String, Optional<M>> findExisting,
                                     Function<L, M> transform, Consumer<M> save) {
         MigrationReport.TableStats stats = report.table(table);
-        Set<String> seenKeys = new HashSet<>();
+        Set<String> migratedKeys = new HashSet<>();
         for (L legacy : legacyRows) {
             stats.recordRead();
             String key = trimToNull(businessKey.apply(legacy));
@@ -128,13 +137,26 @@ public class DataMigrationService {
                 report.error(table + ": row with blank business key rejected");
                 continue;
             }
-            if (!seenKeys.add(key) || existsInModern.test(key)) {
+            if (migratedKeys.contains(key)) {
                 stats.recordDuplicate();
                 continue;
             }
             try {
-                save.accept(transform.apply(legacy));
-                stats.recordInserted();
+                M candidate = transform.apply(legacy);
+                ModernEntityInspector.validateColumnConstraints(candidate);
+                Optional<M> existing = findExisting.apply(key);
+                if (existing.isPresent()) {
+                    stats.recordDuplicate();
+                    List<String> differences = ModernEntityInspector.differingFields(candidate, existing.get());
+                    if (!differences.isEmpty()) {
+                        report.error(table + " [" + key + "]: existing modern row differs from legacy: "
+                                + String.join(", ", differences));
+                    }
+                } else {
+                    save.accept(candidate);
+                    stats.recordInserted();
+                }
+                migratedKeys.add(key);
             } catch (LegacyDataException e) {
                 stats.recordRejected();
                 report.error(table + " [" + key + "]: " + e.getMessage());

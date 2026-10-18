@@ -12,7 +12,5 @@ public interface BorrowerRepository extends JpaRepository<Borrower, Long> {
 
     Optional<Borrower> findByExternalId(String externalId);
 
-    boolean existsByExternalId(String externalId);
-
     List<Borrower> findAllByOrderByIdAsc();
 }

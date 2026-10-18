@@ -27,7 +27,9 @@ so anything that injects an unqualified `DataSource`/`EntityManager` (including 
 2. Insert in FK order: borrowers → loan_products → loan_accounts → payments.
 3. Resolve FKs by business key: `BORR_ID` → `borrowers.external_id`, `PROD_CD` → `loan_products.code`,
    `LN_ACCT_NBR` → `loan_accounts.account_number`.
-4. Reconcile and log a `MigrationReport`; with `migration.fail-on-error=true` startup aborts if anything fails.
+4. Reconcile and log a `MigrationReport`. With `migration.fail-on-error=true`, a failed report throws
+   `MigrationFailedException` inside the transaction, so the whole run rolls back (no partial import) and startup
+   aborts. With `false`, valid rows are committed and failures are only reported.
 
 All string-to-type conversion lives in `migration.LegacyValueParser` and `migration.LegacyCodeMapper`.
 `LoanService` only formats typed values for the existing DTOs.
@@ -52,8 +54,14 @@ All string-to-type conversion lives in `migration.LegacyValueParser` and `migrat
 - Null/blank optional values → `NULL`; blank required values → row rejected.
 - Malformed numbers/dates, unknown required codes, unresolved FKs → `LegacyDataException`, row rejected and
   reported with its business key. Other rows still migrate.
-- Duplicates (repeated business key in legacy, or already present in modern) → skipped and counted. Re-running
-  the migration is therefore idempotent.
+- Values that do not fit the target column (`@Column` length / `DECIMAL` precision and scale, checked by
+  `ModernEntityInspector`) → row rejected before flush, instead of a database error aborting the transaction.
+- Duplicates: a business key already migrated in this run is skipped. A key that already exists in modern is not
+  re-inserted; the stored row is compared field by field with the transformed legacy row (amounts by value, FKs by
+  id, audit timestamps ignored) and any difference is a reconciliation error. Re-running is therefore idempotent and
+  still detects drift.
+- `schema-modern.sql` uses `IF NOT EXISTS`, so it can run on every start against a persistent database;
+  `ddl-auto=validate` is forwarded to the modern persistence unit so schema drift fails startup.
 
 ## Reconciliation
 
@@ -79,7 +87,8 @@ The `MigrationReport` checks, per run:
 
 - `ModernApiGoldenFileTest` – all `LoanController`/`BorrowerController` endpoints vs pre-migration JSON.
 - `DataMigrationServiceTest` – counts, monetary totals (legacy side summed in SQL as an independent oracle),
-  FK resolution, idempotent re-run, rejection of malformed/orphan rows.
+  FK resolution, idempotent re-run, rejection of malformed/orphan/oversized rows, fail-on-error rollback,
+  drift detection on existing rows, re-runnable schema script.
 - `LegacyValueParserTest`, `LegacyCodeMapperTest` – transformation rules.
 - `LoanServiceApplicationTests` – context load; `LoanService` has no `parse*`/`expand*` methods or legacy dependencies.
 

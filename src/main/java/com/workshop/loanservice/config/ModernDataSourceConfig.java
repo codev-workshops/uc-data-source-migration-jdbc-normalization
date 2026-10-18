@@ -54,7 +54,7 @@ public class ModernDataSourceConfig {
             JpaProperties jpaProperties,
             HibernateProperties hibernateProperties) {
         Map<String, Object> properties = hibernateProperties.determineHibernateProperties(
-                jpaProperties.getProperties(), new HibernateSettings());
+                jpaProperties.getProperties(), new HibernateSettings().ddlAuto(hibernateProperties::getDdlAuto));
         return builder.dataSource(dataSource)
                 .packages(Borrower.class)
                 .persistenceUnit("modern")

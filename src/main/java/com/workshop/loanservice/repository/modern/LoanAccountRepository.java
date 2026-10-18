@@ -19,6 +19,4 @@ public interface LoanAccountRepository extends JpaRepository<LoanAccount, Long> 
 
     @EntityGraph(attributePaths = {"borrower", "product"})
     List<LoanAccount> findByBorrowerExternalIdOrderByIdAsc(String borrowerExternalId);
-
-    boolean existsByAccountNumber(String accountNumber);
 }

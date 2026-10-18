@@ -25,14 +25,17 @@ public class DataMigrationRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        MigrationReport report = migrationService.migrate();
+        MigrationReport report;
+        try {
+            report = migrationService.migrate(failOnError);
+        } catch (MigrationFailedException e) {
+            log.error(e.getReport().summary());
+            throw e;
+        }
         if (report.isSuccessful()) {
             log.info(report.summary());
-            return;
-        }
-        log.error(report.summary());
-        if (failOnError) {
-            throw new IllegalStateException("Legacy -> modern migration failed validation; see log for details");
+        } else {
+            log.error(report.summary());
         }
     }
 }
