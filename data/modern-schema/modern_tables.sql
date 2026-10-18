@@ -82,6 +82,7 @@ CREATE TABLE loan_accounts (
 
 CREATE TABLE payments (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
+    external_id         VARCHAR(20) UNIQUE NOT NULL,  -- legacy PMT_SEQ_NBR, exposed as API paymentId
     loan_account_id     BIGINT NOT NULL,
     payment_date        DATE NOT NULL,
     total_amount        DECIMAL(10, 2) NOT NULL,

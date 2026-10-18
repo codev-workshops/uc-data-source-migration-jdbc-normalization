@@ -76,7 +76,7 @@
 
 | Legacy Column | Legacy Type | Modern Column | Modern Type | Transformation |
 |---------------|-------------|---------------|-------------|----------------|
-| `PMT_SEQ_NBR` | VARCHAR(20) | `id` | BIGINT | Auto-generated; legacy ID stored if needed |
+| `PMT_SEQ_NBR` | VARCHAR(20) | `external_id` | VARCHAR(20) | Copied as-is (API `paymentId`); `id` is auto-generated |
 | `LN_ACCT_NBR` | VARCHAR(20) | `loan_account_id` | BIGINT | Lookup loan_accounts.id by account_number |
 | `PMT_DT` | VARCHAR(10) | `payment_date` | DATE | Parse MM/DD/YYYY → DATE |
 | `PMT_AMT` | VARCHAR(15) | `total_amount` | DECIMAL(10,2) | Remove commas, parse → decimal |
