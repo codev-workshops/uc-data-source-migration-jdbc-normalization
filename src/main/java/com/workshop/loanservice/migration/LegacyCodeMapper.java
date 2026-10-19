@@ -91,7 +91,7 @@ final class LegacyCodeMapper {
         }
         T value = mapping.get(normalized);
         if (value == null) {
-            throw new LegacyDataException(column + " has unknown code '" + code + "'");
+            throw new LegacyDataException(column + " has an unknown code");
         }
         return value;
     }

@@ -24,21 +24,22 @@ class ModernEntityInspectorTest {
     }
 
     @Test
-    void differencesRedactSensitiveAndTextValues() {
+    void differencesListFieldNamesWithoutValues() {
         Borrower legacy = new Borrower();
         legacy.setSsnHash("hash-a");
         legacy.setDateOfBirth(LocalDate.of(1980, 1, 1));
         legacy.setFirstName("James");
-        legacy.setAnnualIncome(new BigDecimal("100"));
+        legacy.setAnnualIncome(new BigDecimal("92500"));
+        legacy.setCreditScore(745);
         Borrower modern = new Borrower();
         modern.setSsnHash("hash-b");
         modern.setDateOfBirth(LocalDate.of(1981, 1, 1));
         modern.setFirstName("Jon");
-        modern.setAnnualIncome(new BigDecimal("200.00"));
+        modern.setAnnualIncome(new BigDecimal("1.00"));
+        modern.setCreditScore(300);
 
         String report = String.join(", ", ModernEntityInspector.differingFields(legacy, modern));
 
-        assertThat(report).contains("ssnHash", "dateOfBirth", "firstName", "annualIncome (legacy=100, modern=200.00)")
-                .doesNotContain("hash-a", "hash-b", "1980", "1981", "James", "Jon");
+        assertThat(report).isEqualTo("firstName, ssnHash, dateOfBirth, creditScore, annualIncome");
     }
 }

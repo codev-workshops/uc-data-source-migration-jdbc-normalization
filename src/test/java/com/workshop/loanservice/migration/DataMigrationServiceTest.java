@@ -181,7 +181,8 @@ class DataMigrationServiceTest {
         MigrationReport report = migrationService.migrate(true);
 
         assertThat(report.isSuccessful()).as(report.summary()).isTrue();
-        assertThat(report.getWarnings()).anyMatch(w -> w.contains("LN-2017-00034") && w.contains("UNKNOWN"));
+        assertThat(report.getWarnings()).anyMatch(w -> w.contains("LN-2017-00034") && w.contains("UNKNOWN"))
+                .noneMatch(w -> w.contains("PIF"));
         assertThat(loanService.getLoanById("LN-2017-00034").getStatus()).isEqualTo("PIF");
     }
 

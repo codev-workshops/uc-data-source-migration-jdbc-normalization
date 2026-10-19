@@ -43,10 +43,13 @@ All string-to-type conversion lives in `migration.LegacyValueParser` and `migrat
   kept on the enum (`getDisplayName()`), not in the service.
 - **`ACT`/`INA`**: borrower → `ACTIVE`/`INACTIVE`; product → `is_active` `true`/`false`. Blank falls back to the modern column default.
 - **Property type**: stored expanded (`Single Family Residence`, ...). Unknown codes are kept verbatim, matching the legacy API.
-- **Blank loan status**: stored as `NULL`, rendered as `Unknown` by the API (legacy behaviour).
+- **Code matching**: codes are trimmed and uppercased before lookup. Legacy matched the loan status exactly, so
+  `clo` now shows as `Closed` (legacy: `clo`). Intentional; the seed data is all uppercase.
+- **Blank loan status**: stored as `NULL`, rendered as `Unknown` by the API. Legacy also showed `Unknown` for
+  `NULL`, but an empty or whitespace-only code was shown as-is; it now shows `Unknown` too.
 - **Unmapped loan status codes** (e.g. `PIF`): stored as `UNKNOWN`, with the original code in the added
   `loan_accounts.legacy_status_code VARCHAR(5)` column. The API shows the original code, as the legacy API did,
-  and the migration logs a warning.
+  and the migration logs a warning (without the code).
 - **Denormalized borrower name on `CDW_LN_ACCT`**: dropped. `borrowerName` is now built from the borrower FK;
   the migration logs a warning (account number and `BORR_ID` only) if the legacy copy disagreed with the borrower master.
 - **`ssn_hash`**: copied as stored. `column_mappings.md` recommends re-encrypting it; that needs key management
@@ -68,7 +71,8 @@ All string-to-type conversion lives in `migration.LegacyValueParser` and `migrat
   `ModernEntityInspector`) → row rejected before flush, instead of a database error aborting the transaction.
 - Duplicates: a business key already migrated in this run is skipped. A key that already exists in modern is not
   re-inserted; the stored row is compared field by field with the transformed legacy row (amounts by value, FKs by
-  id, audit timestamps ignored) and any difference is a reconciliation error. Re-running is therefore idempotent and
+  id, audit timestamps ignored) and any difference is a reconciliation error that names the differing fields but
+  not their values. Re-running is therefore idempotent and
   still detects drift.
 - `schema-modern.sql` uses `IF NOT EXISTS`, so it can run on every start against a persistent database;
   `ddl-auto=validate` is forwarded to the modern persistence unit so schema drift fails startup.
@@ -119,6 +123,9 @@ The `MigrationReport` checks, per run:
 - `spring.h2.console.enabled=true` (already on before the migration) now exposes both databases; enable it only
   in a dev profile.
 - Re-encrypt `ssn_hash` instead of copying it.
+- Adopt a versioned schema migration tool (Flyway or Liquibase). `schema-modern.sql` only creates missing tables,
+  so a column added later (like `legacy_status_code`) would not reach an existing persistent database and
+  `ddl-auto=validate` would fail startup. Not an issue today: the modern database is in-memory.
 
 ## Decommissioning legacy
 

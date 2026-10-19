@@ -20,9 +20,6 @@ final class ModernEntityInspector {
     /** Audit columns are set at migration time and legitimately differ between runs. */
     private static final Set<String> IGNORED_FIELDS = Set.of("createdAt", "updatedAt");
 
-    /** Values never echoed into reports/logs; free text is also omitted since it may hold PII. */
-    private static final Set<String> SENSITIVE_FIELDS = Set.of("ssnHash", "dateOfBirth");
-
     private ModernEntityInspector() {
     }
 
@@ -54,7 +51,8 @@ final class ModernEntityInspector {
     }
 
     /**
-     * Lists the mapped fields whose values differ between two rows of the same entity type.
+     * Lists the names of the mapped fields whose values differ between two rows of the same entity type.
+     * Values are never included, since the result is logged and the columns may hold PII.
      * Amounts compare by numeric value; {@code @ManyToOne} references compare by target id.
      */
     static List<String> differingFields(Object expected, Object actual) {
@@ -67,18 +65,10 @@ final class ModernEntityInspector {
             Object left = comparable(field, read(field, expected));
             Object right = comparable(field, read(field, actual));
             if (!valuesEqual(left, right)) {
-                differences.add(describeDifference(field, left, right));
+                differences.add(field.getName());
             }
         }
         return differences;
-    }
-
-    private static String describeDifference(Field field, Object legacy, Object modern) {
-        boolean redact = SENSITIVE_FIELDS.contains(field.getName())
-                || legacy instanceof String || modern instanceof String;
-        return redact
-                ? field.getName()
-                : field.getName() + " (legacy=" + legacy + ", modern=" + modern + ")";
     }
 
     private static boolean valuesEqual(Object left, Object right) {

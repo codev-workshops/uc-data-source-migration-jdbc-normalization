@@ -236,8 +236,8 @@ public class DataMigrationService {
         account.setStatus(status);
         if (status == LoanStatus.UNKNOWN) {
             account.setLegacyStatusCode(trimToNull(legacy.getStatusCode()));
-            report.warning(LOAN_ACCOUNTS + " [" + accountNumber + "]: unmapped LN_STAT_CD '"
-                    + account.getLegacyStatusCode() + "' stored as UNKNOWN");
+            report.warning(LOAN_ACCOUNTS + " [" + accountNumber + "]: unmapped LN_STAT_CD stored as UNKNOWN"
+                    + " (original code kept in legacy_status_code)");
         }
         account.setDelinquencyDays(Objects.requireNonNullElse(
                 optional.integer("LN_DLQ_DAYS", legacy.getDelinquencyDays()), 0));
