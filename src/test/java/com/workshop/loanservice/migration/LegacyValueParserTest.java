@@ -37,6 +37,16 @@ class LegacyValueParserTest {
     }
 
     @Test
+    void malformedValuesAreNotEchoedInMessages() {
+        assertThatThrownBy(() -> LegacyValueParser.parseDate("BORR_DOB_DT", "1978-03-15"))
+                .hasMessageContaining("BORR_DOB_DT").hasMessageNotContaining("1978");
+        assertThatThrownBy(() -> LegacyValueParser.parseDecimal("BORR_ANN_INCM", "95,OOO"))
+                .hasMessageContaining("BORR_ANN_INCM").hasMessageNotContaining("95");
+        assertThatThrownBy(() -> LegacyValueParser.parseInteger("BORR_CRDT_SCR", "7x2"))
+                .hasMessageContaining("BORR_CRDT_SCR").hasMessageNotContaining("7x2");
+    }
+
+    @Test
     void parseDateReadsMonthDayYear() {
         assertThat(LegacyValueParser.parseDate("DT", "02/15/2019")).isEqualTo(LocalDate.of(2019, 2, 15));
     }

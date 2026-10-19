@@ -46,8 +46,8 @@ final class ModernEntityInspector {
                 BigDecimal normalized = amount.stripTrailingZeros();
                 int integerDigits = Math.max(normalized.precision() - normalized.scale(), 0);
                 if (integerDigits > maxIntegerDigits || normalized.scale() > column.scale()) {
-                    throw new LegacyDataException(column.name() + " value " + amount.toPlainString()
-                            + " does not fit DECIMAL(" + column.precision() + "," + column.scale() + ")");
+                    throw new LegacyDataException(column.name() + " value does not fit DECIMAL("
+                            + column.precision() + "," + column.scale() + ")");
                 }
             }
         }

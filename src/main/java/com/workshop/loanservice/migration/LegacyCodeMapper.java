@@ -56,9 +56,16 @@ final class LegacyCodeMapper {
         return lookupOrDefault("PROD_STAT_CD", code, PRODUCT_ACTIVE, Boolean.TRUE);
     }
 
-    /** Blank stays {@code null} (rendered as "Unknown" by the API, as before). */
+    /**
+     * Blank stays {@code null} (rendered as "Unknown" by the API, as before). Unrecognised codes map to
+     * {@link LoanStatus#UNKNOWN} instead of rejecting the loan; the caller keeps the original code.
+     */
     static LoanStatus loanStatus(String code) {
-        return lookupOrDefault("LN_STAT_CD", code, LOAN_STATUS, null);
+        String normalized = normalize(code);
+        if (normalized == null) {
+            return null;
+        }
+        return LOAN_STATUS.getOrDefault(normalized, LoanStatus.UNKNOWN);
     }
 
     /** Unrecognised codes are carried over verbatim, as the legacy API displayed them. */

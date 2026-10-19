@@ -3,7 +3,10 @@ package com.workshop.loanservice.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.workshop.loanservice.dto.PaymentDto;
+import com.workshop.loanservice.service.LoanService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +27,9 @@ class DataMigrationServiceTest {
 
     @Autowired
     private DataMigrationService migrationService;
+
+    @Autowired
+    private LoanService loanService;
 
     @Autowired
     private DataSource modernDataSource;
@@ -117,7 +123,8 @@ class DataMigrationServiceTest {
         assertThat(report.getErrors())
                 .anyMatch(e -> e.contains("PMT-BAD"))
                 .anyMatch(e -> e.contains("PMT-ORPHAN"))
-                .anyMatch(e -> e.contains("PMT-BIG") && e.contains("DECIMAL(10,2)"));
+                .anyMatch(e -> e.contains("PMT-BIG") && e.contains("DECIMAL(10,2)"))
+                .noneMatch(e -> e.contains("13/45/2025") || e.contains("1,O00.00") || e.contains("999999999999999"));
         assertThat(count(modern, "payments")).isEqualTo(10);
     }
 
@@ -143,6 +150,64 @@ class DataMigrationServiceTest {
 
         assertThat(report.isSuccessful()).isFalse();
         assertThat(report.getErrors()).anyMatch(e -> e.contains("B-10001") && e.contains("firstName"));
+    }
+
+    @Test
+    @DirtiesContext
+    void malformedOptionalFieldIsStoredAsNullWithWarning() {
+        legacy.update("""
+                INSERT INTO CDW_BORR_MSTR (BORR_ID, BORR_FST_NM, BORR_LST_NM, BORR_DOB_DT)
+                VALUES ('B-99998', 'Ada', 'Lane', '1978-03-15')""");
+
+        MigrationReport report = migrationService.migrate(true);
+
+        assertThat(report.isSuccessful()).as(report.summary()).isTrue();
+        assertThat(modern.queryForObject(
+                "SELECT date_of_birth FROM borrowers WHERE external_id = 'B-99998'", LocalDate.class)).isNull();
+        assertThat(report.getWarnings())
+                .anyMatch(w -> w.contains("B-99998") && w.contains("BORR_DOB_DT"))
+                .noneMatch(w -> w.contains("1978"));
+    }
+
+    @Test
+    @DirtiesContext
+    void unmappedLoanStatusIsKeptAndShownVerbatim() {
+        legacy.update("UPDATE CDW_LN_ACCT SET LN_STAT_CD = 'PIF' WHERE LN_ACCT_NBR = 'LN-2017-00034'");
+        modern.update("""
+                DELETE FROM payments WHERE loan_account_id =
+                    (SELECT id FROM loan_accounts WHERE account_number = 'LN-2017-00034')""");
+        modern.update("DELETE FROM loan_accounts WHERE account_number = 'LN-2017-00034'");
+
+        MigrationReport report = migrationService.migrate(true);
+
+        assertThat(report.isSuccessful()).as(report.summary()).isTrue();
+        assertThat(report.getWarnings()).anyMatch(w -> w.contains("LN-2017-00034") && w.contains("UNKNOWN"));
+        assertThat(loanService.getLoanById("LN-2017-00034").getStatus()).isEqualTo("PIF");
+    }
+
+    @Test
+    @DirtiesContext
+    void denormalizedNameDriftWarningOmitsNames() {
+        legacy.update("UPDATE CDW_LN_ACCT SET BORR_FST_NM = 'Jim' WHERE LN_ACCT_NBR = 'LN-2019-00142'");
+
+        MigrationReport report = migrationService.migrate(true);
+
+        assertThat(report.isSuccessful()).as(report.summary()).isTrue();
+        assertThat(report.getWarnings())
+                .anyMatch(w -> w.contains("LN-2019-00142") && w.contains("B-10001"))
+                .noneMatch(w -> w.contains("Jim") || w.contains("James") || w.contains("Mitchell"));
+    }
+
+    /** Legacy sorted PMT_DT as MM/DD/YYYY text; the modern DATE column sorts chronologically across years. */
+    @Test
+    @DirtiesContext
+    void paymentsAreOrderedChronologicallyAcrossYears() {
+        insertLegacyPayment("PMT-2026010001", "LN-2019-00142", "01/15/2026", "1,487.02");
+
+        assertThat(migrationService.migrate(true).isSuccessful()).isTrue();
+
+        assertThat(loanService.getPaymentsByLoan("LN-2019-00142")).extracting(PaymentDto::getPaymentDate)
+                .containsExactly("01/15/2026", "12/15/2025", "11/15/2025");
     }
 
     private void insertLegacyPayment(String id, String loan, String date, String amount) {

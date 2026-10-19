@@ -9,7 +9,8 @@ import java.time.format.ResolverStyle;
 
 /**
  * Converts legacy CDW VARCHAR values into typed values. Blank values become {@code null};
- * malformed values raise a {@link LegacyDataException} naming the offending column.
+ * malformed values raise a {@link LegacyDataException} naming the offending column. Messages never
+ * include the raw value, because they are logged and the columns may hold PII.
  */
 final class LegacyValueParser {
 
@@ -51,7 +52,7 @@ final class LegacyValueParser {
         try {
             return new BigDecimal(value.replace(",", ""));
         } catch (NumberFormatException e) {
-            throw new LegacyDataException(column + " is not a valid decimal: '" + raw + "'", e);
+            throw new LegacyDataException(column + " is not a valid decimal", e);
         }
     }
 
@@ -63,7 +64,7 @@ final class LegacyValueParser {
         try {
             return Integer.valueOf(value.replace(",", ""));
         } catch (NumberFormatException e) {
-            throw new LegacyDataException(column + " is not a valid integer: '" + raw + "'", e);
+            throw new LegacyDataException(column + " is not a valid integer", e);
         }
     }
 
@@ -76,7 +77,7 @@ final class LegacyValueParser {
         try {
             return LocalDate.parse(value, LEGACY_DATE);
         } catch (DateTimeParseException e) {
-            throw new LegacyDataException(column + " is not a valid MM/DD/YYYY date: '" + raw + "'", e);
+            throw new LegacyDataException(column + " is not a valid MM/DD/YYYY date", e);
         }
     }
 

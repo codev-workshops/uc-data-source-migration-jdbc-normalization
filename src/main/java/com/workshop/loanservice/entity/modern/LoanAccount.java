@@ -75,6 +75,9 @@ public class LoanAccount {
     @Column(name = "status", length = 15)
     private LoanStatus status;
 
+    @Column(name = "legacy_status_code", length = 5)
+    private String legacyStatusCode;
+
     @Column(name = "delinquency_days")
     private Integer delinquencyDays;
 
@@ -139,6 +142,8 @@ public class LoanAccount {
     public void setNextPaymentDate(LocalDate nextPaymentDate) { this.nextPaymentDate = nextPaymentDate; }
     public LoanStatus getStatus() { return status; }
     public void setStatus(LoanStatus status) { this.status = status; }
+    public String getLegacyStatusCode() { return legacyStatusCode; }
+    public void setLegacyStatusCode(String legacyStatusCode) { this.legacyStatusCode = legacyStatusCode; }
     public Integer getDelinquencyDays() { return delinquencyDays; }
     public void setDelinquencyDays(Integer delinquencyDays) { this.delinquencyDays = delinquencyDays; }
     public BigDecimal getEscrowBalance() { return escrowBalance; }

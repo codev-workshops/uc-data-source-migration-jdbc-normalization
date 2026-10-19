@@ -14,6 +14,7 @@ import com.workshop.loanservice.entity.legacy.LegacyPayment;
 import com.workshop.loanservice.entity.modern.Borrower;
 import com.workshop.loanservice.entity.modern.LoanAccount;
 import com.workshop.loanservice.entity.modern.LoanProduct;
+import com.workshop.loanservice.entity.modern.LoanStatus;
 import com.workshop.loanservice.entity.modern.Payment;
 import com.workshop.loanservice.repository.legacy.LegacyBorrowerRepository;
 import com.workshop.loanservice.repository.legacy.LegacyLoanAccountRepository;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -36,6 +38,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -45,8 +48,10 @@ import java.util.stream.Collectors;
  * <p>The run is idempotent: rows whose business key (borrower external id, product code,
  * account number, payment sequence number) already exists in the modern schema are not inserted
  * again, but are compared field by field with the transformed legacy row; any difference is an error.
- * Rows with missing required values, malformed values, unknown codes or unresolvable foreign
- * keys are rejected and listed in the {@link MigrationReport} rather than aborting the run.
+ * Rows with missing required values, malformed amounts, unknown payment codes or unresolvable foreign
+ * keys are rejected and listed in the {@link MigrationReport} rather than aborting the run. Malformed
+ * optional dates and integers are dropped with a warning, and unmapped loan status codes are kept as
+ * {@link LoanStatus#UNKNOWN}, so one bad non-essential value does not cost the whole row.
  */
 @SuppressWarnings("deprecation")
 @Service
@@ -98,9 +103,10 @@ public class DataMigrationService {
         List<LegacyPayment> legacyPayments = legacyPaymentRepository.findAll();
 
         migrateRows(report, BORROWERS, legacyBorrowers, LegacyBorrower::getBorrowerId,
-                borrowerRepository::findByExternalId, this::toBorrower, borrowerRepository::save);
+                borrowerRepository::findByExternalId, legacy -> toBorrower(legacy, report), borrowerRepository::save);
         migrateRows(report, LOAN_PRODUCTS, legacyProducts, LegacyLoanProduct::getProductCode,
-                loanProductRepository::findByCode, this::toLoanProduct, loanProductRepository::save);
+                loanProductRepository::findByCode, legacy -> toLoanProduct(legacy, report),
+                loanProductRepository::save);
 
         Map<String, Borrower> borrowersByExternalId = borrowerRepository.findAll().stream()
                 .collect(Collectors.toMap(Borrower::getExternalId, Function.identity()));
@@ -115,7 +121,7 @@ public class DataMigrationService {
                 .collect(Collectors.toMap(LoanAccount::getAccountNumber, Function.identity()));
         migrateRows(report, PAYMENTS, legacyPayments, LegacyPayment::getPaymentSequenceNumber,
                 paymentRepository::findByExternalId,
-                legacy -> toPayment(legacy, loansByAccountNumber), paymentRepository::save);
+                legacy -> toPayment(legacy, loansByAccountNumber, report), paymentRepository::save);
 
         reconcile(report, legacyBorrowers, legacyProducts, legacyLoans, legacyPayments);
         if (failOnError && !report.isSuccessful()) {
@@ -164,14 +170,15 @@ public class DataMigrationService {
         }
     }
 
-    private Borrower toBorrower(LegacyBorrower legacy) {
+    private Borrower toBorrower(LegacyBorrower legacy, MigrationReport report) {
+        OptionalFields optional = new OptionalFields(report, BORROWERS, legacy.getBorrowerId());
         Borrower borrower = new Borrower();
         borrower.setExternalId(require("BORR_ID", legacy.getBorrowerId()));
         borrower.setFirstName(require("BORR_FST_NM", legacy.getFirstName()));
         borrower.setLastName(require("BORR_LST_NM", legacy.getLastName()));
         borrower.setMiddleInitial(trimToNull(legacy.getMiddleInitial()));
         borrower.setSsnHash(trimToNull(legacy.getSsnEncrypted()));
-        borrower.setDateOfBirth(parseDate("BORR_DOB_DT", legacy.getDateOfBirth()));
+        borrower.setDateOfBirth(optional.date("BORR_DOB_DT", legacy.getDateOfBirth()));
         borrower.setAddressLine1(trimToNull(legacy.getAddressLine1()));
         borrower.setAddressLine2(trimToNull(legacy.getAddressLine2()));
         borrower.setCity(trimToNull(legacy.getCity()));
@@ -179,16 +186,17 @@ public class DataMigrationService {
         borrower.setZipCode(trimToNull(legacy.getZipCode()));
         borrower.setPhone(trimToNull(legacy.getPhoneNumber()));
         borrower.setEmail(trimToNull(legacy.getEmail()));
-        borrower.setCreditScore(parseInteger("BORR_CRDT_SCR", legacy.getCreditScore()));
+        borrower.setCreditScore(optional.integer("BORR_CRDT_SCR", legacy.getCreditScore()));
         borrower.setEmploymentStatus(trimToNull(legacy.getEmploymentStatus()));
         borrower.setAnnualIncome(parseDecimal("BORR_ANN_INCM", legacy.getAnnualIncome()));
         borrower.setStatus(LegacyCodeMapper.borrowerStatus(legacy.getStatusCode()));
-        borrower.setCreatedAt(timestampOrNow("BORR_CRET_DT", legacy.getCreatedDate()));
-        borrower.setUpdatedAt(timestampOrNow("BORR_UPDT_DT", legacy.getUpdatedDate()));
+        borrower.setCreatedAt(optional.timestampOrNow("BORR_CRET_DT", legacy.getCreatedDate()));
+        borrower.setUpdatedAt(optional.timestampOrNow("BORR_UPDT_DT", legacy.getUpdatedDate()));
         return borrower;
     }
 
-    private LoanProduct toLoanProduct(LegacyLoanProduct legacy) {
+    private LoanProduct toLoanProduct(LegacyLoanProduct legacy, MigrationReport report) {
+        OptionalFields optional = new OptionalFields(report, LOAN_PRODUCTS, legacy.getProductCode());
         LoanProduct product = new LoanProduct();
         product.setCode(require("PROD_CD", legacy.getProductCode()));
         product.setName(require("PROD_DESC_TXT", legacy.getDescription()));
@@ -198,8 +206,8 @@ public class DataMigrationService {
         product.setMinAmount(parseDecimal("PROD_MIN_AMT", legacy.getMinAmount()));
         product.setMaxAmount(parseDecimal("PROD_MAX_AMT", legacy.getMaxAmount()));
         product.setActive(LegacyCodeMapper.productActive(legacy.getStatusCode()));
-        product.setEffectiveDate(parseDate("PROD_EFF_DT", legacy.getEffectiveDate()));
-        product.setExpirationDate(parseDate("PROD_EXP_DT", legacy.getExpirationDate()));
+        product.setEffectiveDate(optional.date("PROD_EFF_DT", legacy.getEffectiveDate()));
+        product.setExpirationDate(optional.date("PROD_EXP_DT", legacy.getExpirationDate()));
         return product;
     }
 
@@ -209,6 +217,7 @@ public class DataMigrationService {
         Borrower borrower = resolve("BORR_ID", legacy.getBorrowerId(), borrowersByExternalId);
         LoanProduct product = resolve("PROD_CD", legacy.getProductCode(), productsByCode);
         warnOnDenormalizedNameDrift(legacy, borrower, report);
+        OptionalFields optional = new OptionalFields(report, LOAN_ACCOUNTS, accountNumber);
 
         LoanAccount account = new LoanAccount();
         account.setAccountNumber(accountNumber);
@@ -221,11 +230,17 @@ public class DataMigrationService {
         account.setMonthlyPayment(require("LN_PMT_AMT", parseDecimal("LN_PMT_AMT", legacy.getMonthlyPayment())));
         account.setOriginationDate(require("LN_ORIG_DT", parseDate("LN_ORIG_DT", legacy.getOriginationDate())));
         account.setMaturityDate(require("LN_MAT_DT", parseDate("LN_MAT_DT", legacy.getMaturityDate())));
-        account.setFirstPaymentDate(parseDate("LN_1ST_PMT_DT", legacy.getFirstPaymentDate()));
-        account.setNextPaymentDate(parseDate("LN_NXT_PMT_DT", legacy.getNextPaymentDate()));
-        account.setStatus(LegacyCodeMapper.loanStatus(legacy.getStatusCode()));
+        account.setFirstPaymentDate(optional.date("LN_1ST_PMT_DT", legacy.getFirstPaymentDate()));
+        account.setNextPaymentDate(optional.date("LN_NXT_PMT_DT", legacy.getNextPaymentDate()));
+        LoanStatus status = LegacyCodeMapper.loanStatus(legacy.getStatusCode());
+        account.setStatus(status);
+        if (status == LoanStatus.UNKNOWN) {
+            account.setLegacyStatusCode(trimToNull(legacy.getStatusCode()));
+            report.warning(LOAN_ACCOUNTS + " [" + accountNumber + "]: unmapped LN_STAT_CD '"
+                    + account.getLegacyStatusCode() + "' stored as UNKNOWN");
+        }
         account.setDelinquencyDays(Objects.requireNonNullElse(
-                parseInteger("LN_DLQ_DAYS", legacy.getDelinquencyDays()), 0));
+                optional.integer("LN_DLQ_DAYS", legacy.getDelinquencyDays()), 0));
         account.setEscrowBalance(Objects.requireNonNullElse(
                 parseDecimal("LN_ESCROW_BAL", legacy.getEscrowBalance()), BigDecimal.ZERO));
         account.setLtvPercent(parseDecimal("LN_LTV_PCT", legacy.getLtvPercent()));
@@ -235,12 +250,14 @@ public class DataMigrationService {
         account.setPropertyZip(legacy.getPropertyZip());
         account.setPropertyType(LegacyCodeMapper.propertyType(legacy.getPropertyType()));
         account.setAppraisedValue(parseDecimal("PROP_APRS_VAL", legacy.getAppraisedValue()));
-        account.setCreatedAt(timestampOrNow("LN_CRET_DT", legacy.getCreatedDate()));
-        account.setUpdatedAt(timestampOrNow("LN_UPDT_DT", legacy.getUpdatedDate()));
+        account.setCreatedAt(optional.timestampOrNow("LN_CRET_DT", legacy.getCreatedDate()));
+        account.setUpdatedAt(optional.timestampOrNow("LN_UPDT_DT", legacy.getUpdatedDate()));
         return account;
     }
 
-    private Payment toPayment(LegacyPayment legacy, Map<String, LoanAccount> loansByAccountNumber) {
+    private Payment toPayment(LegacyPayment legacy, Map<String, LoanAccount> loansByAccountNumber,
+                              MigrationReport report) {
+        OptionalFields optional = new OptionalFields(report, PAYMENTS, legacy.getPaymentSequenceNumber());
         Payment payment = new Payment();
         payment.setExternalId(require("PMT_SEQ_NBR", legacy.getPaymentSequenceNumber()));
         payment.setLoanAccount(resolve("LN_ACCT_NBR", legacy.getLoanAccountNumber(), loansByAccountNumber));
@@ -253,10 +270,10 @@ public class DataMigrationService {
                 parseDecimal("PMT_LATE_FEE", legacy.getLateFee()), BigDecimal.ZERO));
         payment.setType(LegacyCodeMapper.paymentType(legacy.getTypeCode()));
         payment.setStatus(LegacyCodeMapper.paymentStatus(legacy.getStatusCode()));
-        payment.setReceivedDate(parseDate("PMT_RECV_DT", legacy.getReceivedDate()));
-        payment.setProcessedDate(parseDate("PMT_PROC_DT", legacy.getProcessedDate()));
-        payment.setCreatedAt(timestampOrNow("PMT_CRET_DT", legacy.getCreatedDate()));
-        payment.setUpdatedAt(timestampOrNow("PMT_UPDT_DT", legacy.getUpdatedDate()));
+        payment.setReceivedDate(optional.date("PMT_RECV_DT", legacy.getReceivedDate()));
+        payment.setProcessedDate(optional.date("PMT_PROC_DT", legacy.getProcessedDate()));
+        payment.setCreatedAt(optional.timestampOrNow("PMT_CRET_DT", legacy.getCreatedDate()));
+        payment.setUpdatedAt(optional.timestampOrNow("PMT_UPDT_DT", legacy.getUpdatedDate()));
         return payment;
     }
 
@@ -269,8 +286,32 @@ public class DataMigrationService {
         return row;
     }
 
-    private static LocalDateTime timestampOrNow(String column, String raw) {
-        return Objects.requireNonNullElseGet(parseTimestamp(column, raw), LocalDateTime::now);
+    /**
+     * Parses optional non-monetary columns of one legacy row. A malformed value becomes {@code null} and is
+     * reported as a warning instead of rejecting the row. Amounts stay strict because they are reconciled.
+     */
+    private record OptionalFields(MigrationReport report, String table, String key) {
+
+        LocalDate date(String column, String raw) {
+            return lenient(() -> parseDate(column, raw));
+        }
+
+        Integer integer(String column, String raw) {
+            return lenient(() -> parseInteger(column, raw));
+        }
+
+        LocalDateTime timestampOrNow(String column, String raw) {
+            return Objects.requireNonNullElseGet(lenient(() -> parseTimestamp(column, raw)), LocalDateTime::now);
+        }
+
+        private <T> T lenient(Supplier<T> parser) {
+            try {
+                return parser.get();
+            } catch (LegacyDataException e) {
+                report.warning(table + " [" + trimToNull(key) + "]: " + e.getMessage() + "; stored as NULL");
+                return null;
+            }
+        }
     }
 
     private static void warnOnDenormalizedNameDrift(LegacyLoanAccount legacy, Borrower borrower,
@@ -278,8 +319,8 @@ public class DataMigrationService {
         String legacyName = trimToNull(legacy.getBorrowerFirstName()) + " " + trimToNull(legacy.getBorrowerLastName());
         String masterName = borrower.getFirstName() + " " + borrower.getLastName();
         if (!legacyName.equals(masterName)) {
-            report.warning(LOAN_ACCOUNTS + " [" + legacy.getLoanAccountNumber() + "]: denormalized borrower name '"
-                    + legacyName + "' differs from CDW_BORR_MSTR '" + masterName + "'; using borrower FK");
+            report.warning(LOAN_ACCOUNTS + " [" + legacy.getLoanAccountNumber() + "]: denormalized borrower name"
+                    + " differs from CDW_BORR_MSTR for BORR_ID " + borrower.getExternalId() + "; using borrower FK");
         }
     }
 

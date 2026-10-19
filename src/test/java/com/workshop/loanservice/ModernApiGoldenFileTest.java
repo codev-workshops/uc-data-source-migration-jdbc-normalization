@@ -29,7 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>Comparison is structural: field names, field order within arrays, strings, nulls and booleans
  * must match exactly; numbers must be numerically equal (e.g. {@code 285000} vs {@code 285000.00}),
- * since the modern DECIMAL(15,2) columns normalise the scale of whole-dollar legacy amounts.
+ * since the modern DECIMAL(p,2) money columns normalise the scale of whole-dollar legacy amounts.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

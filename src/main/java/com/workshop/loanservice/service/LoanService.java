@@ -5,6 +5,7 @@ import com.workshop.loanservice.dto.LoanSummaryDto;
 import com.workshop.loanservice.dto.PaymentDto;
 import com.workshop.loanservice.entity.modern.Borrower;
 import com.workshop.loanservice.entity.modern.LoanAccount;
+import com.workshop.loanservice.entity.modern.LoanStatus;
 import com.workshop.loanservice.entity.modern.Payment;
 import com.workshop.loanservice.repository.modern.BorrowerRepository;
 import com.workshop.loanservice.repository.modern.LoanAccountRepository;
@@ -87,12 +88,24 @@ public class LoanService {
         dto.setCurrentBalance(account.getCurrentBalance());
         dto.setInterestRate(account.getInterestRate());
         dto.setMonthlyPayment(account.getMonthlyPayment());
-        dto.setStatus(account.getStatus() != null ? account.getStatus().getDisplayName() : UNKNOWN);
+        dto.setStatus(statusLabel(account));
         dto.setOriginationDate(formatDate(account.getOriginationDate()));
         dto.setPropertyAddress(account.getPropertyAddress() + ", " + account.getPropertyCity()
                 + ", " + account.getPropertyState() + " " + account.getPropertyZip());
         dto.setPropertyType(Objects.requireNonNullElse(account.getPropertyType(), UNKNOWN));
         return dto;
+    }
+
+    /** Unmapped legacy codes are shown verbatim, as the legacy API did. */
+    private static String statusLabel(LoanAccount account) {
+        LoanStatus status = account.getStatus();
+        if (status == null) {
+            return UNKNOWN;
+        }
+        if (status == LoanStatus.UNKNOWN && account.getLegacyStatusCode() != null) {
+            return account.getLegacyStatusCode();
+        }
+        return status.getDisplayName();
     }
 
     private BorrowerDto toBorrowerDto(Borrower borrower) {

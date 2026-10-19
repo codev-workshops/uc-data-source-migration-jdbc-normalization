@@ -44,16 +44,26 @@ All string-to-type conversion lives in `migration.LegacyValueParser` and `migrat
 - **`ACT`/`INA`**: borrower → `ACTIVE`/`INACTIVE`; product → `is_active` `true`/`false`. Blank falls back to the modern column default.
 - **Property type**: stored expanded (`Single Family Residence`, ...). Unknown codes are kept verbatim, matching the legacy API.
 - **Blank loan status**: stored as `NULL`, rendered as `Unknown` by the API (legacy behaviour).
+- **Unmapped loan status codes** (e.g. `PIF`): stored as `UNKNOWN`, with the original code in the added
+  `loan_accounts.legacy_status_code VARCHAR(5)` column. The API shows the original code, as the legacy API did,
+  and the migration logs a warning.
 - **Denormalized borrower name on `CDW_LN_ACCT`**: dropped. `borrowerName` is now built from the borrower FK;
-  the migration logs a warning if the legacy copy disagreed with the borrower master.
+  the migration logs a warning (account number and `BORR_ID` only) if the legacy copy disagreed with the borrower master.
+- **`ssn_hash`**: copied as stored. `column_mappings.md` recommends re-encrypting it; that needs key management
+  this service does not have, so it is a known follow-up (see below).
 - **Payment IDs**: the modern DDL only had a surrogate `id`, but the API exposes `PMT_SEQ_NBR` as `paymentId`.
   Added `payments.external_id VARCHAR(20) UNIQUE NOT NULL` (in both `modern_tables.sql` and `schema-modern.sql`).
 
 ## Error handling
 
 - Null/blank optional values → `NULL`; blank required values → row rejected.
-- Malformed numbers/dates, unknown required codes, unresolved FKs → `LegacyDataException`, row rejected and
-  reported with its business key. Other rows still migrate.
+- Malformed **optional** dates and integers (e.g. `BORR_DOB_DT`, `BORR_CRDT_SCR`, `PMT_RECV_DT`) → stored as `NULL`
+  and reported as a warning, so one unused bad value does not reject a borrower and every loan and payment linked to it.
+- Malformed required values, malformed amounts (strict because they are reconciled), unknown payment type/status
+  codes, unresolved FKs → `LegacyDataException`, row rejected and reported with its business key. Other rows still
+  migrate; with `migration.fail-on-error=true` (default) the run then rolls back and startup aborts.
+- Error and warning messages name the column and business key but never echo the raw value, since the report is
+  logged and the columns may hold PII.
 - Values that do not fit the target column (`@Column` length / `DECIMAL` precision and scale, checked by
   `ModernEntityInspector`) → row rejected before flush, instead of a database error aborting the transaction.
 - Duplicates: a business key already migrated in this run is skipped. A key that already exists in modern is not
@@ -78,19 +88,37 @@ The `MigrationReport` checks, per run:
   `address, city, ST zip`; borrower `fullName` keeps the `First M. Last` format.
 - Golden files in `src/test/resources/golden/` were captured from the legacy implementation before the switch and
   `ModernApiGoldenFileTest` checks all 18 endpoint responses against them.
-- **One representational difference**: legacy whole-dollar amounts such as `"285,000"` used to serialize as
-  `285000`; from `DECIMAL(15,2)` they serialize as `285000.00`. The values are numerically identical (and identical
+- **Representational difference**: legacy whole-dollar amounts such as `"285,000"` used to serialize as
+  `285000`; from `DECIMAL(12,2)` they serialize as `285000.00`. The values are numerically identical (and identical
   JSON numbers per RFC 8259), so the golden test compares numbers by value and everything else exactly. This only
-  affects `originalAmount`; every other field is byte-identical.
+  affects `originalAmount`; every other field is byte-identical for the seed data.
+- **Intentional behaviour differences** (not visible with the seed data):
+  - **Payment order**: legacy sorted `PMT_DT` as `MM/DD/YYYY` text, so `/payments` put `01/15/2026` after
+    `11/15/2025`. The `DATE` column now sorts newest first chronologically.
+  - **`borrowerName`** comes from `borrowers`, so it changes where the `CDW_LN_ACCT` copy disagreed with
+    `CDW_BORR_MSTR` (e.g. "Jim Mitchel" vs "James Mitchell").
 
 ## Tests
 
 - `ModernApiGoldenFileTest` – all `LoanController`/`BorrowerController` endpoints vs pre-migration JSON.
 - `DataMigrationServiceTest` – counts, monetary totals (legacy side summed in SQL as an independent oracle),
   FK resolution, idempotent re-run, rejection of malformed/orphan/oversized rows, fail-on-error rollback,
-  drift detection on existing rows, re-runnable schema script.
-- `LegacyValueParserTest`, `LegacyCodeMapperTest` – transformation rules.
+  drift detection on existing rows, re-runnable schema script, lenient optional fields, unmapped loan status,
+  redacted warnings, cross-year payment order.
+- `LegacyValueParserTest`, `LegacyCodeMapperTest`, `ModernEntityInspectorTest` – transformation rules and redaction.
+- `ModernSchemaSyncTest` – `schema-modern.sql` matches `data/modern-schema/modern_tables.sql` (ignoring comments
+  and `IF NOT EXISTS`).
 - `LoanServiceApplicationTests` – context load; `LoanService` has no `parse*`/`expand*` methods or legacy dependencies.
+
+## Production follow-ups (out of scope for the workshop)
+
+- The migration runs on every startup, loads all four legacy tables into memory and runs as one transaction.
+  For real volumes, run it as a one-off job or batch it.
+- Several instances sharing a persistent database would race on startup; guard the runner with a lock
+  (e.g. ShedLock) or run the migration outside the service.
+- `spring.h2.console.enabled=true` (already on before the migration) now exposes both databases; enable it only
+  in a dev profile.
+- Re-encrypt `ssn_hash` instead of copying it.
 
 ## Decommissioning legacy
 

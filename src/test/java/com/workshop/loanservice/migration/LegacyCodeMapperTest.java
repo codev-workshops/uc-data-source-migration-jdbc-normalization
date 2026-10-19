@@ -41,8 +41,12 @@ class LegacyCodeMapperTest {
     }
 
     @Test
+    void unmappedLoanStatusBecomesUnknown() {
+        assertThat(LegacyCodeMapper.loanStatus("PIF")).isEqualTo(LoanStatus.UNKNOWN);
+    }
+
+    @Test
     void rejectsUnknownOrMissingRequiredCodes() {
-        assertThatThrownBy(() -> LegacyCodeMapper.loanStatus("XYZ")).isInstanceOf(LegacyDataException.class);
         assertThatThrownBy(() -> LegacyCodeMapper.paymentType(null)).isInstanceOf(LegacyDataException.class);
         assertThatThrownBy(() -> LegacyCodeMapper.paymentStatus("???")).isInstanceOf(LegacyDataException.class);
     }

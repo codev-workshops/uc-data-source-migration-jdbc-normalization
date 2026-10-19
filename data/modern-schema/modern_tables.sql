@@ -64,6 +64,7 @@ CREATE TABLE loan_accounts (
     first_payment_date  DATE,
     next_payment_date   DATE,
     status              VARCHAR(15) DEFAULT 'ACTIVE',
+    legacy_status_code  VARCHAR(5),         -- original LN_STAT_CD when status = 'UNKNOWN'
     delinquency_days    INTEGER DEFAULT 0,
     escrow_balance      DECIMAL(10, 2) DEFAULT 0,
     ltv_percent         DECIMAL(5, 2),

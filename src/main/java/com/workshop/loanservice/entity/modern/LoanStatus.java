@@ -5,7 +5,9 @@ public enum LoanStatus {
     ACTIVE("Active"),
     CLOSED("Closed"),
     DEFAULT("Default"),
-    FORBEARANCE("Forbearance");
+    FORBEARANCE("Forbearance"),
+    /** Legacy code with no modern mapping; the original code is kept in {@code legacy_status_code}. */
+    UNKNOWN("Unknown");
 
     private final String displayName;
 
