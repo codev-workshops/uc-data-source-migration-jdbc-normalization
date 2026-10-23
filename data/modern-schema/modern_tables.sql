@@ -64,6 +64,7 @@ CREATE TABLE loan_accounts (
     first_payment_date  DATE,
     next_payment_date   DATE,
     status              VARCHAR(15) DEFAULT 'ACTIVE',
+    legacy_status_code  VARCHAR(5),         -- original LN_STAT_CD when status = 'UNKNOWN'
     delinquency_days    INTEGER DEFAULT 0,
     escrow_balance      DECIMAL(10, 2) DEFAULT 0,
     ltv_percent         DECIMAL(5, 2),
@@ -82,6 +83,7 @@ CREATE TABLE loan_accounts (
 
 CREATE TABLE payments (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
+    external_id         VARCHAR(20) UNIQUE NOT NULL,  -- legacy PMT_SEQ_NBR, exposed as API paymentId
     loan_account_id     BIGINT NOT NULL,
     payment_date        DATE NOT NULL,
     total_amount        DECIMAL(10, 2) NOT NULL,
@@ -97,6 +99,14 @@ CREATE TABLE payments (
     updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (loan_account_id) REFERENCES loan_accounts(id)
+);
+
+-- ShedLock lease table: only one instance sharing this database runs DataMigrationRunner at a time
+CREATE TABLE shedlock (
+    name                VARCHAR(64) PRIMARY KEY,
+    lock_until          TIMESTAMP NOT NULL,
+    locked_at           TIMESTAMP NOT NULL,
+    locked_by           VARCHAR(255) NOT NULL
 );
 
 -- Indexes for common queries

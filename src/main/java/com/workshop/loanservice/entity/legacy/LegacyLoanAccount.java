@@ -1,4 +1,4 @@
-package com.workshop.loanservice.entity;
+package com.workshop.loanservice.entity.legacy;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -8,7 +8,12 @@ import jakarta.persistence.Table;
 /**
  * Maps to the legacy CDW_LN_ACCT table.
  * Note the denormalized borrower fields embedded in the loan record.
+ *
+ * @deprecated Legacy CDW mapping retained only as the source for
+ *     {@link com.workshop.loanservice.migration.DataMigrationService}. Use the
+ *     entities in {@code com.workshop.loanservice.entity.modern} instead.
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_LN_ACCT")
 public class LegacyLoanAccount {

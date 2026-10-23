@@ -44,10 +44,13 @@ Migrate to normalized tables:
 
 See `data/modern-schema/` for target DDL.
 
+The service now reads from the modern tables; legacy rows are migrated at startup.
+See [DATA_SOURCE_MIGRATION_NOTES.md](DATA_SOURCE_MIGRATION_NOTES.md).
+
 ## Quick Start
 
 ```bash
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
 
 The app runs on `http://localhost:8080` with endpoints:
@@ -55,7 +58,7 @@ The app runs on `http://localhost:8080` with endpoints:
 - `GET /api/loans/{id}` — Get loan details
 - `GET /api/borrowers` — List borrowers
 - `GET /api/borrowers/{id}` — Get borrower with loans
-- `GET /api/payments/loan/{loanId}` — Payment history for a loan
+- `GET /api/loans/{loanId}/payments` — Payment history for a loan
 
 ## Tech Stack
 
