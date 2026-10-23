@@ -1,0 +1,137 @@
+package com.workshop.loanservice.service;
+
+import static com.workshop.loanservice.service.ApiFormats.formatDate;
+import static com.workshop.loanservice.service.ApiFormats.zeroIfNull;
+
+import com.workshop.loanservice.dto.BorrowerDto;
+import com.workshop.loanservice.dto.LoanSummaryDto;
+import com.workshop.loanservice.dto.PaymentDto;
+import com.workshop.loanservice.entity.modern.Borrower;
+import com.workshop.loanservice.entity.modern.LoanAccount;
+import com.workshop.loanservice.entity.modern.LoanStatus;
+import com.workshop.loanservice.entity.modern.Payment;
+import com.workshop.loanservice.repository.modern.BorrowerRepository;
+import com.workshop.loanservice.repository.modern.LoanAccountRepository;
+import com.workshop.loanservice.repository.modern.PaymentRepository;
+import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+/** Reads the modern normalized schema and maps typed entities to the API DTOs. */
+@Component
+@ConditionalOnProperty(name = LoanDataSource.READ_SOURCE_PROPERTY, havingValue = "modern", matchIfMissing = true)
+@Transactional(readOnly = true)
+public class ModernLoanDataSource implements LoanDataSource {
+
+    private final BorrowerRepository borrowerRepository;
+    private final LoanAccountRepository loanAccountRepository;
+    private final PaymentRepository paymentRepository;
+
+    public ModernLoanDataSource(BorrowerRepository borrowerRepository,
+                                LoanAccountRepository loanAccountRepository,
+                                PaymentRepository paymentRepository) {
+        this.borrowerRepository = borrowerRepository;
+        this.loanAccountRepository = loanAccountRepository;
+        this.paymentRepository = paymentRepository;
+    }
+
+    @Override
+    public List<LoanSummaryDto> getAllLoans() {
+        return loanAccountRepository.findAllByOrderByIdAsc().stream()
+                .map(this::toLoanSummary)
+                .toList();
+    }
+
+    @Override
+    public LoanSummaryDto getLoanById(String loanAccountNumber) {
+        LoanAccount account = loanAccountRepository.findByAccountNumber(loanAccountNumber)
+                .orElseThrow(() -> new RuntimeException("Loan not found: " + loanAccountNumber));
+        return toLoanSummary(account);
+    }
+
+    @Override
+    public List<BorrowerDto> getAllBorrowers() {
+        return borrowerRepository.findAllByOrderByIdAsc().stream()
+                .map(this::toBorrowerDto)
+                .toList();
+    }
+
+    @Override
+    public BorrowerDto getBorrowerById(String borrowerId) {
+        Borrower borrower = borrowerRepository.findByExternalId(borrowerId)
+                .orElseThrow(() -> new RuntimeException("Borrower not found: " + borrowerId));
+        BorrowerDto dto = toBorrowerDto(borrower);
+        dto.setLoans(loanAccountRepository.findByBorrowerExternalIdOrderByIdAsc(borrowerId).stream()
+                .map(this::toLoanSummary)
+                .toList());
+        return dto;
+    }
+
+    @Override
+    public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
+        return paymentRepository.findByLoanAccountAccountNumberOrderByPaymentDateDescIdAsc(loanAccountNumber)
+                .stream()
+                .map(this::toPaymentDto)
+                .toList();
+    }
+
+    private LoanSummaryDto toLoanSummary(LoanAccount account) {
+        Borrower borrower = account.getBorrower();
+        LoanSummaryDto dto = new LoanSummaryDto();
+        dto.setLoanAccountNumber(account.getAccountNumber());
+        dto.setBorrowerName(borrower.getFirstName() + " " + borrower.getLastName());
+        dto.setProductDescription(account.getProduct().getName());
+        dto.setOriginalAmount(account.getOriginalAmount());
+        dto.setCurrentBalance(account.getCurrentBalance());
+        dto.setInterestRate(account.getInterestRate());
+        dto.setMonthlyPayment(account.getMonthlyPayment());
+        dto.setStatus(statusLabel(account));
+        dto.setOriginationDate(formatDate(account.getOriginationDate()));
+        dto.setPropertyAddress(ApiFormats.propertyAddress(account.getPropertyAddress(), account.getPropertyCity(),
+                account.getPropertyState(), account.getPropertyZip()));
+        dto.setPropertyType(ApiFormats.unknownIfNull(account.getPropertyType()));
+        return dto;
+    }
+
+    /** Unmapped legacy codes are shown verbatim, as the legacy API did. */
+    private static String statusLabel(LoanAccount account) {
+        LoanStatus status = account.getStatus();
+        if (status == null) {
+            return ApiFormats.UNKNOWN;
+        }
+        if (status == LoanStatus.UNKNOWN && account.getLegacyStatusCode() != null) {
+            return account.getLegacyStatusCode();
+        }
+        return status.getDisplayName();
+    }
+
+    private BorrowerDto toBorrowerDto(Borrower borrower) {
+        BorrowerDto dto = new BorrowerDto();
+        dto.setId(borrower.getExternalId());
+        dto.setFullName(ApiFormats.fullName(
+                borrower.getFirstName(), borrower.getMiddleInitial(), borrower.getLastName()));
+        dto.setEmail(borrower.getEmail());
+        dto.setPhone(borrower.getPhone());
+        dto.setCity(borrower.getCity());
+        dto.setState(borrower.getState());
+        dto.setCreditScore(borrower.getCreditScore());
+        dto.setEmploymentStatus(borrower.getEmploymentStatus());
+        return dto;
+    }
+
+    private PaymentDto toPaymentDto(Payment payment) {
+        PaymentDto dto = new PaymentDto();
+        dto.setPaymentId(payment.getExternalId());
+        dto.setLoanAccountNumber(payment.getLoanAccount().getAccountNumber());
+        dto.setPaymentDate(formatDate(payment.getPaymentDate()));
+        dto.setTotalAmount(payment.getTotalAmount());
+        dto.setPrincipalAmount(zeroIfNull(payment.getPrincipalAmount()));
+        dto.setInterestAmount(zeroIfNull(payment.getInterestAmount()));
+        dto.setEscrowAmount(zeroIfNull(payment.getEscrowAmount()));
+        dto.setLateFee(zeroIfNull(payment.getLateFee()));
+        dto.setType(payment.getType().getDisplayName());
+        dto.setStatus(payment.getStatus().getDisplayName());
+        return dto;
+    }
+}
