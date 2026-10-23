@@ -177,6 +177,7 @@ public class DataMigrationService {
         borrower.setFirstName(require("BORR_FST_NM", legacy.getFirstName()));
         borrower.setLastName(require("BORR_LST_NM", legacy.getLastName()));
         borrower.setMiddleInitial(trimToNull(legacy.getMiddleInitial()));
+        // Copied as stored; re-encryption is a known follow-up (DATA_SOURCE_MIGRATION_NOTES.md, "ssn_hash").
         borrower.setSsnHash(trimToNull(legacy.getSsnEncrypted()));
         borrower.setDateOfBirth(optional.date("BORR_DOB_DT", legacy.getDateOfBirth()));
         borrower.setAddressLine1(trimToNull(legacy.getAddressLine1()));

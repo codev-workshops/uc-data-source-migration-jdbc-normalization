@@ -102,6 +102,14 @@ CREATE TABLE IF NOT EXISTS payments (
     FOREIGN KEY (loan_account_id) REFERENCES loan_accounts(id)
 );
 
+-- ShedLock lease table: only one instance sharing this database runs DataMigrationRunner at a time
+CREATE TABLE IF NOT EXISTS shedlock (
+    name                VARCHAR(64) PRIMARY KEY,
+    lock_until          TIMESTAMP NOT NULL,
+    locked_at           TIMESTAMP NOT NULL,
+    locked_by           VARCHAR(255) NOT NULL
+);
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_borrowers_email ON borrowers(email);
 CREATE INDEX IF NOT EXISTS idx_borrowers_status ON borrowers(status);
