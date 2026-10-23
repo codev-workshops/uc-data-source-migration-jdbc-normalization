@@ -9,7 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /** Expands legacy CDW status/type codes into modern schema values (see data/mappings/column_mappings.md). */
-final class LegacyCodeMapper {
+public final class LegacyCodeMapper {
 
     private static final Map<String, BorrowerStatus> BORROWER_STATUS = Map.of(
             "ACT", BorrowerStatus.ACTIVE,
@@ -47,12 +47,12 @@ final class LegacyCodeMapper {
     }
 
     /** Blank defaults to {@link BorrowerStatus#ACTIVE}, matching the modern column default. */
-    static BorrowerStatus borrowerStatus(String code) {
+    public static BorrowerStatus borrowerStatus(String code) {
         return lookupOrDefault("BORR_STAT_CD", code, BORROWER_STATUS, BorrowerStatus.ACTIVE);
     }
 
     /** Blank defaults to {@code true}, matching the modern {@code is_active} column default. */
-    static Boolean productActive(String code) {
+    public static Boolean productActive(String code) {
         return lookupOrDefault("PROD_STAT_CD", code, PRODUCT_ACTIVE, Boolean.TRUE);
     }
 
@@ -60,7 +60,7 @@ final class LegacyCodeMapper {
      * Blank stays {@code null} (rendered as "Unknown" by the API, as before). Unrecognised codes map to
      * {@link LoanStatus#UNKNOWN} instead of rejecting the loan; the caller keeps the original code.
      */
-    static LoanStatus loanStatus(String code) {
+    public static LoanStatus loanStatus(String code) {
         String normalized = normalize(code);
         if (normalized == null) {
             return null;
@@ -69,17 +69,17 @@ final class LegacyCodeMapper {
     }
 
     /** Unrecognised codes are carried over verbatim, as the legacy API displayed them. */
-    static String propertyType(String code) {
+    public static String propertyType(String code) {
         String normalized = normalize(code);
         return normalized == null ? null : PROPERTY_TYPE.getOrDefault(normalized, code.trim());
     }
 
-    static PaymentType paymentType(String code) {
+    public static PaymentType paymentType(String code) {
         return LegacyValueParser.require("PMT_TYP_CD",
                 lookupOrDefault("PMT_TYP_CD", code, PAYMENT_TYPE, null));
     }
 
-    static PaymentStatus paymentStatus(String code) {
+    public static PaymentStatus paymentStatus(String code) {
         return LegacyValueParser.require("PMT_STAT_CD",
                 lookupOrDefault("PMT_STAT_CD", code, PAYMENT_STATUS, null));
     }

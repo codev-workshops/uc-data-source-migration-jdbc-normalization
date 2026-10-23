@@ -21,8 +21,8 @@ import java.util.Map;
 
 /**
  * Secondary (legacy CDW) persistence unit, bound to {@code legacy.datasource.*} and
- * {@code legacy.sql.init.*}. Kept only so {@code DataMigrationService} can read the legacy
- * tables while both schemas coexist; the REST API never reads from it.
+ * {@code legacy.sql.init.*}. Kept so {@code DataMigrationService} can read the legacy tables while both
+ * schemas coexist; the REST API only reads from it when {@code loan-service.read-source=legacy}.
  */
 @SuppressWarnings("deprecation")
 @Configuration(proxyBeanMethods = false)

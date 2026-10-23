@@ -13,7 +13,7 @@ import java.time.format.ResolverStyle;
  * include the raw value, nor the parser exception as cause (its message holds the value), because they
  * are logged and the columns may hold PII.
  */
-final class LegacyValueParser {
+public final class LegacyValueParser {
 
     private static final DateTimeFormatter LEGACY_DATE =
             DateTimeFormatter.ofPattern("MM/dd/uuuu").withResolverStyle(ResolverStyle.STRICT);
@@ -21,7 +21,7 @@ final class LegacyValueParser {
     private LegacyValueParser() {
     }
 
-    static String trimToNull(String raw) {
+    public static String trimToNull(String raw) {
         if (raw == null) {
             return null;
         }
@@ -29,7 +29,7 @@ final class LegacyValueParser {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    static String require(String column, String raw) {
+    public static String require(String column, String raw) {
         String value = trimToNull(raw);
         if (value == null) {
             throw new LegacyDataException(column + " is required but was blank");
@@ -37,7 +37,7 @@ final class LegacyValueParser {
         return value;
     }
 
-    static <T> T require(String column, T value) {
+    public static <T> T require(String column, T value) {
         if (value == null) {
             throw new LegacyDataException(column + " is required but was blank");
         }
@@ -45,7 +45,7 @@ final class LegacyValueParser {
     }
 
     /** Parses amounts such as {@code "1,487.02"} or {@code "285,000"}; thousands separators are stripped. */
-    static BigDecimal parseDecimal(String column, String raw) {
+    public static BigDecimal parseDecimal(String column, String raw) {
         String value = trimToNull(raw);
         if (value == null) {
             return null;
@@ -57,7 +57,7 @@ final class LegacyValueParser {
         }
     }
 
-    static Integer parseInteger(String column, String raw) {
+    public static Integer parseInteger(String column, String raw) {
         String value = trimToNull(raw);
         if (value == null) {
             return null;
@@ -70,7 +70,7 @@ final class LegacyValueParser {
     }
 
     /** Parses legacy {@code MM/DD/YYYY} dates, rejecting impossible dates such as 02/30/2020. */
-    static LocalDate parseDate(String column, String raw) {
+    public static LocalDate parseDate(String column, String raw) {
         String value = trimToNull(raw);
         if (value == null) {
             return null;
@@ -82,7 +82,7 @@ final class LegacyValueParser {
         }
     }
 
-    static LocalDateTime parseTimestamp(String column, String raw) {
+    public static LocalDateTime parseTimestamp(String column, String raw) {
         LocalDate date = parseDate(column, raw);
         return date == null ? null : date.atStartOfDay();
     }

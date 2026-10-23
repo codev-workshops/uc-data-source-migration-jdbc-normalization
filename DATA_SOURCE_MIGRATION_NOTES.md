@@ -16,7 +16,27 @@ Migration of `loan-service` from the legacy all-`VARCHAR` CDW tables to the norm
 
 Each datasource has its own `EntityManagerFactory` and `TransactionManager`, and Spring Data repositories are
 bound to them by package, so both sources coexist while the migration runs. The modern source is `@Primary`,
-so anything that injects an unqualified `DataSource`/`EntityManager` (including `LoanService`) uses the modern schema.
+so anything that injects an unqualified `DataSource`/`EntityManager` uses the modern schema.
+
+### Dual read (`loan-service.read-source`)
+
+`LoanService` (used by the controllers) delegates to a `LoanDataSource`; exactly one implementation is created
+at startup via `@ConditionalOnProperty`:
+
+| `loan-service.read-source` | Bean | Reads | Transaction manager |
+|----------------------------|------|-------|---------------------|
+| `modern` (default, also when unset) | `ModernLoanDataSource` | `repository.modern.*` | `transactionManager` (primary) |
+| `legacy` | `LegacyLoanDataSource` | `repository.legacy.Legacy*Repository` | `legacyTransactionManager` |
+
+Switch by restart, e.g. `LOAN_SERVICE_READ_SOURCE=legacy` or `--loan-service.read-source=legacy`. A restart
+was chosen over `@RefreshScope` because that needs Spring Cloud Context and would swap the source mid-traffic.
+`LegacyLoanDataSource` reuses `LegacyValueParser` (trim, comma-stripped amounts, `MM/DD/YYYY` dates) and
+`LegacyCodeMapper` (status/property/payment codes) - the same rules as the migration - and builds the DTOs
+through the shared `ApiFormats`, so both sources return the same JSON. Like the modern path it takes
+`borrowerName` from the borrower master, maps unmapped loan status codes to the raw code, and sorts payments by
+the parsed date (not the `VARCHAR`). A malformed credit score is returned as `null`, as the migration stores it;
+rows the migration would reject (malformed required values, unknown payment codes, a `BORR_ID`/`PROD_CD` with
+no master row) raise `LegacyDataException` instead of being rendered.
 
 ## Migration flow
 
@@ -91,12 +111,22 @@ The `MigrationReport` checks, per run:
   `payments.total/principal/interest/escrow/late_fee` (compared with `BigDecimal.compareTo`).
 - FK consistency: every loan's borrower/product and every payment's loan resolve to the same business keys as in legacy.
 
+The same checks are available as standalone SQL in `data/validation/reconciliation_queries.sql`, for running
+against both databases at any time (e.g. while dual-reading, or after the CDW feed loads new rows). Each check
+is a `-- @check` pair of an `@legacy` and a `@modern` query that return the same columns: row counts per table,
+monetary sums (legacy amounts `TRIM`med, commas stripped, `CAST` to `DECIMAL`), per-loan payment totals,
+per-loan amounts/rate/origination date, the business keys (`BORR_ID`->`external_id`, `PROD_CD`->`code`,
+`LN_ACCT_NBR`->`account_number`, `PMT_SEQ_NBR`->`external_id`), the FK pairs resolved by business key, and
+dangling legacy references. `ReconciliationQueriesTest` runs every pair against `legacyDataSource` and
+`modernDataSource` and reports the rows found on only one side per check (`ReconciliationQueries.run`).
+
 ## API compatibility
 
 - Controllers and DTOs are unchanged. Dates are still rendered as `MM/DD/YYYY`; `propertyAddress` is rebuilt as
   `address, city, ST zip`; borrower `fullName` keeps the `First M. Last` format.
 - Golden files in `src/test/resources/golden/` were captured from the legacy implementation before the switch and
-  `ModernApiGoldenFileTest` checks all 18 endpoint responses against them.
+  `ModernApiGoldenFileTest` (modern read source) and `LegacyApiGoldenFileTest` (`read-source=legacy`) check all
+  18 endpoint responses against them.
 - **Representational difference**: legacy whole-dollar amounts such as `"285,000"` used to serialize as
   `285000`; from `DECIMAL(12,2)` they serialize as `285000.00`. The values are numerically identical (and identical
   JSON numbers per RFC 8259), so the golden test compares numbers by value and everything else exactly. This only
@@ -109,7 +139,11 @@ The `MigrationReport` checks, per run:
 
 ## Tests
 
-- `ModernApiGoldenFileTest` – all `LoanController`/`BorrowerController` endpoints vs pre-migration JSON.
+- `ModernApiGoldenFileTest`, `LegacyApiGoldenFileTest` – all `LoanController`/`BorrowerController` endpoints vs
+  pre-migration JSON, served by the modern and the legacy `LoanDataSource` (shared `ApiGoldenFileTestSupport`).
+- `ReconciliationQueriesTest` – `reconciliation_queries.sql` passes after the migration and reports drifted
+  amounts and orphan payments per check.
+- `SchemaQueryBenchmarkTest` – the performance comparison below; skipped unless `-Dbenchmark=true`.
 - `DataMigrationServiceTest` – counts, monetary totals (legacy side summed in SQL as an independent oracle),
   FK resolution, idempotent re-run, rejection of malformed/orphan/oversized rows, fail-on-error rollback,
   drift detection on existing rows, re-runnable schema script, lenient optional fields, unmapped loan status,
@@ -118,8 +152,59 @@ The `MigrationReport` checks, per run:
 - `DataMigrationRunnerTest` – migration skipped while another instance holds the lock; lock released on success and failure.
 - `ModernSchemaSyncTest` – `schema-modern.sql` matches `data/modern-schema/modern_tables.sql` (ignoring comments
   and `IF NOT EXISTS`).
-- `LoanServiceApplicationTests` – context load; `LoanService` has no `parse*`/`expand*` methods or legacy dependencies;
+- `LoanServiceApplicationTests` – context load; `LoanService` has no `parse*`/`expand*` methods or legacy dependencies
+  (legacy reads live only in `LegacyLoanDataSource`);
   H2 console off by default; the startup migration releases its lock and the lock excludes a second holder.
+
+## Performance comparison (legacy VARCHAR vs modern typed schema)
+
+### Methodology
+
+`SchemaQueryBenchmarkTest` (JUnit, no extra dependency) creates two fresh in-memory H2 databases from
+`schema-legacy.sql` and `schema-modern.sql`, and `BenchmarkDataGenerator` loads the same seeded synthetic
+portfolio into both: 10,000 borrowers, 5 products, 20,000 loans, 240,000 payments (12 per loan). Legacy rows
+use the CDW formats (`"271,432.56"`, `"11/15/2025"`, `ACT`/`DFT`); modern rows use typed values. Both databases
+are `ANALYZE`d. For each query the harness first asserts that legacy and modern return the same rows
+(numbers by value, legacy dates as ISO), then runs 5 warm-up and 25 measured iterations through `JdbcTemplate`,
+reading every column of every row, and reports the median and p95 wall time plus each query's H2 `EXPLAIN`
+plan. The legacy queries are written the way they must be against `VARCHAR`s to be correct: amounts
+`CAST(REPLACE(..., ',', '') AS DECIMAL)`, dates rearranged from `MM/DD/YYYY` to sortable `YYYYMMDD` text.
+
+```bash
+mvn -B test -Dtest=SchemaQueryBenchmarkTest -Dbenchmark=true
+# optional: -Dbenchmark.loans=20000 -Dbenchmark.paymentsPerLoan=12 -Dbenchmark.warmup=5 -Dbenchmark.iterations=25
+# report with query plans: target/benchmark/schema-query-benchmark.md
+```
+
+### Results
+
+H2 2.2.224 in-memory, Java 17.0.19, single run on the Devin VM (absolute times vary by machine; the ratios
+and plans are the meaningful part):
+
+| Query | Rows | Legacy median (p95) ms | Modern median (p95) ms | Speedup | Modern plan |
+|---|---:|---:|---:|---:|---|
+| Filter loans by status | 733 | 1.70 (3.30) | 0.54 (0.89) | 3.1x | `idx_loan_accounts_status` |
+| Join loans -> borrowers -> products (one state) | 2,051 | 26.89 (31.63) | 11.37 (14.66) | 2.4x | `BIGINT` PK joins |
+| Aggregate payment totals per loan | 20,000 | 197.67 (231.77) | 128.71 (151.70) | 1.5x | `payments(loan_account_id)` index, no casts |
+| Payments in a date range (one month) | 1 | 66.36 (83.32) | 7.20 (7.37) | 9.2x | `idx_payments_date` range |
+| Payment history of one loan (`/payments`) | 12 | 11.10 (11.22) | 0.15 (0.22) | 72.4x | unique `account_number` + `payments(loan_account_id)` |
+| Numeric range filter (balance > 500,000) | 3,445 | 5.21 (5.31) | 1.63 (1.67) | 3.2x | scan of a `DECIMAL` column |
+
+### Findings
+
+- **Indexes** (`schema-modern.sql`): `idx_loan_accounts_status` and `idx_payments_date` are used directly.
+  `payments` lookups by loan use the index H2 creates for the `loan_account_id` FK (`idx_payments_loan` covers
+  the same column), and `account_number`/`external_id`/`code` lookups use their `UNIQUE` indexes. The legacy
+  tables only have their `VARCHAR` primary keys; `CDW_PMT_HIST` has none on `LN_ACCT_NBR` or `PMT_DT`, so every
+  legacy payment query is a full table scan - the 72x on the endpoint behind `/api/loans/{id}/payments`.
+- **Typed columns**: a date or amount predicate on legacy wraps the column in `SUBSTRING`/`REPLACE`/`CAST`,
+  which no index can serve and which is evaluated on every row; `DATE` and `DECIMAL` columns compare natively
+  (and `DATE` sorts correctly, see "Payment order" above). Sums avoid a per-row string-to-decimal parse (1.5x
+  even when both sides scan all 240,000 payments).
+- **Joins**: `BIGINT` surrogate keys join faster than `VARCHAR` business keys (2.4x). The state filter itself
+  is not indexed on either side (`borrowers.state` has no index); add one if state filters become common.
+- **Status filter**: legacy is only 3x slower here because `CDW_LN_ACCT` is small and the code comparison is
+  a plain string compare; the gap grows with table size since legacy stays a scan.
 
 ## Production follow-ups (out of scope for the workshop)
 
@@ -139,8 +224,9 @@ which exposes both databases, is off by default and only enabled by the `dev` pr
 
 ## Decommissioning legacy
 
-Legacy entities and repositories are `@Deprecated` and used only by `DataMigrationService`. Once the CDW feed is
-retired: delete `entity.legacy`, `repository.legacy`, `LegacyDataSourceConfig`, the `legacy.*` properties,
+Legacy entities and repositories are `@Deprecated` and used only by `DataMigrationService` and
+`LegacyLoanDataSource`. Once the CDW feed is retired: delete `entity.legacy`, `repository.legacy`,
+`LegacyDataSourceConfig`, `LegacyLoanDataSource`, `loan-service.read-source`, the `legacy.*` properties,
 `schema-legacy.sql`/`data-legacy.sql`, `DataMigrationRunner`/`DataMigrationService`, and point
 `spring.datasource.url` at the persistent modern database.
 
