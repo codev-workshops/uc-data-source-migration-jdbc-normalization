@@ -5,28 +5,35 @@ import com.workshop.loanservice.modern.entity.LoanStatus;
 import com.workshop.loanservice.modern.entity.PaymentStatus;
 import com.workshop.loanservice.modern.entity.PaymentType;
 
+import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
  * Expansion of legacy short codes into modern values
- * (see data/mappings/column_mappings.md). Status and type codes are required;
- * a missing or unknown code rejects the record.
+ * (see data/mappings/column_mappings.md).
+ *
+ * <p>Codes are sanitized and upper-cased before lookup, so {@code " nsf "} maps like {@code NSF}.
+ * The modern value's name is accepted as an alias of the legacy code (e.g. {@code "active"}
+ * for {@code ACT}). Status and type codes are required; a missing or unknown code rejects the record.
  */
 public final class LegacyCodeMappings {
 
-    private static final Map<String, BorrowerStatus> BORROWER_STATUS = Map.of(
+    private static final Map<String, BorrowerStatus> BORROWER_STATUS = withAliases(Map.of(
             "ACT", BorrowerStatus.ACTIVE,
-            "INA", BorrowerStatus.INACTIVE);
+            "INA", BorrowerStatus.INACTIVE));
 
     private static final Map<String, Boolean> PRODUCT_ACTIVE = Map.of(
             "ACT", Boolean.TRUE,
-            "INA", Boolean.FALSE);
+            "ACTIVE", Boolean.TRUE,
+            "INA", Boolean.FALSE,
+            "INACTIVE", Boolean.FALSE);
 
-    private static final Map<String, LoanStatus> LOAN_STATUS = Map.of(
+    private static final Map<String, LoanStatus> LOAN_STATUS = withAliases(Map.of(
             "ACT", LoanStatus.ACTIVE,
             "CLO", LoanStatus.CLOSED,
             "DFT", LoanStatus.DEFAULT,
-            "FRB", LoanStatus.FORBEARANCE);
+            "FRB", LoanStatus.FORBEARANCE));
 
     private static final Map<String, String> PROPERTY_TYPE = Map.of(
             "SFR", "Single Family Residence",
@@ -34,17 +41,17 @@ public final class LegacyCodeMappings {
             "MFR", "Multi-Family Residence",
             "TWN", "Townhouse");
 
-    private static final Map<String, PaymentType> PAYMENT_TYPE = Map.of(
+    private static final Map<String, PaymentType> PAYMENT_TYPE = withAliases(Map.of(
             "REG", PaymentType.REGULAR,
             "EXT", PaymentType.EXTRA,
             "PRT", PaymentType.PARTIAL,
-            "PRE", PaymentType.PREPAYMENT);
+            "PRE", PaymentType.PREPAYMENT));
 
-    private static final Map<String, PaymentStatus> PAYMENT_STATUS = Map.of(
+    private static final Map<String, PaymentStatus> PAYMENT_STATUS = withAliases(Map.of(
             "PST", PaymentStatus.POSTED,
             "REV", PaymentStatus.REVERSED,
             "NSF", PaymentStatus.NSF,
-            "PND", PaymentStatus.PENDING);
+            "PND", PaymentStatus.PENDING));
 
     private LegacyCodeMappings() {
     }
@@ -63,8 +70,7 @@ public final class LegacyCodeMappings {
 
     /** Property type is optional; unknown codes are rejected. */
     public static String propertyType(String code) {
-        String value = LegacyValueParser.clean(code);
-        return value == null ? null : required(PROPERTY_TYPE, "PROP_TYP_CD", value);
+        return LegacyValueParser.clean(code) == null ? null : required(PROPERTY_TYPE, "PROP_TYP_CD", code);
     }
 
     public static PaymentType paymentType(String code) {
@@ -75,8 +81,13 @@ public final class LegacyCodeMappings {
         return required(PAYMENT_STATUS, "PMT_STAT_CD", code);
     }
 
-    private static <T> T required(Map<String, T> mapping, String column, String code) {
+    static String normalize(String code) {
         String value = LegacyValueParser.clean(code);
+        return value == null ? null : value.toUpperCase(Locale.ROOT);
+    }
+
+    private static <T> T required(Map<String, T> mapping, String column, String code) {
+        String value = normalize(code);
         if (value == null) {
             throw new MalformedLegacyDataException(column, code, "missing code");
         }
@@ -85,5 +96,11 @@ public final class LegacyCodeMappings {
             throw new MalformedLegacyDataException(column, code, "unknown code");
         }
         return mapped;
+    }
+
+    private static <E extends Enum<E>> Map<String, E> withAliases(Map<String, E> legacyCodes) {
+        Map<String, E> mapping = new HashMap<>(legacyCodes);
+        legacyCodes.values().forEach(value -> mapping.putIfAbsent(value.name(), value));
+        return Map.copyOf(mapping);
     }
 }

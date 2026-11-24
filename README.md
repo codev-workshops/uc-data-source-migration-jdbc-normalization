@@ -57,6 +57,8 @@ reconciliation of row counts, amount totals and foreign keys.
 | `loan.datasource.mode` | `modern` | `modern` or `legacy` (deprecated read path, for rollback) |
 | `loan.migration.run-on-startup` | `true` | Run the legacy → modern migration on startup |
 
+Migration status is exposed at `/actuator/health/migration` and included in `/actuator/health/readiness`; it is `DOWN` if the migration failed or reconciliation found a mismatch.
+
 See [DATA_SOURCE_MIGRATION_NOTES.md](DATA_SOURCE_MIGRATION_NOTES.md) for decisions and intentional differences.
 
 ## Quick Start

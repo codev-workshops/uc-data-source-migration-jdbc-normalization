@@ -24,6 +24,9 @@ class LegacyToModernMigratorTest {
     private LegacyToModernMigrator migrator;
 
     @Autowired
+    private MigrationStatus status;
+
+    @Autowired
     @Qualifier("modernJdbcTemplate")
     private JdbcTemplate modern;
 
@@ -36,8 +39,17 @@ class LegacyToModernMigratorTest {
     }
 
     @Test
-    void reconciliationPasses() {
-        assertThat(migrator.reconcile()).isNotEmpty().allSatisfy(check -> assertThat(check.passed()).as(check.toString()).isTrue());
+    void startupMigrationCompletedAndReconciliationPasses() {
+        assertThat(status.getState()).isEqualTo(MigrationStatus.State.COMPLETED);
+        assertThat(status.getReport().hasRejections()).isFalse();
+        assertThat(status.getChecks()).hasSize(20).allSatisfy(check -> assertThat(check.passed()).as(check.toString()).isTrue());
+        assertThat(migrator.reconcile(status.getReport())).allSatisfy(check -> assertThat(check.passed()).as(check.toString()).isTrue());
+    }
+
+    @Test
+    void preservesLegacyRowOrderInModernIds() {
+        assertThat(modern.queryForList("SELECT external_id FROM borrowers ORDER BY id", String.class))
+                .containsExactly("B-10001", "B-10002", "B-10003", "B-10004", "B-10005");
     }
 
     @Test
@@ -75,6 +87,7 @@ class LegacyToModernMigratorTest {
             assertThat(table.getSkippedExisting()).as(table.getTable()).isEqualTo(table.getRead());
         });
         assertThat(count("payments")).isEqualTo(10);
+        assertThat(migrator.reconcile(report)).allSatisfy(check -> assertThat(check.passed()).as(check.toString()).isTrue());
     }
 
     private int count(String table) {

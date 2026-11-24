@@ -6,6 +6,6 @@ package com.workshop.loanservice.migration;
 public class MalformedLegacyDataException extends RuntimeException {
 
     public MalformedLegacyDataException(String column, String value, String reason) {
-        super(column + "='" + value + "': " + reason);
+        super(column + "='" + LegacyValueParser.printable(value) + "': " + reason);
     }
 }

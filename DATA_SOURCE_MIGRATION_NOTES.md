@@ -29,13 +29,37 @@ transaction manager and `JdbcTemplate`. Modern beans are `@Primary`.
   and resolves string foreign keys to modern surrogate keys.
 - **Idempotent.** Rows whose natural key (`code`, `external_id`, `account_number`, payment `external_id`)
   already exists are skipped. Re-running inserts nothing.
-- **Bad data doesn't stop the run.** Malformed values (e.g. `02/30/1990`, `12x,000`), unknown or missing
-  status/type codes, and unresolved foreign keys reject only that record. Rejections are logged and
-  returned in `MigrationReport`. Blank values become `NULL`. Columns with a schema default
-  (`late_fee`, `escrow_balance`, `delinquency_days`, `created_at`, `updated_at`) get that default.
-- **Reconciliation.** After migrating, `reconcile()` checks row counts, the totals of 13 amount columns,
-  and the borrower/product/loan-account FK mappings, comparing legacy and modern. Results are logged
-  at startup (`MISMATCH` at WARN).
+- **Input sanitization.** Every legacy string is cleaned before parsing or mapping: tabs, newlines,
+  NBSP and other Unicode spaces become spaces, control/format/private-use characters are removed, and
+  the value is trimmed. Blank values become `NULL`. Codes are matched case-insensitively
+  (`" nsf "` → `NSF`), and the modern enum names are accepted as aliases (`"active  "` → `ACTIVE`).
+- **Strict parsing.** Dates must be exactly `MM/DD/YYYY` and are parsed with `ResolverStyle.STRICT`
+  (`02/29/2023`, `02/30/1990`, `2/5/2020` are rejected; `02/29/2024` is accepted). Amounts accept
+  `1,487.02`, `$1,487.02`, `-5.00` and accounting negatives `(123.45)`; scientific notation, misplaced
+  commas, `NaN` and similar are rejected. Each value is checked against the target column's
+  `DECIMAL(p, s)` so overflow is a row rejection, not a SQL error.
+- **Bad data doesn't stop the run.** A malformed value, unknown or missing code, blank required column
+  (anything `NOT NULL` in the modern DDL) or unresolved foreign key rejects only that record. Each row's
+  inserts run in a JDBC savepoint, so any remaining database error (e.g. a value too long for its column)
+  is rolled back for that row and reported too. Rejections are logged and returned in `MigrationReport`.
+  Columns with a schema default (`late_fee`, `escrow_balance`, `delinquency_days`, `created_at`,
+  `updated_at`) get that default.
+- **Cascading rejections.** Tables migrate parents first (borrowers, products, loan accounts, payments).
+  A child of a rejected parent is rejected with `borrower B-1 was rejected` /
+  `loan account LN-1 was rejected`; a child pointing at a key that doesn't exist at all is rejected as an
+  `orphaned reference`.
+- **Duplicate natural keys.** If the legacy source contains the same key twice (after trimming), only the
+  first row is migrated and the rest are reported as duplicates in `MigrationReport`.
+- **Streaming.** Legacy tables are read through a streaming `RowCallbackHandler` (fetch size 500), not
+  loaded into lists.
+- **Reconciliation.** `reconcile(report)` compares row counts as `legacy - rejected - duplicates == modern`,
+  the totals of all 13 amount columns with `BigDecimal.compareTo` (excluding rejected and duplicate rows),
+  and each FK mapping, counting legacy orphans and modern unmapped, unexpected and orphaned links. Any
+  difference not explained by the report is a `MISMATCH`.
+- **Startup readiness.** Migration and reconciliation run synchronously during context refresh, before
+  the web server accepts connections. The `migration` health indicator (`/actuator/health/migration`,
+  also part of `/actuator/health/readiness`) is `DOWN` if the migration failed or reconciliation has a
+  `MISMATCH`, and lists per-table counts and rejections.
 - **Insertion order.** Legacy rows are read in table order so modern ids, and therefore list ordering,
   match what the legacy API returned.
 - **Feature flag.** `loan.datasource.mode=modern|legacy` selects the `LoanService` implementation at startup.
