@@ -3,6 +3,7 @@ package com.workshop.loanservice.migration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -13,8 +14,9 @@ import java.util.List;
  *
  * <p>It runs once all singletons exist and before the embedded web server starts
  * accepting connections, so no request is served from a partially migrated schema.
- * A failure doesn't stop startup; it is recorded in {@link MigrationStatus} and
- * reported as DOWN by the {@code migration} health indicator (part of the readiness group).
+ * A failure or reconciliation mismatch is recorded in {@link MigrationStatus} and reported as DOWN
+ * by the {@code migration} health indicator (part of the readiness group). With
+ * {@code loan.migration.fail-on-error=true} it also aborts startup.
  */
 @Component
 @ConditionalOnProperty(name = "loan.migration.run-on-startup", havingValue = "true", matchIfMissing = true)
@@ -24,10 +26,13 @@ public class MigrationRunner implements SmartInitializingSingleton {
 
     private final LegacyToModernMigrator migrator;
     private final MigrationStatus status;
+    private final boolean failOnError;
 
-    public MigrationRunner(LegacyToModernMigrator migrator, MigrationStatus status) {
+    public MigrationRunner(LegacyToModernMigrator migrator, MigrationStatus status,
+                           @Value("${loan.migration.fail-on-error:false}") boolean failOnError) {
         this.migrator = migrator;
         this.status = status;
+        this.failOnError = failOnError;
     }
 
     @Override
@@ -49,6 +54,21 @@ public class MigrationRunner implements SmartInitializingSingleton {
         } catch (RuntimeException e) {
             log.error("Legacy-to-modern migration failed", e);
             status.failed(e);
+            if (failOnError) {
+                throw new IllegalStateException("Legacy-to-modern migration failed", e);
+            }
+            return;
+        }
+
+        List<ReconciliationCheck> mismatches = status.getMismatches();
+        if (mismatches.isEmpty()) {
+            log.info("Reconciliation passed: {} checks", status.getChecks().size());
+            return;
+        }
+        log.error("Reconciliation found {} MISMATCH(es) out of {} checks: {}",
+                mismatches.size(), status.getChecks().size(), mismatches);
+        if (failOnError) {
+            throw new IllegalStateException("Reconciliation found " + mismatches.size() + " MISMATCH(es): " + mismatches);
         }
     }
 }

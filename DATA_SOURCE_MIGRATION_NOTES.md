@@ -59,7 +59,8 @@ transaction manager and `JdbcTemplate`. Modern beans are `@Primary`.
 - **Startup readiness.** Migration and reconciliation run synchronously during context refresh, before
   the web server accepts connections. The `migration` health indicator (`/actuator/health/migration`,
   also part of `/actuator/health/readiness`) is `DOWN` if the migration failed or reconciliation has a
-  `MISMATCH`, and lists per-table counts and rejections.
+  `MISMATCH`, and lists per-table counts and rejections. Mismatches are also logged as one ERROR summary.
+  Set `loan.migration.fail-on-error=true` to abort startup instead of starting with readiness `DOWN`.
 - **Insertion order.** Legacy rows are read in table order so modern ids, and therefore list ordering,
   match what the legacy API returned.
 - **Feature flag.** `loan.datasource.mode=modern|legacy` selects the `LoanService` implementation at startup.

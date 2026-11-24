@@ -127,6 +127,43 @@ class MigrationEdgeCaseTest {
     }
 
     @Test
+    void reportsDuplicateKeysInEveryTableAndCascadesFromRejectedFirstOccurrences() {
+        product(" FXD30 ", "360");
+        product("BAD1", "abc");
+        borrower("B-90010", "Bad", "02/30/1990", "ACT");
+        borrower(" B-90010", "Valid", "01/01/1990", "ACT");
+        loan(" LN-2019-00142 ", "B-10001", "FXD30", "100,000.00");
+        loan("LN-9999-00010", "B-90010", "FXD30", "100,000.00");
+        loan("LN-9999-00011", "B-10001", "BAD1", "100,000.00");
+        payment("PMT-CASCADE-10", "LN-9999-00010", "12/01/2025", "100.00", "REG", "PST");
+        payment("PMT-CASCADE-11", "LN-9999-00011", "12/01/2025", "100.00", "REG", "PST");
+
+        MigrationReport report = migrator.migrate();
+
+        assertInserted(report, 5, 5, 5, 10);
+        assertThat(keys(report.get("loan_products").getDuplicates())).containsExactly("FXD30");
+        assertThat(keys(report.get("borrowers").getDuplicates())).containsExactly("B-90010");
+        assertThat(keys(report.get("loan_accounts").getDuplicates())).containsExactly("LN-2019-00142");
+        assertThat(reasons(report, "loan_products")).containsExactly("BAD1: PROD_TERM_MOS='abc': not an integer");
+        assertThat(reasons(report, "borrowers")).containsExactly(
+                "B-90010: BORR_DOB_DT='02/30/1990': not a valid MM/DD/YYYY date");
+        assertThat(reasons(report, "loan_accounts")).containsExactly(
+                "LN-9999-00010: BORR_ID='B-90010': borrower B-90010 was rejected",
+                "LN-9999-00011: PROD_CD='BAD1': loan product BAD1 was rejected");
+        assertThat(reasons(report, "payments")).containsExactly(
+                "PMT-CASCADE-10: LN_ACCT_NBR='LN-9999-00010': loan account LN-9999-00010 was rejected",
+                "PMT-CASCADE-11: LN_ACCT_NBR='LN-9999-00011': loan account LN-9999-00011 was rejected");
+        assertThat(modern.queryForObject("SELECT COUNT(*) FROM borrowers WHERE external_id = 'B-90010'", Integer.class))
+                .isZero();
+        assertThat(modern.queryForObject("SELECT term_months FROM loan_products WHERE code = 'FXD30'", Integer.class))
+                .isEqualTo(360);
+
+        List<ReconciliationCheck> checks = migrator.reconcile(report);
+        assertThat(checks).allSatisfy(check -> assertThat(check.passed()).as(check.toString()).isTrue());
+        assertThat(check(checks, "borrowers row count").legacyValue()).isEqualTo("5 (7 rows - 2 rejected/duplicate)");
+    }
+
+    @Test
     void flagsUnexpectedDiscrepancies() {
         MigrationReport report = migrator.migrate();
         modern.update("DELETE FROM payments WHERE external_id = 'PMT-2025120003'");
@@ -146,11 +183,20 @@ class MigrationEdgeCaseTest {
                 + "VALUES (?, ?, 'Test', ?, ?)", id, firstName, dateOfBirth, status);
     }
 
+    private void product(String code, String termMonths) {
+        legacy.update("INSERT INTO CDW_LN_PROD (PROD_CD, PROD_DESC_TXT, PROD_TYP_CD, PROD_TERM_MOS, PROD_RT_TYP, "
+                + "PROD_STAT_CD) VALUES (?, 'Test product', 'FXD', ?, 'FIXED', 'ACT')", code, termMonths);
+    }
+
     private void loan(String accountNumber, String borrowerId, String originalAmount) {
+        loan(accountNumber, borrowerId, "FXD30", originalAmount);
+    }
+
+    private void loan(String accountNumber, String borrowerId, String productCode, String originalAmount) {
         legacy.update("INSERT INTO CDW_LN_ACCT (LN_ACCT_NBR, BORR_ID, PROD_CD, LN_ORIG_AMT, LN_CURR_BAL, LN_INT_RT, "
                 + "LN_TERM_MOS, LN_PMT_AMT, LN_ORIG_DT, LN_MAT_DT, LN_STAT_CD) "
-                + "VALUES (?, ?, 'FXD30', ?, '1,000', '4.000', '360', '100.00', '01/01/2020', '01/01/2050', 'ACT')",
-                accountNumber, borrowerId, originalAmount);
+                + "VALUES (?, ?, ?, ?, '1,000', '4.000', '360', '100.00', '01/01/2020', '01/01/2050', 'ACT')",
+                accountNumber, borrowerId, productCode, originalAmount);
     }
 
     private void payment(String id, String accountNumber, String date, String amount, String type, String status) {
@@ -167,6 +213,10 @@ class MigrationEdgeCaseTest {
 
     private static List<String> reasons(MigrationReport report, String table) {
         return report.get(table).getRejections().stream().map(r -> r.legacyKey() + ": " + r.reason()).toList();
+    }
+
+    private static List<String> keys(List<MigrationReport.Rejection> rows) {
+        return rows.stream().map(MigrationReport.Rejection::legacyKey).toList();
     }
 
     private static ReconciliationCheck check(List<ReconciliationCheck> checks, String name) {
