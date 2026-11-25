@@ -84,6 +84,7 @@ Intentional differences:
 |------------|--------|--------|-----|
 | Decimal scale | Copied from the source string: `285000`, `0.00`, `4.750` | Column scale: `285000.00`, `0.00`, `4.750` | Values are numerically identical; the golden comparison compares numbers by value |
 | Null amounts | Shown as `0` | Shown as `null` | No null amounts in the data. Modern no longer turns missing into zero (except columns with schema defaults) |
+| Unknown loan/borrower ID | `500 Internal Server Error` | `404 Not Found` with JSON `message` (both modes) | Shared `ApiExceptionHandler`; `/api/loans/{id}/payments` for an unknown loan is also 404 instead of `[]` |
 
 The date format (`MM/dd/yyyy`) is unchanged. DTO dates are now `LocalDate` with `@JsonFormat`.
 

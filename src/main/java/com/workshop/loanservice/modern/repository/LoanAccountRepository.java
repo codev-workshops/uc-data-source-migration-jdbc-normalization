@@ -17,6 +17,8 @@ public interface LoanAccountRepository extends JpaRepository<LoanAccount, Long> 
     @EntityGraph(attributePaths = {"borrower", "product"})
     Optional<LoanAccount> findByAccountNumber(String accountNumber);
 
+    boolean existsByAccountNumber(String accountNumber);
+
     @EntityGraph(attributePaths = {"borrower", "product"})
     List<LoanAccount> findByBorrowerExternalIdOrderByIdAsc(String borrowerExternalId);
 }

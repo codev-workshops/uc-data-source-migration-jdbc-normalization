@@ -75,6 +75,8 @@ The app runs on `http://localhost:8080` with endpoints:
 - `GET /api/borrowers/{id}` — Get borrower with loans
 - `GET /api/loans/{loanId}/payments` — Payment history for a loan
 
+An unknown loan account number or borrower ID returns `404 Not Found` with a JSON body (`timestamp`, `status`, `error`, `message`, `path`).
+
 ## Tech Stack
 
 - Java 17

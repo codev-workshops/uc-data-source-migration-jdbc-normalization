@@ -14,6 +14,7 @@ import java.util.Comparator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -60,5 +61,24 @@ abstract class AbstractGoldenApiTest {
         assertThat(actual.equals(NUMBERS_BY_VALUE, expected))
                 .as("%s should match golden/%s%nexpected: %s%nactual:   %s", url, goldenFile, expected, actual)
                 .isTrue();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+            "/api/loans/1,                 Loan not found: 1",
+            "/api/loans/INVALID,           Loan not found: INVALID",
+            "/api/borrowers/INVALID,       Borrower not found: INVALID",
+            "/api/borrowers/1,             Borrower not found: 1",
+            "/api/loans/INVALID/payments,  Loan not found: INVALID",
+            "/api/loans/1/payments,        Loan not found: 1"
+    })
+    void missingResourceReturns404(String url, String message) throws Exception {
+        mockMvc.perform(get(url))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value(message))
+                .andExpect(jsonPath("$.path").value(url))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 }

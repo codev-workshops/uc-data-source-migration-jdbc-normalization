@@ -60,7 +60,7 @@ public class LegacyLoanService implements LoanService {
     @Override
     public LoanSummaryDto getLoanById(String loanAccountNumber) {
         LegacyLoanAccount acct = loanAccountRepository.findById(loanAccountNumber)
-                .orElseThrow(() -> new RuntimeException("Loan not found: " + loanAccountNumber));
+                .orElseThrow(() -> new ResourceNotFoundException("Loan", loanAccountNumber));
         LegacyLoanProduct product = loanProductRepository.findById(acct.getProductCode())
                 .orElse(null);
         return toLoanSummary(acct, product);
@@ -76,7 +76,7 @@ public class LegacyLoanService implements LoanService {
     @Override
     public BorrowerDto getBorrowerById(String borrowerId) {
         LegacyBorrower borrower = borrowerRepository.findById(borrowerId)
-                .orElseThrow(() -> new RuntimeException("Borrower not found: " + borrowerId));
+                .orElseThrow(() -> new ResourceNotFoundException("Borrower", borrowerId));
         BorrowerDto dto = toBorrowerDto(borrower);
 
         // Attach loans for this borrower
@@ -94,6 +94,9 @@ public class LegacyLoanService implements LoanService {
 
     @Override
     public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
+        if (!loanAccountRepository.existsById(loanAccountNumber)) {
+            throw new ResourceNotFoundException("Loan", loanAccountNumber);
+        }
         return paymentRepository.findByLoanAccountNumberOrderByPaymentDateDesc(loanAccountNumber)
                 .stream()
                 .map(this::toPaymentDto)

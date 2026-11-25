@@ -47,7 +47,7 @@ public class ModernLoanService implements LoanService {
     public LoanSummaryDto getLoanById(String loanAccountNumber) {
         return loanAccountRepository.findByAccountNumber(loanAccountNumber)
                 .map(this::toLoanSummary)
-                .orElseThrow(() -> new RuntimeException("Loan not found: " + loanAccountNumber));
+                .orElseThrow(() -> new ResourceNotFoundException("Loan", loanAccountNumber));
     }
 
     @Override
@@ -60,7 +60,7 @@ public class ModernLoanService implements LoanService {
     @Override
     public BorrowerDto getBorrowerById(String borrowerId) {
         Borrower borrower = borrowerRepository.findByExternalId(borrowerId)
-                .orElseThrow(() -> new RuntimeException("Borrower not found: " + borrowerId));
+                .orElseThrow(() -> new ResourceNotFoundException("Borrower", borrowerId));
         BorrowerDto dto = toBorrowerDto(borrower);
         dto.setLoans(loanAccountRepository.findByBorrowerExternalIdOrderByIdAsc(borrowerId).stream()
                 .map(this::toLoanSummary)
@@ -70,6 +70,9 @@ public class ModernLoanService implements LoanService {
 
     @Override
     public List<PaymentDto> getPaymentsByLoan(String loanAccountNumber) {
+        if (!loanAccountRepository.existsByAccountNumber(loanAccountNumber)) {
+            throw new ResourceNotFoundException("Loan", loanAccountNumber);
+        }
         return paymentRepository.findByLoanAccountAccountNumberOrderByPaymentDateDescIdAsc(loanAccountNumber).stream()
                 .map(this::toPaymentDto)
                 .toList();
