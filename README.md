@@ -68,6 +68,14 @@ See [DATA_SOURCE_MIGRATION_NOTES.md](DATA_SOURCE_MIGRATION_NOTES.md) for decisio
 ./mvnw spring-boot:run
 ```
 
+The default configuration is production-safe: SQL logging and the H2 console are off, and health details are hidden.
+For local demos and debugging, run with the `local` profile, which turns on SQL logging, the H2 console at `/h2-console`
+and full `/actuator/health` details (migration report, reconciliation mismatches):
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
+
 The app runs on `http://localhost:8080` with endpoints:
 - `GET /api/loans` — List all loans
 - `GET /api/loans/{id}` — Get loan details
