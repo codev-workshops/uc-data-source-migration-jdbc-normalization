@@ -164,6 +164,25 @@ class MigrationEdgeCaseTest {
     }
 
     @Test
+    void databaseErrorRollsBackOnlyThatRowAndCascades() {
+        legacy.execute("ALTER TABLE CDW_BORR_MSTR ALTER COLUMN BORR_ST_CD VARCHAR(10)");
+        legacy.update("INSERT INTO CDW_BORR_MSTR (BORR_ID, BORR_FST_NM, BORR_LST_NM, BORR_ST_CD, BORR_STAT_CD) "
+                + "VALUES ('B-90020', 'Long', 'State', 'ILLINOIS', 'ACT')");
+        loan("LN-9999-00020", "B-90020", "100,000.00");
+
+        MigrationReport report = migrator.migrate();
+
+        assertInserted(report, 5, 5, 5, 10);
+        assertThat(reasons(report, "borrowers")).singleElement().asString()
+                .startsWith("B-90020: ").contains("Value too long");
+        assertThat(reasons(report, "loan_accounts")).containsExactly(
+                "LN-9999-00020: BORR_ID='B-90020': borrower B-90020 was rejected");
+        assertThat(modern.queryForObject("SELECT COUNT(*) FROM borrowers WHERE external_id = 'B-90020'", Integer.class))
+                .isZero();
+        assertThat(migrator.reconcile(report)).allSatisfy(check -> assertThat(check.passed()).as(check.toString()).isTrue());
+    }
+
+    @Test
     void flagsUnexpectedDiscrepancies() {
         MigrationReport report = migrator.migrate();
         modern.update("DELETE FROM payments WHERE external_id = 'PMT-2025120003'");

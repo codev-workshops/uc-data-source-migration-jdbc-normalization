@@ -352,8 +352,8 @@ public class LegacyToModernMigrator {
                 unparseable[0]++;
             }
         });
-        BigDecimal modernTotal = modern.queryForObject(
-                "SELECT COALESCE(SUM(" + modernColumn + "), 0) FROM " + modernTable, BigDecimal.class);
+        BigDecimal modernTotal = Objects.requireNonNullElse(modern.queryForObject(
+                "SELECT SUM(" + modernColumn + ") FROM " + modernTable, BigDecimal.class), BigDecimal.ZERO);
         boolean passed = unparseable[0] == 0 && legacyTotal[0].compareTo(modernTotal) == 0;
         checks.add(new ReconciliationCheck(modernTable + "." + modernColumn + " total",
                 legacyTotal[0].toPlainString() + (unparseable[0] == 0 ? "" : " (" + unparseable[0] + " unparseable)"),
