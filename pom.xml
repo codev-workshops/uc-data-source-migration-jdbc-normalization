@@ -19,6 +19,10 @@
 
     <properties>
         <java.version>17</java.version>
+        <!-- CVE patch overrides on top of the Spring Boot 3.5 BOM; drop once Boot ships these versions -->
+        <tomcat.version>10.1.59</tomcat.version>
+        <jackson-bom.version>2.21.7</jackson-bom.version>
+        <log4j2.version>2.25.5</log4j2.version>
     </properties>
 
     <dependencies>
