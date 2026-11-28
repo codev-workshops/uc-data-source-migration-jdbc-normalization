@@ -12,6 +12,8 @@ import com.workshop.loanservice.repository.LegacyLoanAccountRepository;
 import com.workshop.loanservice.repository.LegacyLoanProductRepository;
 import com.workshop.loanservice.repository.LegacyPaymentRepository;
 import com.workshop.loanservice.migration.LegacyValueParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +33,8 @@ import java.util.stream.Collectors;
 @ConditionalOnProperty(name = "loan.datasource.mode", havingValue = "legacy")
 public class LegacyLoanService implements LoanService {
 
+    private static final Logger log = LoggerFactory.getLogger(LegacyLoanService.class);
+
     private final LegacyBorrowerRepository borrowerRepository;
     private final LegacyLoanAccountRepository loanAccountRepository;
     private final LegacyLoanProductRepository loanProductRepository;
@@ -40,6 +44,7 @@ public class LegacyLoanService implements LoanService {
                        LegacyLoanAccountRepository loanAccountRepository,
                        LegacyLoanProductRepository loanProductRepository,
                        LegacyPaymentRepository paymentRepository) {
+        log.info("Loan API serves data from the legacy schema (loan.datasource.mode=legacy)");
         this.borrowerRepository = borrowerRepository;
         this.loanAccountRepository = loanAccountRepository;
         this.loanProductRepository = loanProductRepository;

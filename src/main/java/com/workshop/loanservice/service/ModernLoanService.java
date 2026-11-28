@@ -9,6 +9,8 @@ import com.workshop.loanservice.modern.entity.Payment;
 import com.workshop.loanservice.modern.repository.BorrowerRepository;
 import com.workshop.loanservice.modern.repository.LoanAccountRepository;
 import com.workshop.loanservice.modern.repository.PaymentRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,8 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ModernLoanService implements LoanService {
 
+    private static final Logger log = LoggerFactory.getLogger(ModernLoanService.class);
+
     private final BorrowerRepository borrowerRepository;
     private final LoanAccountRepository loanAccountRepository;
     private final PaymentRepository paymentRepository;
@@ -31,6 +35,7 @@ public class ModernLoanService implements LoanService {
     public ModernLoanService(BorrowerRepository borrowerRepository,
                              LoanAccountRepository loanAccountRepository,
                              PaymentRepository paymentRepository) {
+        log.info("Loan API serves data from the modern schema (loan.datasource.mode=modern)");
         this.borrowerRepository = borrowerRepository;
         this.loanAccountRepository = loanAccountRepository;
         this.paymentRepository = paymentRepository;

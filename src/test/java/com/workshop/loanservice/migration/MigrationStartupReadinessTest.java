@@ -47,4 +47,20 @@ class MigrationStartupReadinessTest {
         assertThat(migration.path("details").path("tables").path("payments").path("inserted").asInt()).isEqualTo(10);
         assertThat(migration.path("details").path("mismatches").size()).isZero();
     }
+
+    @Test
+    void migrationMetricsAndInfoAreExposed() {
+        JsonNode inserted = http.getForObject(
+                "/actuator/metrics/loan.migration.rows?tag=table:payments&tag=outcome:inserted", JsonNode.class);
+        assertThat(inserted.path("measurements").get(0).path("value").asDouble()).isEqualTo(10.0);
+
+        JsonNode mismatches = http.getForObject("/actuator/metrics/loan.migration.reconciliation.mismatches", JsonNode.class);
+        assertThat(mismatches.path("measurements").get(0).path("value").asDouble()).isZero();
+
+        JsonNode duration = http.getForObject("/actuator/metrics/loan.migration.duration?tag=outcome:success", JsonNode.class);
+        assertThat(duration.path("measurements").get(0).path("value").asDouble()).isEqualTo(1.0);
+
+        JsonNode info = http.getForObject("/actuator/info", JsonNode.class);
+        assertThat(info.path("app").path("datasource-mode").asText()).isEqualTo("modern");
+    }
 }

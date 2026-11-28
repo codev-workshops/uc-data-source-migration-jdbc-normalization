@@ -83,12 +83,21 @@ The app runs on `http://localhost:8080` with endpoints:
 - `GET /api/borrowers/{id}` — Get borrower with loans
 - `GET /api/loans/{loanId}/payments` — Payment history for a loan
 
-An unknown loan account number or borrower ID returns `404 Not Found` with a JSON body (`timestamp`, `status`, `error`, `message`, `path`).
+An unknown loan account number or borrower ID returns `404 Not Found` with a JSON body (`timestamp`, `status`, `error`, `message`, `path`, `requestId`).
+Every error uses that shape: `400` for bad parameters, `404` for unknown IDs or routes, `405` for unsupported methods, and `500`
+with a generic message for unexpected failures (stack traces are only logged).
+
+## Observability
+
+- **Request IDs:** every response has an `X-Request-Id` header (the caller's value if it is a safe token of up to 64 characters, otherwise a new UUID). The same id is in error bodies and in every log line of that request (`[requestId=...]`).
+- **Logs:** startup logs the datasource mode, the migration time and row counts per table, and every reconciliation check. Each API request is logged with its status and duration.
+- **Actuator:** `/actuator/health` (with `migration` and `readiness`), `/actuator/info` (build version, Java, datasource mode) and `/actuator/metrics`.
+- **Migration metrics:** `loan.migration.rows` (tags `table`, `outcome` = `read`/`inserted`/`skipped_existing`/`rejected`/`duplicate`), `loan.migration.duration` (tag `outcome` = `success`/`failure`), and the gauges `loan.migration.reconciliation.checks` and `loan.migration.reconciliation.mismatches`.
 
 ## Tech Stack
 
 - Java 17
-- Spring Boot 3.2
+- Spring Boot 3.5
 - Spring Data JPA
 - H2 (in-memory: `legacydw` simulates the legacy DW, `loandb` holds the modern schema)
 - Maven
