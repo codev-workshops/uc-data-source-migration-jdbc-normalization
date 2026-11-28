@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
  * Maps to the legacy CDW_BORR_MSTR table.
  * All fields are strings (legacy DW pattern — loose typing).
  */
+@Deprecated
 @Entity
 @Table(name = "CDW_BORR_MSTR")
 public class LegacyBorrower {

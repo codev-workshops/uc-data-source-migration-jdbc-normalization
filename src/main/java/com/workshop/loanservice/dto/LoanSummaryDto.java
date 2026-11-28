@@ -1,6 +1,9 @@
 package com.workshop.loanservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * Summary DTO for loan listing.
@@ -15,7 +18,8 @@ public class LoanSummaryDto {
     private BigDecimal interestRate;
     private BigDecimal monthlyPayment;
     private String status;
-    private String originationDate;
+    @JsonFormat(pattern = "MM/dd/yyyy")
+    private LocalDate originationDate;
     private String propertyAddress;
     private String propertyType;
 
@@ -35,8 +39,8 @@ public class LoanSummaryDto {
     public void setMonthlyPayment(BigDecimal monthlyPayment) { this.monthlyPayment = monthlyPayment; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-    public String getOriginationDate() { return originationDate; }
-    public void setOriginationDate(String originationDate) { this.originationDate = originationDate; }
+    public LocalDate getOriginationDate() { return originationDate; }
+    public void setOriginationDate(LocalDate originationDate) { this.originationDate = originationDate; }
     public String getPropertyAddress() { return propertyAddress; }
     public void setPropertyAddress(String propertyAddress) { this.propertyAddress = propertyAddress; }
     public String getPropertyType() { return propertyType; }

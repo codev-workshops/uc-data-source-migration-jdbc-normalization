@@ -1,6 +1,9 @@
 package com.workshop.loanservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * Payment DTO for API responses.
@@ -9,7 +12,8 @@ public class PaymentDto {
 
     private String paymentId;
     private String loanAccountNumber;
-    private String paymentDate;
+    @JsonFormat(pattern = "MM/dd/yyyy")
+    private LocalDate paymentDate;
     private BigDecimal totalAmount;
     private BigDecimal principalAmount;
     private BigDecimal interestAmount;
@@ -22,8 +26,8 @@ public class PaymentDto {
     public void setPaymentId(String paymentId) { this.paymentId = paymentId; }
     public String getLoanAccountNumber() { return loanAccountNumber; }
     public void setLoanAccountNumber(String loanAccountNumber) { this.loanAccountNumber = loanAccountNumber; }
-    public String getPaymentDate() { return paymentDate; }
-    public void setPaymentDate(String paymentDate) { this.paymentDate = paymentDate; }
+    public LocalDate getPaymentDate() { return paymentDate; }
+    public void setPaymentDate(LocalDate paymentDate) { this.paymentDate = paymentDate; }
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
     public BigDecimal getPrincipalAmount() { return principalAmount; }
